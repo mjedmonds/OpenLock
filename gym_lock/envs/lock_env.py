@@ -6,11 +6,17 @@ import Box2D as b2
 
 from gym import error, spaces
 from gym.utils import closer, seeding
+from gym.envs.classic_control import rendering
 
+from gym_lock.envs.lock_world_def import LockWorldDef
 
+VIEWPORT_W = 600
+VIEWPORT_H = 400
+SCALE  = 30.0   # affects how fast-paced the game is, forces should be adjusted as well
 FPS = 30
 
-class LockEnv(gym.Env):
+
+class LockEnv(LockWorldDef, gym.Env):
 
     # Set this in SOME subclasses
     metadata = {'render.modes': ['human']} #TODO what does this do?
@@ -24,102 +30,14 @@ class LockEnv(gym.Env):
 
     def __init__(self):
 
+        LockWorldDef.__init__(self)
+
         self.action_space = spaces.Discrete(5) # up, down, left, right 
         self.observation_space = spaces.Box(-np.inf, np.inf, [4]) # [x, y, vx, vy]
         self.reward_range = (-np.inf, np.inf)
         self._seed()
-        
-        # setup Box2D world
-        self.world = b2.b2World(gravity=(0, -10), doSleep=True)
-        self.world.gravity = (0.0, 0.0)
-        self.initial_position = (0,5)
-        self.initial_angle = b2.b2_pi
-        self.initial_linear_velocity = (0.,0.) #(x0[2], x0[3])
-        self.initial_target_obj_position = (5.,20.) #(x0[4], x0[5])
-        self.initial_target_obj_linear_velocity = (0., 0.) #(x0[6], x0[7]),
-        self.initial_angular_velocity = 0
-        self.target_initial = (0, 0)
+        self.viewer = None
 
-        ground = self.world.CreateBody(position=(0, 0))
-        ground.CreateEdgeChain(
-            [(-20, -20),
-             (-20, 20),
-             (20, 20),
-             (20, -20),
-             (-20, -20)]
-            )
-
-        xf1 = b2.b2Transform()
-        xf1.angle = 0.3524 * b2.b2_pi
-        xf1.position = b2.b2Mul(xf1.R, (1.0, 0.0))
-
-        xf2 = b2.b2Transform()
-        xf2.angle = -0.3524 * b2.b2_pi
-        xf2.position = b2.b2Mul(xf2.R, (-1.0, 0.0))
-        self.body = self.world.CreateDynamicBody(
-            position=self.initial_position,
-            angle=self.initial_angle,
-            linearVelocity=self.initial_linear_velocity,
-            angularVelocity=self.initial_angular_velocity,
-            angularDamping=5,
-            linearDamping=0.1,
-            shapes=[b2.b2CircleShape(radius=1)],
-            shapeFixture=b2.b2FixtureDef(density=1.0),
-        )
-
-        # Create piston
-
-        # create piston head
-        self.target_obj = self.world.CreateDynamicBody(
-            position=(0,0),
-            angle=0,
-            linearVelocity=self.initial_linear_velocity,
-            angularVelocity=0,
-            angularDamping=5,
-            linearDamping=0.3,
-            shapes=[b2.b2PolygonShape(box=(2, 1))],
-            shapeFixture=b2.b2FixtureDef(density=1.0),
-        )
-
-        # piston head desired location
-        self.target = self.world.CreateStaticBody(
-            position=(0, -5),
-            angle=0,
-            shapes=[b2.b2PolygonShape(box=(2, 1))],
-        )
-        self.target.active = False
-        # ghost body which IS active for piston
-        self.target_ghost = self.world.CreateStaticBody(
-            position=(0,-5),
-        )
-
-        # piston constraining walls
-        eta = 0.1
-        self.piston_walls = self.world.CreateBody(position=(0, 0))
-        ground.CreateEdgeChain([(-3,1), (-3,-10), (3,-10), (3, 1), (2 + eta, 1), (2 + eta, -9), (-2 - eta, -9), (-2 - eta, 1), (-3, 1)])
-
-        # constrain piston movement
-        self.world.CreatePrismaticJoint(
-            bodyA=self.target_obj,
-            bodyB=self.target_ghost,
-            anchor=(self.target.position + self.target_obj.position) / 2,
-            axis=(0, 1),
-            lowerTranslation=0.0,
-            upperTranslation=5.0,
-            enableLimit=True,
-            # motorForce=1.0,
-            motorSpeed=0.0,
-            enableMotor=True,
-        )
-        # attach spring to piston head
-        self.world.CreateDistanceJoint(
-            bodyA=self.target_obj,
-            bodyB=self.target_ghost,
-            anchorA=self.target_obj.position,
-            anchorB=self.target_ghost.position,
-            frequencyHz = 0.5,
-            dampingRatio = 0.8,
-            collideConnected=True)
 
     def _step(self, action):
         """Run one timestep of the environment's dynamics. When end of
@@ -137,9 +55,9 @@ class LockEnv(gym.Env):
                 done (boolean): whether the episode has ended, in which case further step() calls will return undefined results
                 info (dict): contains auxiliary diagnostic information (helpful for debugging, and sometimes learning)
         """
-        self.body.ApplyForce(force=action, point=self.body.position, wake=True) 
+        self._apply_action(action)
         self.world.Step(1.0/FPS, 10, 10)
-        
+
         return np.zeros(4), 0, False, dict()
          
     def _reset(self):
@@ -188,7 +106,27 @@ class LockEnv(gym.Env):
                         else:
                                 super(MyEnv, self).render(mode=mode) # just raise an exception
         """
-        print self.body.position
+        if close:
+            if self.viewer is not None:
+                self.viewer.close()
+                self.viewer = None
+            return
+
+        if self.viewer is None:
+            self.viewer = rendering.Viewer(VIEWPORT_W, VIEWPORT_H)
+            self.viewer.set_bounds(-VIEWPORT_W / SCALE, VIEWPORT_W / SCALE, -VIEWPORT_H / SCALE, VIEWPORT_H / SCALE)
+
+        for body in self.world:
+            for fixture in body.fixtures:
+                if isinstance(fixture.shape, b2.b2EdgeShape):
+                    self.viewer.draw_line(fixture.shape.vertices[0], fixture.shape.vertices[1])
+                elif isinstance(fixture.shape, b2.b2CircleShape):
+                    # print fixture.body.transform
+                    trans = rendering.Transform(translation=fixture.body.transform*fixture.shape.pos)
+                    self.viewer.draw_circle(fixture.shape.radius).add_attr(trans)
+
+        return self.viewer.render(return_rgb_array = mode=='rgb_array')
+
 
     def _seed(self, seed=None):
         """Sets the seed for this env's random number generator(s).
