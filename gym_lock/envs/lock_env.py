@@ -16,7 +16,7 @@ SCALE  = 30.0   # affects how fast-paced the game is, forces should be adjusted 
 FPS = 30
 
 
-class LockEnv(LockWorldDef, gym.Env):
+class LockEnv(gym.Env):
 
     # Set this in SOME subclasses
     metadata = {'render.modes': ['human']} #TODO what does this do?
@@ -30,13 +30,14 @@ class LockEnv(LockWorldDef, gym.Env):
 
     def __init__(self):
 
-        LockWorldDef.__init__(self)
 
         self.action_space = spaces.Discrete(5) # up, down, left, right 
         self.observation_space = spaces.Box(-np.inf, np.inf, [4]) # [x, y, vx, vy]
         self.reward_range = (-np.inf, np.inf)
         self._seed()
         self.viewer = None
+        self.world_def = LockWorldDef()
+
 
 
     def _step(self, action):
@@ -55,9 +56,7 @@ class LockEnv(LockWorldDef, gym.Env):
                 done (boolean): whether the episode has ended, in which case further step() calls will return undefined results
                 info (dict): contains auxiliary diagnostic information (helpful for debugging, and sometimes learning)
         """
-        self._apply_action(action)
-        self.world.Step(1.0/FPS, 10, 10)
-
+        self.world_def.step(1.0/FPS, 10, 10)
         return np.zeros(4), 0, False, dict()
          
     def _reset(self):
@@ -116,14 +115,20 @@ class LockEnv(LockWorldDef, gym.Env):
             self.viewer = rendering.Viewer(VIEWPORT_W, VIEWPORT_H)
             self.viewer.set_bounds(-VIEWPORT_W / SCALE, VIEWPORT_W / SCALE, -VIEWPORT_H / SCALE, VIEWPORT_H / SCALE)
 
-        for body in self.world:
+        for body in self.world_def.world:
             for fixture in body.fixtures:
+                t = body.transform
                 if isinstance(fixture.shape, b2.b2EdgeShape):
                     self.viewer.draw_line(fixture.shape.vertices[0], fixture.shape.vertices[1])
                 elif isinstance(fixture.shape, b2.b2CircleShape):
                     # print fixture.body.transform
-                    trans = rendering.Transform(translation=fixture.body.transform*fixture.shape.pos)
+                    trans = rendering.Transform(translation=t*fixture.shape.pos)
                     self.viewer.draw_circle(fixture.shape.radius).add_attr(trans)
+                elif isinstance(fixture.shape, b2.b2PolygonShape):
+                    vertices = [fixture.body.transform * v for v in fixture.shape.vertices]
+                    self.viewer.draw_polygon(vertices, filled=False)
+
+
 
         return self.viewer.render(return_rgb_array = mode=='rgb_array')
 

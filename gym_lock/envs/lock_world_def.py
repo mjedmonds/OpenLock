@@ -14,13 +14,7 @@ class LockWorldDef(object):
     def __init__(self):
         super(LockWorldDef, self).__init__()
 
-        # don't override previously initialzie world
-        if not self.world:
-            self.world = b2.b2World(gravity=(0, -10), doSleep=True)
-        else:
-            # but do assure that world has common setting
-            self.world.doSleep = True
-            self.world.gravity = (0, -10)
+        self.world = b2.b2World(gravity=(0, -10), doSleep=True)
 
         self.initial_position = (0, 5)
         self.initial_angle = b2.b2_pi
@@ -138,5 +132,13 @@ class LockWorldDef(object):
         self.target.angularVelocity = 0
         self.target.linearVelocity = (0, 0)
 
-    def _apply_action(self, action):
+    def step(self, timestep, vel_iterations, pos_iterations):
+        self.world.Step(timestep, vel_iterations, pos_iterations)
+
+    def take_action(self, action):
         self.body.ApplyForce(force=(action[0], action[1]), point=self.body.position, wake=True)
+
+    def get_state(self):
+        return [self.body.position,
+                self.body.linearVelocity,
+                self.target_obj.position]
