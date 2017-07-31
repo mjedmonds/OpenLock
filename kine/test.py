@@ -25,9 +25,21 @@ class TwoDKinematicChain(object):
     def compute_total_transform(self):
         total_transform = np.eye(4)
         for link in self.chain:
-            print link.get_adjoint()
             total_transform = total_transform.dot(link.get_transform())
         return total_transform
+
+    def compute_jacobian(self):
+        transform = self.chain[0].get_transform()
+        jacobian = []
+        for i in range(1, len(self.chain)):
+            transform = transform.dot(self.chain[i].get_transform())
+            if self.chain[i - 1].screw is not None:
+                # end of a link
+                screw = self.chain[i - 1].screw
+                adj = get_adjoint(transform)
+                jacobian_i = adj.dot(screw)
+                jacobian.append(jacobian_i)
+        return np.array(jacobian).transpose()
 
 class TwoDKinematicLink(object):
 
@@ -40,7 +52,8 @@ class TwoDKinematicLink(object):
         self.x = x
         self.y = y
         self.scale = scale
-        self.screw = screw
+        self.screw = np.array(screw) if screw != None else None
+        print self.screw
         self.name = name
         
     def set_theta(self, theta):
@@ -64,17 +77,16 @@ class TwoDKinematicLink(object):
     def get_transform(self):
         return self.transform
 
-#joint_config = [{'name' : '0-0+'},
-#                {'name' : '0+1-', 'theta' : np.pi / 2, 'screw' : [0, 0, 0, 0, 0, 1]},
-#                {'name' : '1-1+', 'x' : 10},
-#                {'name' : '1+2-', 'theta' : np.pi / 2, 'screw' : [0, 0, 0, 0, 0, 1]}, 
-#                {'name' : '2-2+', 'x' : 20},
+joint_config = [{'name' : '0-0+'},
+                {'name' : '0+1-', 'theta' : np.pi / 4, 'screw' : [0, 0, 0, 0, 0, 1]},
+                {'name' : '1-1+', 'x' : 1},
+                {'name' : '1+2-', 'theta' : np.pi / 4, 'screw' : [0, 0, 0, 0, 0, 1]}, 
+                {'name' : '2-2+', 'x' : 1}]
 #                {'name' : '2+3-', 'theta' : np.pi / 2, 'screw' : [0, 0, 0, 0, 0, 1]},
 #                {'name' : '3-3+', 'x' : 30}]
 
-test = TwoDKinematicLink(y=1)
-print get_adjoint(test.transform)
-#chain = TwoDKinematicChain(joint_config)
-#transform = chain.compute_total_transform()
-#print transform.dot(np.asarray([0, 0, 0, 1]))
+chain = TwoDKinematicChain(joint_config)
+print chain.compute_jacobian()
+transform = chain.compute_total_transform()
+print transform.dot(np.asarray([0, 0, 0, 1]))
 
