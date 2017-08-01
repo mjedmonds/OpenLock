@@ -8,7 +8,7 @@ from gym import error, spaces
 from gym.utils import closer, seeding
 from gym.envs.classic_control import rendering
 
-from gym_lock.envs.arm_world_def import ArmWorldDef
+from gym_lock.envs.world_defs.arm_lock_def import ArmLockDef
 
 VIEWPORT_W = 600
 VIEWPORT_H = 400
@@ -16,7 +16,7 @@ SCALE  = 30.0   # affects how fast-paced the game is, forces should be adjusted 
 FPS = 30
 
 
-class ArmEnv(gym.Env):
+class ArmLockEnv(gym.Env):
 
     # Set this in SOME subclasses
     metadata = {'render.modes': ['human']} #TODO what does this do?
@@ -36,7 +36,7 @@ class ArmEnv(gym.Env):
         self.reward_range = (-np.inf, np.inf)
         self._seed()
         self.viewer = None
-        self.world_def = ArmWorldDef()
+        self.world_def = ArmLockDef()
 
 
 

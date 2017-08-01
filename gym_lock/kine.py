@@ -43,6 +43,16 @@ class KinematicChain(object):
         self.chain = []
         for link in self.configuration:
             self.chain.append(KinematicLink(**link))
+    
+    def get_link_locations(self):
+        total_transform = np.eye(4)
+        link_locations = []
+        for link in self.chain:
+            total_transform = total_transform.dot(link.get_transform())
+            if link.screw is None:
+                # link is a translation
+                link_locations.append(total_transform[:3, 3])
+        return link_locations
 
     def get_transform(self):
         total_transform = np.eye(4)
@@ -101,31 +111,33 @@ class KinematicLink(object):
 joint_config = [{'name' : '0-0+'},
                 {'name' : '0+1-', 'theta' : 0, 'screw' : [0, 0, 0, 0, 0, 1]},
                 {'name' : '1-1+', 'x' : 1},
-                {'name' : '1+2-', 'theta' : 0, 'screw' : [0, 0, 0, 0, 0, 1]}, 
-                {'name' : '2-2+', 'x' : 1}]
+                {'name' : '1+2-', 'theta' : np.pi / 2, 'screw' : [0, 0, 0, 0, 0, 1]}, 
+                {'name' : '2-2+', 'x' : 1},
+                {'name' : '2+3-', 'theta' : np.pi / 2, 'screw' : [0, 0, 0, 0, 0, 1]},
+                {'name' : '3-3+', 'x' : 1}]
 target_config = [{'name' : '0-0+'},
-                {'name' : '0+1-', 'theta' : np.pi / 6, 'screw' : [0, 0, 0, 0, 0, 1]},
+                {'name' : '0+1-', 'theta' : 0, 'screw' : [0, 0, 0, 0, 0, 1]},
                 {'name' : '1-1+', 'x' : 1},
-                {'name' : '1+2-', 'theta' : np.pi / 4, 'screw' : [0, 0, 0, 0, 0, 1]}, 
-                {'name' : '2-2+', 'x' : 1}]
-#                {'name' : '2+3-', 'theta' : np.pi / 2, 'screw' : [0, 0, 0, 0, 0, 1]},
-#                {'name' : '3-3+', 'x' : 30}]
+                {'name' : '1+2-', 'theta' : 0, 'screw' : [0, 0, 0, 0, 0, 1]}, 
+                {'name' : '2-2+', 'x' : 1},
+                {'name' : '2+3-', 'theta' : 0, 'screw' : [0, 0, 0, 0, 0, 1]},
+                {'name' : '3-3+', 'x' : 1}]
 
 def main():
     chain = KinematicChain(joint_config)
     target = KinematicChain(target_config)
-    print type(target)
     
     invk = InverseKinematics(chain, target, 0.1, 0.001)
     alpha = -0.5
     #TODO choose alpha
-    
-    for i in range(0, 1000):
-        print chain.get_transform().dot(np.array([0,0,0,1]))
-        print np.linalg.norm((invk.get_error()))
-        delta_theta = invk.get_delta_theta()
-        chain.chain[1].set_theta(chain.chain[1].theta + alpha * delta_theta[0])
-        chain.chain[3].set_theta(chain.chain[3].theta + alpha * delta_theta[1])
+    print chain.get_link_locations()
+
+#    for i in range(0, 1000):
+#        print chain.get_transform().dot(np.array([0,0,0,1]))
+#        print np.linalg.norm((invk.get_error()))
+#        delta_theta = invk.get_delta_theta()
+#        chain.chain[1].set_theta(chain.chain[1].theta + alpha * delta_theta[0])
+#        chain.chain[3].set_theta(chain.chain[3].theta + alpha * delta_theta[1])
 
 if __name__ == "__main__":
     main()

@@ -6,15 +6,16 @@ FPS = 30
 # TODO: cleanup initialization/reset method
 # NOTE: action spaces are different..
 
-class ArmWorldDef(object):
+class ArmLockDef(object):
 
     def __init__(self):
-        super(ArmWorldDef, self).__init__()
+        super(ArmLockDef, self).__init__()
 
         self.world = b2.b2World(gravity=(0, -10), doSleep=True)
 
         fixture_length = 5
-        self.x0 = x0
+        self.x0 = np.array([0.75*np.pi, 0.5*np.pi, 0, 0, 0, 0, 0])
+        self.target = np.array([0, 0]) 
 
         rectangle_fixture = b2.b2FixtureDef(
             shape=b2.b2PolygonShape(box=(.5, fixture_length)),
@@ -73,13 +74,13 @@ class ArmWorldDef(object):
             enableLimit=False,
         )
 
-        self.set_joint_angles(self.body1, self.body2, x0[0], x0[1])
-        self.set_joint_angles(self.target1, self.target2, target[0], target[1])
+        self.set_joint_angles(self.body1, self.body2, self.x0[0], self.x0[1])
+        self.set_joint_angles(self.target1, self.target2, self.target[0], self.target[1])
         self.target1.active = False
         self.target2.active = False
 
-        self.joint1.motorSpeed = x0[2]
-        self.joint2.motorSpeed = x0[3]
+        self.joint1.motorSpeed = self.x0[2]
+        self.joint2.motorSpeed = self.x0[3]
 
     def set_joint_angles(self, body1, body2, angle1, angle2):
         """ Converts the given absolute angle of the arms to joint angles"""

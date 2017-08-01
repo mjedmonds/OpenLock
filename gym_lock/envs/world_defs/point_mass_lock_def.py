@@ -9,10 +9,10 @@ FPS = 30
 # TODO: cleanup initialization/reset method
 # NOTE: action spaces are different..
 
-class LockWorldDef(object):
+class PointMassLockDef(object):
 
     def __init__(self):
-        super(LockWorldDef, self).__init__()
+        super(PointMassLockDef, self).__init__()
 
         self.world = b2.b2World(gravity=(0, -10), doSleep=True)
 

@@ -8,7 +8,7 @@ from gym import error, spaces
 from gym.utils import closer, seeding
 from gym.envs.classic_control import rendering
 
-from gym_lock.envs.lock_world_def import LockWorldDef
+from gym_lock.envs.world_defs.point_mass_lock_def import PointMassLockDef
 
 VIEWPORT_W = 600
 VIEWPORT_H = 400
@@ -16,7 +16,7 @@ SCALE  = 30.0   # affects how fast-paced the game is, forces should be adjusted 
 FPS = 30
 
 
-class LockEnv(gym.Env):
+class PointMassLockEnv(gym.Env):
 
     # Set this in SOME subclasses
     metadata = {'render.modes': ['human']} #TODO what does this do?
@@ -36,7 +36,7 @@ class LockEnv(gym.Env):
         self.reward_range = (-np.inf, np.inf)
         self._seed()
         self.viewer = None
-        self.world_def = LockWorldDef()
+        self.world_def = PointMassLockDef()
 
 
 
