@@ -39,8 +39,8 @@ class ArmLockEnv(gym.Env):
         self.viewer = None
 
         # kinematics 
-        joint_config = [{'name' : '0-0+', 'y' : -5},
-                        {'name' : '0+1-', 'theta' : np.pi / 8, 'screw' : [0, 0, 0, 0, 0, 1]},
+        joint_config = [{'name' : '0-0+', 'y' : 0},
+                        {'name' : '0+1-', 'theta' : 0, 'screw' : [0, 0, 0, 0, 0, 1]},
                         {'name' : '1-1+', 'x' : 8},
                         {'name' : '1+2-', 'theta' : np.pi / 2, 'screw' : [0, 0, 0, 0, 0, 1]}, 
                         {'name' : '2-2+', 'x' : 8},
