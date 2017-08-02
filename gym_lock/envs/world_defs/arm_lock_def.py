@@ -11,82 +11,62 @@ class ArmLockDef(object):
     def __init__(self, x0):
         super(ArmLockDef, self).__init__()
 
-        self.world = b2.b2World(gravity=(0, 0), doSleep=True)
+        self.world = b2.b2World(gravity=(0, -10), doSleep=True)
 
         fixture_length = 5
         #self.x0 = .array([0.75*np.pi, 0.5*np.pi, 0, 0, 0, 0, 0])
         self.x0 = x0
         self.target = np.array([0, 0]) 
         width = 1.0 
-        base_location = x0[0]
-        arm_link_bodies = []
-        link_fixture = b2.b2FixtureDef(
+        
+        
+        # create arm links 
+        link_fixture = b2.b2FixtureDef( # all links have same properties
             density = 1.0,
             friction = 1.0,
             categoryBits=0x0001,
             maskBits=0x0000)
         print 'hello'
 
-        # create links
+        arm_bodies = []
+        arm_lengths = [] # needed for joints
+
+        # create base
+        base_fixture = b2.b2FixtureDef(
+            shape=b2.b2PolygonShape(box=(1, 1)),
+            density=100.0,
+            friction=1,
+        )
+        arm_bodies.append(self.world.CreateBody(
+            position = x0[0].pos,
+            angle = x0[0].theta,
+            fixtures = base_fixture))
+
+        # create the rest of the arm    
         for i in range(1, len(x0)):
             length = np.linalg.norm(x0[i][0] - x0[i-1][0])
-            link_fixture.shape=b2.b2PolygonShape(vertices=[(0,0), 
-                                      (-length, 0), 
-                                      (-length, width),
-                                      (0, width)
+            arm_lengths.append(length) 
+            link_fixture.shape=b2.b2PolygonShape(vertices=[(0,-width / 2), 
+                                      (-length, -width / 2), 
+                                      (-length, width / 2),
+                                      (0, width / 2)
                                       ])
-            body = self.world.CreateDynamicBody(
+            arm_bodies.append(self.world.CreateDynamicBody(
                 position = x0[i].pos,
                 angle = x0[i].theta,
-                fixtures = link_fixture)
-
-        #rectangle_fixture = b2.b2FixtureDef(
-        #    shape=b2.b2PolygonShape(box=(.5, fixture_length)),
-        #    density=.5,
-        #    friction=1,
-        #)
-        #square_fixture = b2.b2FixtureDef(
-        #    shape=b2.b2PolygonShape(box=(1, 1)),
-        #    density=100.0,
-        #    friction=1,
-        #)
-        #self.base = self.world.CreateBody(
-        #    position=(0, 15),
-        #    fixtures=square_fixture,
-        #)
-
-        #self.body1 = self.world.CreateDynamicBody(
-        #    position=(0, 2),
-        #    fixtures=rectangle_fixture,
-        #    angle=b2.b2_pi,
-        #)
-
-        #self.body2 = self.world.CreateDynamicBody(
-        #    fixtures=rectangle_fixture,
-        #    position=(0, 2),
-        #    angle=b2.b2_pi,
-        #)
-        #self.target1 = self.world.CreateDynamicBody(
-        #    fixtures=rectangle_fixture,
-        #    position=(0, 0),
-        #    angle=b2.b2_pi,
-        #)
-        #self.target2 = self.world.CreateDynamicBody(
-        #    fixtures=rectangle_fixture,
-        #    position=(0, 0),
-        #    angle=b2.b2_pi,
-        #)
-
-        #self.joint1 = self.world.CreateRevoluteJoint(
-        #    bodyA=self.base,
-        #    bodyB=self.body1,
-        #    localAnchorA=(0, 0),
-        #    localAnchorB=(0, fixture_length),
-        #    enableMotor=True,
-        #    maxMotorTorque=400,
-        #    enableLimit=False,
-        #)
-
+                fixtures = link_fixture))
+        
+        # create arm joints
+        arm_joints = []
+        for i in range (1, len(arm_bodies)):
+            arm_joints.append(self.world.CreateRevoluteJoint(
+                bodyA=arm_bodies[i - 1], # end of joint A
+                bodyB=arm_bodies[i], # end of joint B
+                localAnchorA=(0, 0),
+                localAnchorB=(-arm_lengths[i - 1], 0), # for n links, there are n + 1 bodies 
+                enableMotor=True,
+                maxMotorTorque=400,
+                enableLimit=False))
         #self.joint2 = self.world.CreateRevoluteJoint(
         #    bodyA=self.body1,
         #    bodyB=self.body2,
@@ -104,17 +84,6 @@ class ArmLockDef(object):
 
         #self.joint1.motorSpeed = self.x0[2]
         #self.joint2.motorSpeed = self.x0[3]
-
-    def set_joint_angles(self, body1, body2, angle1, angle2):
-        """ Converts the given absolute angle of the arms to joint angles"""
-        pos = self.base.GetWorldPoint((0, 0))
-        body1.angle = angle1 + np.pi
-        new_pos = body1.GetWorldPoint((0, 5))
-        body1.position += pos - new_pos
-        body2.angle = angle2 + body1.angle
-        pos = body1.GetWorldPoint((0, -4.5))
-        new_pos = body2.GetWorldPoint((0, 4.5))
-        body2.position += pos - new_pos
 
     def step(self, timestep, vel_iterations, pos_iterations):
         self.world.Step(timestep, vel_iterations, pos_iterations)
