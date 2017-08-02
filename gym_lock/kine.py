@@ -50,12 +50,13 @@ class KinematicChain(object):
     def get_link_config(self):
         total_transform = np.eye(4)
         link_locations = []
+        dtheta = 0
         for link in self.chain:
             total_transform = total_transform.dot(link.get_transform())
+            dtheta = dtheta + np.arccos(link.get_transform()[0, 0])
             if link.screw is None:
                 # link is a translation
-                link_locations.append(Config(total_transform[:2, 3],
-                                             np.arccos(total_transform[0, 0])))
+                link_locations.append(Config(total_transform[:2, 3], dtheta))
         return link_locations
 
     def get_transform(self):

@@ -11,12 +11,9 @@ class ArmLockDef(object):
     def __init__(self, x0):
         super(ArmLockDef, self).__init__()
 
-        self.world = b2.b2World(gravity=(0, -10), doSleep=True)
+        self.world = b2.b2World(gravity=(0, 0), doSleep=True)
 
-        fixture_length = 5
-        #self.x0 = .array([0.75*np.pi, 0.5*np.pi, 0, 0, 0, 0, 0])
         self.x0 = x0
-        self.target = np.array([0, 0]) 
         width = 1.0 
         
         
@@ -37,14 +34,16 @@ class ArmLockDef(object):
             density=100.0,
             friction=1,
         )
-        arm_bodies.append(self.world.CreateBody(
+        self.base = self.world.CreateBody(
             position = x0[0].pos,
-            angle = x0[0].theta,
-            fixtures = base_fixture))
+            angle = 0,
+            fixtures = base_fixture)
 
-        # create the rest of the arm    
+        # create the rest of the arm
+        # body frame located at each joint
         for i in range(1, len(x0)):
-            length = np.linalg.norm(x0[i][0] - x0[i-1][0])
+            print x0[i]
+            length = np.linalg.norm(x0[i - 1][0] - x0[i][0])
             arm_lengths.append(length) 
             link_fixture.shape=b2.b2PolygonShape(vertices=[(0,-width / 2), 
                                       (-length, -width / 2), 
@@ -58,36 +57,21 @@ class ArmLockDef(object):
         
         # create arm joints
         arm_joints = []
-        for i in range (1, len(arm_bodies)):
+        for i in range (0, len(arm_bodies) - 1):
+            continue
             arm_joints.append(self.world.CreateRevoluteJoint(
-                bodyA=arm_bodies[i - 1], # end of joint A
-                bodyB=arm_bodies[i], # end of joint B
-                localAnchorA=(0, 0),
+                bodyA=arm_bodies[i], # beginning of joint A
+                bodyB=arm_bodies[i + 1], # end of joint B 
+                localAnchorA=(arm, 0),
                 localAnchorB=(-arm_lengths[i - 1], 0), # for n links, there are n + 1 bodies 
                 enableMotor=True,
                 maxMotorTorque=400,
                 enableLimit=False))
-        #self.joint2 = self.world.CreateRevoluteJoint(
-        #    bodyA=self.body1,
-        #    bodyB=self.body2,
-        #    localAnchorA=(0, -(fixture_length - 0.5)),
-        #    localAnchorB=(0, fixture_length - 0.5),
-        #    enableMotor=True,
-        #    maxMotorTorque=400,
-        #    enableLimit=False,
-        #)
-
-        #self.set_joint_angles(self.body1, self.body2, self.x0[0], self.x0[1])
-        #self.set_joint_angles(self.target1, self.target2, self.target[0], self.target[1])
-        #self.target1.active = False
-        #self.target2.active = False
-
-        #self.joint1.motorSpeed = self.x0[2]
-        #self.joint2.motorSpeed = self.x0[3]
 
     def step(self, timestep, vel_iterations, pos_iterations):
         self.world.Step(timestep, vel_iterations, pos_iterations)
 
+    # len(action) == len(arm_joints)
     def take_action(self, action):
         self.joint1.motorSpeed = action[0]
         self.joint2.motorSpeed = action[1]
