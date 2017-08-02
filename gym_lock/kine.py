@@ -1,5 +1,8 @@
 import numpy as np
-from abc import ABCMeta, abstractmethod
+from collections import namedtuple
+
+# defined named tuples
+Config = namedtuple('Config', 'pos theta')
 
 def get_adjoint(transform):
     rot = transform[:3, :3]
@@ -44,14 +47,15 @@ class KinematicChain(object):
         for link in self.configuration:
             self.chain.append(KinematicLink(**link))
     
-    def get_link_locations(self):
+    def get_link_config(self):
         total_transform = np.eye(4)
         link_locations = []
         for link in self.chain:
             total_transform = total_transform.dot(link.get_transform())
             if link.screw is None:
                 # link is a translation
-                link_locations.append(total_transform[:3, 3])
+                link_locations.append(Config(total_transform[:2, 3],
+                                             np.arccos(total_transform[0, 0])))
         return link_locations
 
     def get_transform(self):
@@ -108,29 +112,30 @@ class KinematicLink(object):
     def get_transform(self):
         return self.transform
 
-joint_config = [{'name' : '0-0+'},
-                {'name' : '0+1-', 'theta' : 0, 'screw' : [0, 0, 0, 0, 0, 1]},
-                {'name' : '1-1+', 'x' : 1},
-                {'name' : '1+2-', 'theta' : np.pi / 2, 'screw' : [0, 0, 0, 0, 0, 1]}, 
-                {'name' : '2-2+', 'x' : 1},
-                {'name' : '2+3-', 'theta' : np.pi / 2, 'screw' : [0, 0, 0, 0, 0, 1]},
-                {'name' : '3-3+', 'x' : 1}]
-target_config = [{'name' : '0-0+'},
+
+def main():
+    joint_config = [{'name' : '0-0+'},
+                    {'name' : '0+1-', 'theta' : 0, 'screw' : [0, 0, 0, 0, 0, 1]},
+                    {'name' : '1-1+', 'x' : 1},
+                    {'name' : '1+2-', 'theta' : np.pi / 2, 'screw' : [0, 0, 0, 0, 0, 1]}, 
+                    {'name' : '2-2+', 'x' : 1},
+                    {'name' : '2+3-', 'theta' : np.pi / 2, 'screw' : [0, 0, 0, 0, 0, 1]},
+                    {'name' : '3-3+', 'x' : 1}]
+    target_config = [{'name' : '0-0+'},
                 {'name' : '0+1-', 'theta' : 0, 'screw' : [0, 0, 0, 0, 0, 1]},
                 {'name' : '1-1+', 'x' : 1},
                 {'name' : '1+2-', 'theta' : 0, 'screw' : [0, 0, 0, 0, 0, 1]}, 
                 {'name' : '2-2+', 'x' : 1},
                 {'name' : '2+3-', 'theta' : 0, 'screw' : [0, 0, 0, 0, 0, 1]},
                 {'name' : '3-3+', 'x' : 1}]
-
-def main():
+    
     chain = KinematicChain(joint_config)
     target = KinematicChain(target_config)
     
     invk = InverseKinematics(chain, target, 0.1, 0.001)
     alpha = -0.5
     #TODO choose alpha
-    print chain.get_link_locations()
+    print chain.get_link_config()
 
 #    for i in range(0, 1000):
 #        print chain.get_transform().dot(np.array([0,0,0,1]))
