@@ -1,6 +1,6 @@
 import numpy as np
 from collections import namedtuple
-#from gym_lock.types import TwoDConfig
+from gym_lock.my_types import TwoDConfig
 
 
 def get_adjoint(transform):
@@ -61,16 +61,19 @@ class KinematicChain(object):
         for link in self.configuration:
             self.chain.append(KinematicLink(**link))
     
-    def get_link_config(self):
+    def get_link_abs_config(self):
         total_transform = np.eye(4)
         link_locations = []
-        dtheta = 0
         for link in self.chain:
             total_transform = total_transform.dot(link.get_transform())
-            dtheta = dtheta + np.arccos(link.get_transform()[0, 0])
             if link.screw is None:
                 # link is a translation
-                link_locations.append(TwoDConfig(total_transform[:2, 3], dtheta))
+                angle = np.arccos(total_transform[0, 0]) \
+                        if np.arcsin(total_transform[1, 0]) > 0 \
+                        else -np.arccos(total_transform[0, 0])
+
+                link_locations.append(TwoDConfig(total_transform[:2, 3],
+                                                 angle))
         return link_locations
 
     def get_transform(self):
