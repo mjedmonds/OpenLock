@@ -3,7 +3,7 @@ import time
 
 class PIDController(object):
 
-    def __init__(self, kp=5000, ki=1000, kd=5000, setpoint=0, dt=1):
+    def __init__(self, kp=10000, ki=5000, kd=2000, setpoint=0, dt=1):
 
         self.kp = kp
         self.ki = ki
@@ -30,6 +30,7 @@ class PIDController(object):
         d_term = self.kd * self.differential
       
         #print 'start'
+        #print self.error
         #print p_term
         #print i_term
         #print d_term

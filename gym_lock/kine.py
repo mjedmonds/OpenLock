@@ -1,8 +1,7 @@
 import numpy as np
 from collections import namedtuple
+#from gym_lock.types import TwoDConfig
 
-# defined named tuples
-Config = namedtuple('Config', 'pos theta')
 
 def get_adjoint(transform):
     rot = transform[:3, :3]
@@ -19,7 +18,7 @@ def get_adjoint(transform):
 
 class InverseKinematics(object):
 
-    def __init__(self, kinematic_chain=None, target=None, alpha=-0.5, eta=0.1):
+    def __init__(self, kinematic_chain=None, target=None, alpha=0.05, eta=0.1):
         self.kinematic_chain = kinematic_chain
         self.target = target
         self.alpha = alpha
@@ -43,7 +42,16 @@ class InverseKinematics(object):
         return err_vec
 
     def get_delta_theta(self):
-        return self.kinematic_chain.get_jacobian().transpose().dot(self.get_error())
+        dtheta = self.kinematic_chain.get_jacobian().transpose().dot(self.get_error())
+         # normalize and scale
+        print 'dtheta'
+        print dtheta
+        print self.alpha
+        print np.linalg.norm(dtheta)
+        print dtheta / np.linalg.norm(dtheta)
+        dtheta = self.alpha * dtheta / np.linalg.norm(dtheta)
+        print dtheta
+        return dtheta
 
 class KinematicChain(object):
 
@@ -62,7 +70,7 @@ class KinematicChain(object):
             dtheta = dtheta + np.arccos(link.get_transform()[0, 0])
             if link.screw is None:
                 # link is a translation
-                link_locations.append(Config(total_transform[:2, 3], dtheta))
+                link_locations.append(TwoDConfig(total_transform[:2, 3], dtheta))
         return link_locations
 
     def get_transform(self):
@@ -126,25 +134,26 @@ def main():
                     {'name' : '1-1+', 'x' : 1},
                     {'name' : '1+2-', 'theta' : np.pi / 2, 'screw' : [0, 0, 0, 0, 0, 1]}, 
                     {'name' : '2-2+', 'x' : 1},
-                    {'name' : '2+3-', 'theta' : np.pi / 2, 'screw' : [0, 0, 0, 0, 0, 1]},
+                    {'name' : '2+3-', 'theta' : 0, 'screw' : [0, 0, 0, 0, 0, 1]},
                     {'name' : '3-3+', 'x' : 1}]
     target_config = [{'name' : '0-0+'},
-                {'name' : '0+1-', 'theta' : 0, 'screw' : [0, 0, 0, 0, 0, 1]},
-                {'name' : '1-1+', 'x' : 1},
-                {'name' : '1+2-', 'theta' : 0, 'screw' : [0, 0, 0, 0, 0, 1]}, 
-                {'name' : '2-2+', 'x' : 1},
-                {'name' : '2+3-', 'theta' : 0, 'screw' : [0, 0, 0, 0, 0, 1]},
-                {'name' : '3-3+', 'x' : 1}]
+                     {'name' : '0+1-', 'theta' : 0, 'screw' : [0, 0, 0, 0, 0, 1]},
+                     {'name' : '1-1+', 'x' : 1},
+                     {'name' : '1+2-', 'theta' : 0, 'screw' : [0, 0, 0, 0, 0, 1]}, 
+                     {'name' : '2-2+', 'x' : 1},
+                     {'name' : '2+3-', 'theta' : 0, 'screw' : [0, 0, 0, 0, 0, 1]},
+                     {'name' : '3-3+', 'x' : 1}]
     
     chain = KinematicChain(joint_config)
     target = KinematicChain(target_config)
-    
     invk = InverseKinematics(chain, target, 0.1, 0.001)
-    alpha = -0.5
-    #TODO choose alpha
-    print chain.get_link_config()
-
-
+    import time
+    for i in range(0, 1000):
+        time.sleep(0.1)
+        dtheta = invk.get_delta_theta()
+        for i in range(0, 3):
+            #chain.chain[2i + 1]
+            continue
 if __name__ == "__main__":
     main()
 

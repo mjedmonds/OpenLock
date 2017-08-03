@@ -9,7 +9,8 @@ from gym.utils import closer, seeding
 from gym.envs.classic_control import rendering
 
 from gym_lock.envs.world_defs.arm_lock_def import ArmLockDef
-from gym_lock.kine import KinematicChain, InverseKinematics
+from gym_lock.kine import KinematicChain, InverseKinematics, KinematicLink
+
 
 VIEWPORT_W = 600
 VIEWPORT_H = 400
@@ -29,36 +30,35 @@ class ArmLockEnv(gym.Env):
 
     # Set these in ALL subclasses
 
-    def __init__(self):
+    def __init__(self, target=None):
 
-
+        # TODO: these items are required by openaigym, but not currently utilized
         self.action_space = spaces.Discrete(5) # up, down, left, right 
         self.observation_space = spaces.Box(-np.inf, np.inf, [4]) # [x, y, vx, vy]
         self.reward_range = (-np.inf, np.inf)
         self._seed()
+
         self.viewer = None
 
-        # kinematics 
+        # setup initial arm joint configuration
         joint_config = [{'name' : '0-0+', 'y' : 0},
-                        {'name' : '0+1-', 'theta' : -np.pi / 16, 'screw' : [0, 0, 0, 0, 0, 1]},
-                        {'name' : '1-1+', 'x' : 8},
-                        {'name' : '1+2-', 'theta' : -np.pi / 16, 'screw' : [0, 0, 0, 0, 0, 1]}, 
-                        {'name' : '2-2+', 'x' : 8},
-                        {'name' : '2+3-', 'theta' : -np.pi / 16, 'screw' : [0, 0, 0, 0, 0, 1]},
-                        {'name' : '3-3+', 'x' : 8}]
-        self.chain = KinematicChain(joint_config)
-
-        target_config = [{'name' : '0-0+', 'y' : 0},
                         {'name' : '0+1-', 'theta' : 0, 'screw' : [0, 0, 0, 0, 0, 1]},
-                        {'name' : '1-1+', 'x' : 8},
-                        {'name' : '1+2-', 'theta' : np.pi / 2, 'screw' : [0, 0, 0, 0, 0, 1]}, 
-                        {'name' : '2-2+', 'x' : 8},
+                        {'name' : '1-1+', 'x' : 5},
+                        {'name' : '1+2-', 'theta' : 0, 'screw' : [0, 0, 0, 0, 0, 1]}, 
+                        {'name' : '2-2+', 'x' : 5},
                         {'name' : '2+3-', 'theta' : 0, 'screw' : [0, 0, 0, 0, 0, 1]},
-                        {'name' : '3-3+', 'x' : 8}]
-        self.target = KinematicChain(target_config)
+                        {'name' : '3-3+', 'x' : 5}]
+        self.arm = KinematicChain(joint_config)
         
-        self.invkine = InverseKinematics(kinematic_chain=self.chain, target=self.target)
-        self.world_def = ArmLockDef(self.chain.get_link_config())
+        
+        # setup initial target joint configuration same as arm joint config
+        self.target = KinematicChain(joint_config)        
+
+        # setup inverse kinematics solver
+        self.invkine = InverseKinematics(kinematic_chain=self.arm, target=self.target)
+
+        # create box2d world
+        self.world_def = ArmLockDef(self.arm.get_link_config())
 
 
 
@@ -70,7 +70,7 @@ class ArmLockEnv(gym.Env):
         Accepts an action and returns a tuple (observation, reward, done, info).
 
         Args:
-                action (object): an action provided by the environment
+                action (object): 2DConfig representing configuration of end effector
 
         Returns:
                 observation (object): agent's observation of the current environment
@@ -78,26 +78,43 @@ class ArmLockEnv(gym.Env):
                 done (boolean): whether the episode has ended, in which case further step() calls will return undefined results
                 info (dict): contains auxiliary diagnostic information (helpful for debugging, and sometimes learning)
         """
-        # action = target_config? 
         if action:
-            c = self.world_def.get_current_config()
-            joint_config = [{'name' : '0-0'},
-                            {'name' : '0+1-', 'theta' : c[1][2], 'screw' : [0, 0, 0, 0, 0, 1]},
-                            {'name' : '1-1+', 'x' : 8},
-                            {'name' : '1+2-', 'theta' : c[2][2], 'screw' : [0, 0, 0, 0, 0, 1]}, 
-                            {'name' : '2-2+', 'x' : 8},
-                            {'name' : '2+3-', 'theta' : c[3][2], 'screw' : [0, 0, 0, 0, 0, 1]},
-                            {'name' : '3-3+', 'x' : 8}]
-            new_chain = KinematicChain(joint_config)
-            self.invkine.set_current_config(new_chain)
+            
+            # get current configuration of arm
+            configs = self.world_def.get_current_config()[1:] # get rid of base config
+            for config, link in zip(configs, self.arm.chain):
+                link.set_x(config.pos[0])
+                link.set_y(config.pos[1])
+                link.set_theta(config.theta)
+
+
+            # setup target transform
+            self.target = KinematicLink(x=action.pos[0], 
+                                        y=action.pos[1], 
+                                        theta=action.theta)
+            
+            joint_config = [{'name' : '0-0+', 'y' : 0},
+                            {'name' : '0+1-', 'theta' : 0, 'screw' : [0, 0, 0, 0, 0, 1]},
+                            {'name' : '1-1+', 'x' : 5},
+                            {'name' : '1+2-', 'theta' : 0, 'screw' : [0, 0, 0, 0, 0, 1]}, 
+                            {'name' : '2-2+', 'x' : 5},
+                            {'name' : '2+3-', 'theta' : 0, 'screw' : [0, 0, 0, 0, 0, 1]},
+                            {'name' : '3-3+', 'x' : 5}]
+
+            self.target = KinematicChain(joint_config)
+            # update inverse kinematics module
+            self.invkine.set_target(self.target)
+            self.invkine.set_current_config(self.arm)
+
+            # get theta updates
             delta_theta = self.invkine.get_delta_theta()
-
-            # update angles
-            alpha = -0.5
-
+            print delta_theta
+            # set PID controllers
             self.world_def.set_controllers(delta_theta)
+        
 
         self.world_def.step(1.0/FPS, 10, 10)
+
         return np.zeros(4), 0, False, dict()
     
     def _reset(self):
