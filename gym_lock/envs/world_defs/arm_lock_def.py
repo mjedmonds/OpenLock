@@ -1,6 +1,6 @@
 import numpy as np
 import Box2D as b2
-
+from gym_lock.pid import PIDController
 FPS = 30
 
 # TODO: cleaner interface than indices between bodies and lengths
@@ -12,7 +12,7 @@ class ArmLockDef(object):
     def __init__(self, x0):
         super(ArmLockDef, self).__init__()
 
-        self.world = b2.b2World(gravity=(0, -10), doSleep=True)
+        self.world = b2.b2World(gravity=(0, -2), doSleep=True)
 
         self.x0 = x0
         width = 1.0 
@@ -48,6 +48,9 @@ class ArmLockDef(object):
             categoryBits = 0x0001,
             maskBits = 0x0000)
         
+        # add in "virtual" joint length so arm_bodies and arm_lengths are same length
+        length = np.linalg.norm(x0[1][0] - x0[0][0])
+        self.arm_lengths.append(length) 
         # create the rest of the arm
         # body frame located at each joint
         for i in range(1, len(x0)):
@@ -69,16 +72,25 @@ class ArmLockDef(object):
             motor_fixtures.append(arm_body.CreateFixture(motor_fixture))
        
         # create arm joints
-        arm_joints = []
+        self.arm_joints = []
         for i in range (1, len(self.arm_bodies)):
-            arm_joints.append(self.world.CreateRevoluteJoint(
+            self.arm_joints.append(self.world.CreateRevoluteJoint(
                 bodyA=self.arm_bodies[i - 1], # end of link A
                 bodyB=self.arm_bodies[i], # beginning of link B 
                 localAnchorA=(0, 0),
-                localAnchorB=(-self.arm_lengths[i - 1], 0), # for n links, there are n + 1 bodies 
+                localAnchorB=(-self.arm_lengths[i], 0),  
                 enableMotor=True,
                 maxMotorTorque=400,
                 enableLimit=False))
+
+        # create joint PID controllers
+        self.joint_controllers = [] # "virtual" controller so that 
+                                   # arm_lengths and arm_bodies have same index 
+        pts = [0, np.pi / 2, 0]
+        for i in range(0, len(self.arm_joints)):
+            self.joint_controllers.append(PIDController(setpoint=pts[i],
+                                                   dt=1.0/FPS))
+
 
 
     def apply_torque(self, idx, torque):
@@ -90,6 +102,12 @@ class ArmLockDef(object):
         self.arm_bodies[idx].ApplyForce(force=force_vector, point=position, wake=True)
 
     def step(self, timestep, vel_iterations, pos_iterations):
+        # update torques
+        for i in range(1, len(self.arm_bodies)):
+
+            print self.arm_bodies[i].transform.angle
+            new_torque = self.joint_controllers[i - 1].update(self.arm_bodies[i].transform.angle)
+            self.apply_torque(i, new_torque)
         self.world.Step(timestep, vel_iterations, pos_iterations)
 
     # TODO: deprecated?

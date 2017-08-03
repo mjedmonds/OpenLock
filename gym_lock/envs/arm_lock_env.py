@@ -40,11 +40,11 @@ class ArmLockEnv(gym.Env):
 
         # kinematics 
         joint_config = [{'name' : '0-0+', 'y' : 0},
-                        {'name' : '0+1-', 'theta' : 0, 'screw' : [0, 0, 0, 0, 0, 1]},
+                        {'name' : '0+1-', 'theta' : -np.pi / 16, 'screw' : [0, 0, 0, 0, 0, 1]},
                         {'name' : '1-1+', 'x' : 8},
-                        {'name' : '1+2-', 'theta' : np.pi / 2, 'screw' : [0, 0, 0, 0, 0, 1]}, 
+                        {'name' : '1+2-', 'theta' : -np.pi / 16, 'screw' : [0, 0, 0, 0, 0, 1]}, 
                         {'name' : '2-2+', 'x' : 8},
-                        {'name' : '2+3-', 'theta' : np.pi / 2, 'screw' : [0, 0, 0, 0, 0, 1]},
+                        {'name' : '2+3-', 'theta' : -np.pi / 16, 'screw' : [0, 0, 0, 0, 0, 1]},
                         {'name' : '3-3+', 'x' : 8}]
         self.chain = KinematicChain(joint_config)
 
@@ -68,6 +68,10 @@ class ArmLockEnv(gym.Env):
                 done (boolean): whether the episode has ended, in which case further step() calls will return undefined results
                 info (dict): contains auxiliary diagnostic information (helpful for debugging, and sometimes learning)
         """
+        
+        # action is joint angles
+        #action = [0, 0, 0]
+        #self.world_def.set_joint_angles(action)
         self.world_def.step(1.0/FPS, 10, 10)
         return np.zeros(4), 0, False, dict()
          

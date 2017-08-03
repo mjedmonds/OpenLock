@@ -1,8 +1,9 @@
 #TODO prepend terms _
+import time
 
 class PIDController(object):
 
-    def __init__(self, kp=2.0, ki=0.5, kd=1.0, setpoint=0, dt=1):
+    def __init__(self, kp=5000, ki=1000, kd=5000, setpoint=0, dt=1):
 
         self.kp = kp
         self.ki = ki
@@ -20,14 +21,21 @@ class PIDController(object):
         
         self.previous_error = self.error
 
-        error = self.set_point - current_value
-        self.integral = self.self.integral + self.error * dt
+        self.error = self.setpoint - current_value
+        self.integral = self.integral + self.error * self.dt
         self.differential = (self.error - self.previous_error) / self.dt
 
         p_term = self.kp * self.error
         i_term = self.ki * self.integral
         d_term = self.kd * self.differential
-
+      
+        #print 'start'
+        #print p_term
+        #print i_term
+        #print d_term
+        #print p_term + i_term + d_term
+        #print '--------'
+        time.sleep(0.01)
         return p_term + i_term + d_term
 
     def change_setpoint(self, setpoint):
