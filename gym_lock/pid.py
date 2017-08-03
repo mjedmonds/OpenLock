@@ -35,7 +35,6 @@ class PIDController(object):
         #print d_term
         #print p_term + i_term + d_term
         #print '--------'
-        time.sleep(0.01)
         return p_term + i_term + d_term
 
     def change_setpoint(self, setpoint):
@@ -43,6 +42,7 @@ class PIDController(object):
         self.error = 0
         self.integral = 0
         self.differential = 0
+        self.previous_error = 0
 
     def set_kp(self, kp):
         self.kp = kp

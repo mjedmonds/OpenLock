@@ -19,11 +19,17 @@ def get_adjoint(transform):
 
 class InverseKinematics(object):
 
-    def __init__(self, kinematic_chain, target, alpha=0.1, eta=0.001):
+    def __init__(self, kinematic_chain=None, target=None, alpha=-0.5, eta=0.1):
         self.kinematic_chain = kinematic_chain
         self.target = target
         self.alpha = alpha
         self.eta = eta
+    
+    def set_target(self, new_target):
+        self.target = new_target
+    
+    def set_current_config(self, current_config):
+        self.kinematic_chain = current_config
 
     def get_error(self):
         err_mat = self.kinematic_chain.get_transform() \
@@ -66,9 +72,9 @@ class KinematicChain(object):
         return total_transform
 
     def get_jacobian(self):
-        transform = self.chain[0].get_transform()
+        transform = np.eye(4)
         jacobian = []
-        for i in range(1, len(self.chain)):
+        for i in range(0, len(self.chain)):
             transform = transform.dot(self.chain[i].get_transform())
             if self.chain[i].screw is not None:
                 # end of a link
@@ -138,12 +144,6 @@ def main():
     #TODO choose alpha
     print chain.get_link_config()
 
-#    for i in range(0, 1000):
-#        print chain.get_transform().dot(np.array([0,0,0,1]))
-#        print np.linalg.norm((invk.get_error()))
-#        delta_theta = invk.get_delta_theta()
-#        chain.chain[1].set_theta(chain.chain[1].theta + alpha * delta_theta[0])
-#        chain.chain[3].set_theta(chain.chain[3].theta + alpha * delta_theta[1])
 
 if __name__ == "__main__":
     main()

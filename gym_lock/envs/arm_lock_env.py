@@ -9,7 +9,7 @@ from gym.utils import closer, seeding
 from gym.envs.classic_control import rendering
 
 from gym_lock.envs.world_defs.arm_lock_def import ArmLockDef
-from gym_lock.kine import KinematicChain
+from gym_lock.kine import KinematicChain, InverseKinematics
 
 VIEWPORT_W = 600
 VIEWPORT_H = 400
@@ -48,6 +48,16 @@ class ArmLockEnv(gym.Env):
                         {'name' : '3-3+', 'x' : 8}]
         self.chain = KinematicChain(joint_config)
 
+        target_config = [{'name' : '0-0+', 'y' : 0},
+                        {'name' : '0+1-', 'theta' : 0, 'screw' : [0, 0, 0, 0, 0, 1]},
+                        {'name' : '1-1+', 'x' : 8},
+                        {'name' : '1+2-', 'theta' : np.pi / 2, 'screw' : [0, 0, 0, 0, 0, 1]}, 
+                        {'name' : '2-2+', 'x' : 8},
+                        {'name' : '2+3-', 'theta' : 0, 'screw' : [0, 0, 0, 0, 0, 1]},
+                        {'name' : '3-3+', 'x' : 8}]
+        self.target = KinematicChain(target_config)
+        
+        self.invkine = InverseKinematics(kinematic_chain=self.chain, target=self.target)
         self.world_def = ArmLockDef(self.chain.get_link_config())
 
 
@@ -68,13 +78,28 @@ class ArmLockEnv(gym.Env):
                 done (boolean): whether the episode has ended, in which case further step() calls will return undefined results
                 info (dict): contains auxiliary diagnostic information (helpful for debugging, and sometimes learning)
         """
-        
-        # action is joint angles
-        #action = [0, 0, 0]
-        #self.world_def.set_joint_angles(action)
+        # action = target_config? 
+        if action:
+            c = self.world_def.get_current_config()
+            joint_config = [{'name' : '0-0'},
+                            {'name' : '0+1-', 'theta' : c[1][2], 'screw' : [0, 0, 0, 0, 0, 1]},
+                            {'name' : '1-1+', 'x' : 8},
+                            {'name' : '1+2-', 'theta' : c[2][2], 'screw' : [0, 0, 0, 0, 0, 1]}, 
+                            {'name' : '2-2+', 'x' : 8},
+                            {'name' : '2+3-', 'theta' : c[3][2], 'screw' : [0, 0, 0, 0, 0, 1]},
+                            {'name' : '3-3+', 'x' : 8}]
+            new_chain = KinematicChain(joint_config)
+            self.invkine.set_current_config(new_chain)
+            delta_theta = self.invkine.get_delta_theta()
+
+            # update angles
+            alpha = -0.5
+
+            self.world_def.set_controllers(delta_theta)
+
         self.world_def.step(1.0/FPS, 10, 10)
         return np.zeros(4), 0, False, dict()
-         
+    
     def _reset(self):
         """Resets the state of the environment and returns an initial observation.
 

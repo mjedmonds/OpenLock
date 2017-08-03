@@ -91,7 +91,44 @@ class ArmLockDef(object):
             self.joint_controllers.append(PIDController(setpoint=pts[i],
                                                    dt=1.0/FPS))
 
+    
 
+    def set_controllers(self, delta_setpoints):
+        for i in range(0, len(self.joint_controllers)):
+            cur = self.joint_controllers[i].setpoint
+            new = cur + -0.001 * delta_setpoints[i]
+            print 'start'
+            print new
+            print cur
+            print '---'
+            self.joint_controllers[i].change_setpoint(new)
+
+    def get_end_effector(self):
+        pos = self.arm_bodies[-1].position
+        theta = self.arm_bodies[-1].transform.angle
+        #TODO: named tuple
+        return (pos, theta)
+
+    #TODO: fix
+    def get_current_config(self):
+        config = []
+        x = y = theta = 0
+        for i in range(0, len(self.arm_bodies)):
+            next_x = self.arm_bodies[i].position[0]
+            next_y = self.arm_bodies[i].position[1]
+            next_theta = self.arm_bodies[i].transform.angle
+
+            dx = next_x - x
+            dy = next_y - y
+            dtheta = next_theta - theta
+            
+            x = next_x
+            y = next_y
+            theta = next_theta
+
+            config.append([dx, dy, dtheta])
+
+        return config
 
     def apply_torque(self, idx, torque):
         force = torque / self.arm_lengths[idx - 1]
@@ -105,7 +142,6 @@ class ArmLockDef(object):
         # update torques
         for i in range(1, len(self.arm_bodies)):
 
-            print self.arm_bodies[i].transform.angle
             new_torque = self.joint_controllers[i - 1].update(self.arm_bodies[i].transform.angle)
             self.apply_torque(i, new_torque)
         self.world.Step(timestep, vel_iterations, pos_iterations)
