@@ -40,22 +40,15 @@ class ArmLockEnv(gym.Env):
 
         # kinematics 
         joint_config = [{'name' : '0-0+', 'y' : 0},
-                        {'name' : '0+1-', 'theta' : -np.pi / 16, 'screw' : [0, 0, 0, 0, 0, 1]},
-                        {'name' : '1-1+', 'x' : 8},
-                        {'name' : '1+2-', 'theta' : -np.pi / 16, 'screw' : [0, 0, 0, 0, 0, 1]}, 
-                        {'name' : '2-2+', 'x' : 8},
-                        {'name' : '2+3-', 'theta' : -np.pi / 16, 'screw' : [0, 0, 0, 0, 0, 1]},
-                        {'name' : '3-3+', 'x' : 8}]
-        self.chain = KinematicChain(joint_config)
-
-        target_config = [{'name' : '0-0+', 'y' : 0},
                         {'name' : '0+1-', 'theta' : 0, 'screw' : [0, 0, 0, 0, 0, 1]},
                         {'name' : '1-1+', 'x' : 8},
-                        {'name' : '1+2-', 'theta' : np.pi / 2, 'screw' : [0, 0, 0, 0, 0, 1]}, 
+                        {'name' : '1+2-', 'theta' : 0, 'screw' : [0, 0, 0, 0, 0, 1]}, 
                         {'name' : '2-2+', 'x' : 8},
                         {'name' : '2+3-', 'theta' : 0, 'screw' : [0, 0, 0, 0, 0, 1]},
                         {'name' : '3-3+', 'x' : 8}]
-        self.target = KinematicChain(target_config)
+        self.chain = KinematicChain(joint_config)
+
+        self.target = KinematicChain(joint_config)
         
         self.invkine = InverseKinematics(kinematic_chain=self.chain, target=self.target)
         self.world_def = ArmLockDef(self.chain.get_link_config())
@@ -80,7 +73,10 @@ class ArmLockEnv(gym.Env):
         """
         # action = target_config? 
         if action:
+
+            # update arm kinematic model
             c = self.world_def.get_current_config()
+
             joint_config = [{'name' : '0-0'},
                             {'name' : '0+1-', 'theta' : c[1][2], 'screw' : [0, 0, 0, 0, 0, 1]},
                             {'name' : '1-1+', 'x' : 8},
@@ -88,13 +84,19 @@ class ArmLockEnv(gym.Env):
                             {'name' : '2-2+', 'x' : 8},
                             {'name' : '2+3-', 'theta' : c[3][2], 'screw' : [0, 0, 0, 0, 0, 1]},
                             {'name' : '3-3+', 'x' : 8}]
+            
             new_chain = KinematicChain(joint_config)
+
+            # update target kinematic model
+            target_config = action
+            self.target = KinematicChain(target_config)
+            
+            # update inverse kinematics model
             self.invkine.set_current_config(new_chain)
+            self.invkine.set_target(self.target)
+            
+            # update PID controllers
             delta_theta = self.invkine.get_delta_theta()
-
-            # update angles
-            alpha = -0.5
-
             self.world_def.set_controllers(delta_theta)
 
         self.world_def.step(1.0/FPS, 10, 10)

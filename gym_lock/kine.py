@@ -43,7 +43,12 @@ class InverseKinematics(object):
         return err_vec
 
     def get_delta_theta(self):
-        return self.kinematic_chain.get_jacobian().transpose().dot(self.get_error())
+        jacob = self.kinematic_chain.get_jacobian()
+        print np.linalg.matrix_rank(jacob)
+        dtheta = jacob.transpose().dot(self.get_error())
+        dtheta = -0.05 * dtheta / np.linalg.norm(dtheta)
+        print dtheta
+        return dtheta
 
 class KinematicChain(object):
 
@@ -140,9 +145,7 @@ def main():
     target = KinematicChain(target_config)
     
     invk = InverseKinematics(chain, target, 0.1, 0.001)
-    alpha = -0.5
     #TODO choose alpha
-    print chain.get_link_config()
 
 
 if __name__ == "__main__":

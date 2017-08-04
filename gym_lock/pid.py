@@ -1,4 +1,6 @@
 #TODO prepend terms _
+
+import numpy as np
 import time
 
 class PIDController(object):
@@ -15,6 +17,8 @@ class PIDController(object):
         self.error = 0 
         self.integral = 0
         self.differential = 0
+        self.previous_value = 0
+        self.current_value = 0
 
     
     def update(self, current_value):
@@ -22,6 +26,15 @@ class PIDController(object):
         self.previous_error = self.error
 
         self.error = self.setpoint - current_value
+
+        # handle discontinuity
+        if self.error < -np.pi:
+            self.error = self.error + 2 * np.pi
+        elif self.error > np.pi:
+            self.error = self.error - 2 * np.pi
+
+
+
         self.integral = self.integral + self.error * self.dt
         self.differential = (self.error - self.previous_error) / self.dt
 
@@ -30,11 +43,14 @@ class PIDController(object):
         d_term = self.kd * self.differential
       
         #print 'start'
+        print 'error'
+        print self.error
         #print p_term
         #print i_term
         #print d_term
         #print p_term + i_term + d_term
         #print '--------'
+        
         return p_term + i_term + d_term
 
     def change_setpoint(self, setpoint):

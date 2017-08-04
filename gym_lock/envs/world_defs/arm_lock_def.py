@@ -1,6 +1,7 @@
 import numpy as np
 import Box2D as b2
 from gym_lock.pid import PIDController
+from gym_lock.my_types import wrapMinusPiToPiToZeroToTwoPi
 FPS = 30
 
 # TODO: cleaner interface than indices between bodies and lengths
@@ -17,7 +18,21 @@ class ArmLockDef(object):
         self.x0 = x0
         width = 1.0 
         
-    
+        #angle = np.pi / 8
+        #yaxis = b2.b2Vec2([-np.sin(angle), np.cos(angle)]) * 10
+        #print yaxis
+        #edge = b2.b2EdgeShape()
+        #edge.vertices = [b2.b2Vec2(yaxis[0], 0), b2.b2Vec2(0, yaxis[1])]
+        
+        #self.world.CreateBody(
+        #    position = (0, 0),
+        #    angle = 0,
+        #    shapes = [edge])
+        #arm_body = self.world.CreateBody(
+        #    position = (0,0),
+        #    angle = angle,
+        #    shapes = [b2.b2PolygonShape(vertices=[(0,2), (0, -2), (10, 0)])],
+        #    active= False) 
         # create arm links 
         self.arm_bodies = []
         motor_fixtures = [] # needed for torque control
@@ -86,7 +101,8 @@ class ArmLockDef(object):
         # create joint PID controllers
         self.joint_controllers = [] # "virtual" controller so that 
                                    # arm_lengths and arm_bodies have same index 
-        pts = [0, np.pi / 2, 0]
+        pts = [0, np.pi / 2, np.pi]
+        print len(self.arm_joints)
         for i in range(0, len(self.arm_joints)):
             self.joint_controllers.append(PIDController(setpoint=pts[i],
                                                    dt=1.0/FPS))
@@ -96,11 +112,11 @@ class ArmLockDef(object):
     def set_controllers(self, delta_setpoints):
         for i in range(0, len(self.joint_controllers)):
             cur = self.joint_controllers[i].setpoint
-            new = cur + -0.001 * delta_setpoints[i]
-            print 'start'
-            print new
-            print cur
-            print '---'
+            new = cur + delta_setpoints[i]
+            #print 'start'
+            #print new
+            #print cur
+            #print '---'
             self.joint_controllers[i].change_setpoint(new)
 
     def get_end_effector(self):
@@ -135,14 +151,22 @@ class ArmLockDef(object):
         angle = self.arm_bodies[idx].transform.angle
         position = self.arm_bodies[idx].position
         yaxis = b2.b2Vec2([-np.sin(angle), np.cos(angle)])
+        print 'yaxis'
+        print yaxis
         force_vector = yaxis * force
         self.arm_bodies[idx].ApplyForce(force=force_vector, point=position, wake=True)
 
     def step(self, timestep, vel_iterations, pos_iterations):
+        import time
+        print '---'
         # update torques
         for i in range(1, len(self.arm_bodies)):
-
-            new_torque = self.joint_controllers[i - 1].update(self.arm_bodies[i].transform.angle)
+            body_angle = self.arm_bodies[i].transform.angle
+            new_torque = self.joint_controllers[i - 1].update(body_angle)
+            print 'body angle'
+            print self.arm_bodies[i].transform.angle
+            print 'new torque'
+            print new_torque
             self.apply_torque(i, new_torque)
         self.world.Step(timestep, vel_iterations, pos_iterations)
 
