@@ -10,11 +10,11 @@ import numpy as np
 def generate_valid_config(t1, t2, t3):
     joint_config = [{'name' : '0-0'},
                     {'name' : '0+1-', 'theta' : t1, 'screw' : [0, 0, 0, 0, 0, 1]},
-                    {'name' : '1-1+', 'x' : 8},
+                    {'name' : '1-1+', 'x' : 5},
                     {'name' : '1+2-', 'theta' : t2, 'screw' : [0, 0, 0, 0, 0, 1]}, 
-                    {'name' : '2-2+', 'x' : 8},
+                    {'name' : '2-2+', 'x' : 5},
                     {'name' : '2+3-', 'theta' : t3, 'screw' : [0, 0, 0, 0, 0, 1]},
-                    {'name' : '3-3+', 'x' : 8}]
+                    {'name' : '3-3+', 'x' : 5}]
     return joint_config
 
 c1 = generate_valid_config(0, np.pi / 2, 0)
@@ -28,7 +28,7 @@ for i in range(10000000):
     print i
     env.render()
     if i % 10 == 0:
-        env.step(c1)
+        env.step(False)
         #if i > 750:
         #    env.step(c2)
         #if i > 1250:

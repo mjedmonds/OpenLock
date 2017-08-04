@@ -5,7 +5,7 @@ import time
 
 class PIDController(object):
 
-    def __init__(self, kp=15000, ki=0, kd=8000, setpoint=0, dt=1):
+    def __init__(self, kp=10000, ki=1000, kd=1500, setpoint=0, dt=1):
 
         self.kp = kp
         self.ki = ki
@@ -45,9 +45,9 @@ class PIDController(object):
         #print 'start'
         print 'error'
         print self.error
-        #print p_term
-        #print i_term
-        #print d_term
+        print p_term
+        print i_term
+        print d_term
         #print p_term + i_term + d_term
         #print '--------'
         

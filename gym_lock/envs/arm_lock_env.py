@@ -41,11 +41,11 @@ class ArmLockEnv(gym.Env):
         # kinematics 
         joint_config = [{'name' : '0-0+', 'y' : 0},
                         {'name' : '0+1-', 'theta' : 0, 'screw' : [0, 0, 0, 0, 0, 1]},
-                        {'name' : '1-1+', 'x' : 8},
+                        {'name' : '1-1+', 'x' : 5},
                         {'name' : '1+2-', 'theta' : 0, 'screw' : [0, 0, 0, 0, 0, 1]}, 
-                        {'name' : '2-2+', 'x' : 8},
+                        {'name' : '2-2+', 'x' : 5},
                         {'name' : '2+3-', 'theta' : 0, 'screw' : [0, 0, 0, 0, 0, 1]},
-                        {'name' : '3-3+', 'x' : 8}]
+                        {'name' : '3-3+', 'x' : 5}]
         self.chain = KinematicChain(joint_config)
 
         self.target = KinematicChain(joint_config)
@@ -79,11 +79,11 @@ class ArmLockEnv(gym.Env):
 
             joint_config = [{'name' : '0-0'},
                             {'name' : '0+1-', 'theta' : c[1][2], 'screw' : [0, 0, 0, 0, 0, 1]},
-                            {'name' : '1-1+', 'x' : 8},
+                            {'name' : '1-1+', 'x' : 5},
                             {'name' : '1+2-', 'theta' : c[2][2], 'screw' : [0, 0, 0, 0, 0, 1]}, 
-                            {'name' : '2-2+', 'x' : 8},
+                            {'name' : '2-2+', 'x' : 5},
                             {'name' : '2+3-', 'theta' : c[3][2], 'screw' : [0, 0, 0, 0, 0, 1]},
-                            {'name' : '3-3+', 'x' : 8}]
+                            {'name' : '3-3+', 'x' : 5}]
            
             new_chain = KinematicChain(joint_config)
 
