@@ -19,11 +19,10 @@ def get_adjoint(transform):
 
 
 class InverseKinematics(object):
-    def __init__(self, kinematic_chain=None, target=None, alpha=-0.01, eta=0.1):
+    def __init__(self, kinematic_chain, target, alpha=-0.01):
         self.kinematic_chain = kinematic_chain
         self.target = target
         self.alpha = alpha
-        self.eta = eta
 
     def set_target(self, new_target):
         self.target = new_target

@@ -12,13 +12,21 @@ FPS = 30
 # NOTE: action spaces are different..
 
 class ArmLockDef(object):
-    def __init__(self, x0):
+    def __init__(self, x0, world_size):
         super(ArmLockDef, self).__init__()
 
         self.world = b2.b2World(gravity=(0, -2), doSleep=True)
 
         self.x0 = x0
         width = 1.0
+
+        # create boundaries
+        self.ground = self.world.CreateBody()
+        self.ground.CreateEdgeChain([(-world_size, -world_size),
+                                     (world_size, -world_size),
+                                     (world_size, world_size),
+                                     (-world_size, world_size),
+                                     (-world_size, -world_size)])
 
         # create arm links 
         self.arm_bodies = []
@@ -36,13 +44,13 @@ class ArmLockDef(object):
             density=1.0,
             friction=1.0,
             categoryBits=0x0001,
-            maskBits=0x0000)
+            maskBits=0x1111)
         # define "motor" properties
         motor_fixture = b2.b2FixtureDef(  # all motors have same properties
             density=1.0,
             friction=1.0,
             categoryBits=0x0001,
-            maskBits=0x0000)
+            maskBits=0x1111)
 
         # create base
         self.arm_bodies.append(self.world.CreateBody(
@@ -76,12 +84,14 @@ class ArmLockDef(object):
         # create arm joints
         self.arm_joints = []
         for i in range(1, len(self.arm_bodies)):
+            # enableMotor = True for motor friction, helps dampen oscillations
             self.arm_joints.append(self.world.CreateRevoluteJoint(
                 bodyA=self.arm_bodies[i - 1],  # end of link A
                 bodyB=self.arm_bodies[i],  # beginning of link B
                 localAnchorA=(0, 0),
                 localAnchorB=(-self.arm_lengths[i], 0),
                 enableMotor=True,
+                motorSpeed=0,
                 maxMotorTorque=400,
                 enableLimit=False))
 
@@ -92,6 +102,16 @@ class ArmLockDef(object):
         for i in range(0, len(self.arm_joints)):
             self.joint_controllers.append(PIDController(setpoint=config[i].theta,
                                                         dt=1.0 / FPS))
+
+
+        # setup object
+        obj_fixture = b2.b2FixtureDef(
+            shape=b2.b2CircleShape(radius=2.5),
+            density=1,
+            friction=1.0)
+        self.world.CreateDynamicBody(
+            position = (0, -world_size + 2),
+            fixtures = obj_fixture)
 
     def set_controllers(self, delta_setpoints):
         for i in range(0, len(self.joint_controllers)):
@@ -155,7 +175,6 @@ class ArmLockDef(object):
         """Returns the world to its intial state"""
         pass
 
-    # TODO: implement
     def get_state(self):
-        """Retrieves the state of the point mass"""
-        pass
+        state = {'joint_config': self.get_abs_config()}
+        return state

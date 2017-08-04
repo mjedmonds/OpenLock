@@ -8,8 +8,8 @@ from gym.utils import seeding
 from gym_lock.envs.world_defs.arm_lock_def import ArmLockDef
 from gym_lock.kine import KinematicChain, InverseKinematics
 
-VIEWPORT_W = 600
-VIEWPORT_H = 400
+VIEWPORT_W = 1200
+VIEWPORT_H = 800
 SCALE = 30.0  # affects how fast-paced the game is, forces should be adjusted as well
 FPS = 30
 
@@ -31,9 +31,10 @@ class ArmLockEnv(gym.Env):
         self.reward_range = (-np.inf, np.inf)
         self._seed()
         self.viewer = None
+        world_size = 25
 
         # kinematics 
-        joint_config = [{'name': '0-0+', 'y': 0},
+        joint_config = [{'name': '0-0+', 'y': -world_size + 15.5},
                         {'name': '0+1-', 'theta': 0, 'screw': [0, 0, 0, 0, 0, 1]},
                         {'name': '1-1+', 'x': 5},
                         {'name': '1+2-', 'theta': 0, 'screw': [0, 0, 0, 0, 0, 1]},
@@ -44,8 +45,8 @@ class ArmLockEnv(gym.Env):
 
         self.target = KinematicChain(joint_config)
 
-        self.invkine = InverseKinematics(kinematic_chain=self.chain, target=self.target)
-        self.world_def = ArmLockDef(self.chain.get_link_config())
+        self.invkine = InverseKinematics(self.chain, self.target)
+        self.world_def = ArmLockDef(self.chain.get_link_config(), world_size)
 
     def _step(self, action):
         """Run one timestep of the environment's dynamics. When end of
