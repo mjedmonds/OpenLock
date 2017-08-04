@@ -2,7 +2,7 @@ import numpy as np
 from collections import namedtuple
 
 # defined named tuples
-Config = namedtuple('Config', 'pos theta')
+from gym_lock.common import TwoDConfig, wrapToMinusPiToPi
 
 def get_adjoint(transform):
     rot = transform[:3, :3]
@@ -55,7 +55,19 @@ class KinematicChain(object):
         self.chain = []
         for link in self.configuration:
             self.chain.append(KinematicLink(**link))
-    
+
+    def update_chain(self, new_config):
+        assert len(new_config) * 2 - 1 == len(self.chain)
+
+        # update baseframe
+        self.chain[0].set_x(new_config[0].x)
+        self.chain[0].set_y(new_config[0].y)
+        self.chain[0].set_theta(new_config[0].theta)
+
+        # update angles at each joint
+        for i in range(1, len(new_config)):
+            self.chain[2 * i - 1].set_theta(new_config[i].theta)
+
     def get_link_config(self):
         total_transform = np.eye(4)
         link_locations = []
@@ -65,7 +77,7 @@ class KinematicChain(object):
             dtheta = dtheta + np.arccos(link.get_transform()[0, 0])
             if link.screw is None:
                 # link is a translation
-                link_locations.append(Config(total_transform[:2, 3], dtheta))
+                link_locations.append(TwoDConfig(total_transform[:2, 3][0], total_transform[:2, 3][1], dtheta))
         return link_locations
 
     def get_transform(self):

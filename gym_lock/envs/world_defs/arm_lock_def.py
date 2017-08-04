@@ -1,7 +1,7 @@
 import numpy as np
 import Box2D as b2
 from gym_lock.pid import PIDController
-from gym_lock.my_types import TwoDConfig
+from gym_lock.common import TwoDConfig, wrapToMinusPiToPi
 FPS = 30
 
 # TODO: cleaner interface than indices between bodies and lengths
@@ -23,6 +23,7 @@ class ArmLockDef(object):
         motor_fixtures = [] # needed for torque control
         self.arm_lengths = [] # needed for joints
 
+        # define all fixtures
         # define base properties
         base_fixture = b2.b2FixtureDef(
             shape=b2.b2PolygonShape(box=(1, 1)),
@@ -43,7 +44,7 @@ class ArmLockDef(object):
 
         # create base
         self.arm_bodies.append(self.world.CreateBody(
-            position = x0[0].pos,
+            position = (x0[0].x, x0[0].y),
             angle = 0,
             fixtures = base_fixture))
 
@@ -51,7 +52,6 @@ class ArmLockDef(object):
         # add in "virtual" joint length so arm_bodies and arm_lengths are same length
         length = np.linalg.norm(x0[1][0] - x0[0][0])
         self.arm_lengths.append(length)
-
         # create the rest of the arm
         # body frame located at each joint
         for i in range(1, len(x0)):
@@ -63,7 +63,7 @@ class ArmLockDef(object):
                                       (0, width / 2)
                                       ])
             arm_body = self.world.CreateDynamicBody(
-                position = x0[i].pos,
+                position = (x0[i].x, x0[i].y),
                 angle = x0[i].theta,
                 fixtures = link_fixture)
 
@@ -84,11 +84,9 @@ class ArmLockDef(object):
                 maxMotorTorque=400,
                 enableLimit=False))
 
-        # create joint PID controllers
-        self.joint_controllers = [] # "virtual" controller so that 
-                                   # arm_lengths and arm_bodies have same index 
-        
-        # set all PID controllers to initial angle
+        # create joint PID controllers and initialize to
+        # angles specified in x0
+        self.joint_controllers = []
         config = self.get_abs_config()[1:] # ignore baseframe transform
         for i in range(0, len(self.arm_joints)):
             self.joint_controllers.append(PIDController(setpoint=config[i].theta,
@@ -100,16 +98,17 @@ class ArmLockDef(object):
         for i in range(0, len(self.joint_controllers)):
             cur = self.joint_controllers[i].setpoint
             new = cur + delta_setpoints[i]
-            self.joint_controllers[i].change_setpoint(new)
+            self.joint_controllers[i].set_setpoint(new)
 
     def get_abs_config(self):
         config = []
+
         for i in range(0, len(self.arm_bodies)):
             x = self.arm_bodies[i].position[0]
             y = self.arm_bodies[i].position[1]
             theta = self.arm_bodies[i].transform.angle
 
-            config.append(TwoDConfig((x, y), theta))
+            config.append(TwoDConfig(x, y, theta))
 
         return config
 
@@ -129,56 +128,35 @@ class ArmLockDef(object):
             y = next_y
             theta = next_theta
 
-            config.append(TwoDConfig((dx, dy), dtheta))
+            config.append(TwoDConfig(dx, dy, dtheta))
 
         return config
 
     def apply_torque(self, idx, torque):
         force = torque / self.arm_lengths[idx - 1]
+
         angle = self.arm_bodies[idx].transform.angle
         position = self.arm_bodies[idx].position
+
         yaxis = b2.b2Vec2([-np.sin(angle), np.cos(angle)])
-        print 'yaxis'
-        print yaxis
         force_vector = yaxis * force
+
         self.arm_bodies[idx].ApplyForce(force=force_vector, point=position, wake=True)
 
     def step(self, timestep, vel_iterations, pos_iterations):
-        import time
-        print '---'
         # update torques
         for i in range(1, len(self.arm_bodies)):
             body_angle = self.arm_bodies[i].transform.angle
             new_torque = self.joint_controllers[i - 1].update(body_angle)
-            print 'body angle'
-            print self.arm_bodies[i].transform.angle
-            print 'new torque'
-            print new_torque
             self.apply_torque(i, new_torque)
         self.world.Step(timestep, vel_iterations, pos_iterations)
 
-    # TODO: deprecated?
-    def take_action(self, action):
-        self.joint1.motorSpeed = action[0]
-        self.joint2.motorSpeed = action[1]
-    
+    # TODO: implement
     def reset_world(self):
         """Returns the world to its intial state"""
-        self.world.ClearForces()
-        self.joint1.motorSpeed = 0
-        self.joint2.motorSpeed = 0
-        self.body1.linearVelocity = (0, 0)
-        self.body1.angularVelocity = 0
-        self.body2.linearVelocity = (0, 0)
-        self.body2.angularVelocity = 0
-        self.set_joint_angles(self.body1, self.body2, self.x0[0], self.x0[1])
+        pass
 
+    # TODO: implement
     def get_state(self):
         """Retrieves the state of the point mass"""
-        state = {'joint_angles' : np.array([self.joint1.angle,
-                                         self.joint2.angle]),
-                 'joint_velocities' : np.array([self.joint1.speed,
-                                             self.joint2.speed]),
-                 'end_effector_points' : np.append(np.array(self.body2.position),[0])}
-        return state
-
+        pass

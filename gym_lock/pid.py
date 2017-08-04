@@ -2,38 +2,31 @@
 
 import numpy as np
 import time
-
+from common import wrapToMinusPiToPi
 class PIDController(object):
 
-    def __init__(self, kp=10000, ki=1000, kd=1500, setpoint=0, dt=1):
+    def __init__(self, kp=10000, ki=1000, kd=1500, setpoint=0, dt=1, max_out=10000):
 
         self.kp = kp
         self.ki = ki
         self.kd = kd
         self.setpoint = setpoint
         self.dt = dt
+        self.max_out = max_out
+
 
         self.previous_error = 0
         self.error = 0 
         self.integral = 0
         self.differential = 0
         self.previous_value = 0
-        self.current_value = 0
 
     
     def update(self, current_value):
         
         self.previous_error = self.error
 
-        self.error = self.setpoint - current_value
-
-        # handle discontinuity
-        if self.error < -np.pi:
-            self.error = self.error + 2 * np.pi
-        elif self.error > np.pi:
-            self.error = self.error - 2 * np.pi
-
-
+        self.error = wrapToMinusPiToPi(self.setpoint - current_value)
 
         self.integral = self.integral + self.error * self.dt
         self.differential = (self.error - self.previous_error) / self.dt
@@ -41,24 +34,21 @@ class PIDController(object):
         p_term = self.kp * self.error
         i_term = self.ki * self.integral
         d_term = self.kd * self.differential
-      
-        #print 'start'
-        print 'error'
-        print self.error
-        print p_term
-        print i_term
-        print d_term
-        #print p_term + i_term + d_term
-        #print '--------'
-        
-        return p_term + i_term + d_term
 
-    def change_setpoint(self, setpoint):
-        self.setpoint = setpoint
+        out = p_term + i_term + d_term
+
+        # clamp range
+        out = max(-self.max_out, min(out, self.max_out))
+
+        return out
+
+    def set_setpoint(self, setpoint):
+        self.previous_error = 0
         self.error = 0
         self.integral = 0
         self.differential = 0
-        self.previous_error = 0
+        self.previous_value = 0
+        self.setpoint = setpoint
 
     def set_kp(self, kp):
         self.kp = kp
@@ -71,6 +61,9 @@ class PIDController(object):
 
     def set_dt(self, dt):
         self.dt = dt
+
+    def set_max_out(self, max_out):
+        self.max_out = max_out
 
 
         
