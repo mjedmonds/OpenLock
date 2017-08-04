@@ -84,7 +84,7 @@ class ArmLockEnv(gym.Env):
                             {'name' : '2-2+', 'x' : 8},
                             {'name' : '2+3-', 'theta' : c[3][2], 'screw' : [0, 0, 0, 0, 0, 1]},
                             {'name' : '3-3+', 'x' : 8}]
-            
+           
             new_chain = KinematicChain(joint_config)
 
             # update target kinematic model

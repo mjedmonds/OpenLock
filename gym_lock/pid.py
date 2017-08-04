@@ -5,7 +5,7 @@ import time
 
 class PIDController(object):
 
-    def __init__(self, kp=5000, ki=1000, kd=5000, setpoint=0, dt=1):
+    def __init__(self, kp=15000, ki=0, kd=8000, setpoint=0, dt=1):
 
         self.kp = kp
         self.ki = ki

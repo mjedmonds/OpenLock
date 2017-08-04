@@ -1,7 +1,7 @@
 import numpy as np
 import Box2D as b2
 from gym_lock.pid import PIDController
-from gym_lock.my_types import wrapMinusPiToPiToZeroToTwoPi
+from gym_lock.my_types import wrapMinusPiToPiToZeroToTwoPi, TwoDConfig
 FPS = 30
 
 # TODO: cleaner interface than indices between bodies and lengths
@@ -101,10 +101,12 @@ class ArmLockDef(object):
         # create joint PID controllers
         self.joint_controllers = [] # "virtual" controller so that 
                                    # arm_lengths and arm_bodies have same index 
+        
+        # set all PID controllers to initial angle
         pts = [0, np.pi / 2, np.pi]
-        print len(self.arm_joints)
+        config = self.get_abs_config()[1:] # ignore baseframe transform
         for i in range(0, len(self.arm_joints)):
-            self.joint_controllers.append(PIDController(setpoint=pts[i],
+            self.joint_controllers.append(PIDController(setpoint=config[i].theta,
                                                    dt=1.0/FPS))
 
     
@@ -124,6 +126,18 @@ class ArmLockDef(object):
         theta = self.arm_bodies[-1].transform.angle
         #TODO: named tuple
         return (pos, theta)
+
+    #TODO: fix
+    def get_abs_config(self):
+        config = []
+        for i in range(0, len(self.arm_bodies)):
+            x = self.arm_bodies[i].position[0]
+            y = self.arm_bodies[i].position[1]
+            theta = self.arm_bodies[i].transform.angle
+
+            config.append(TwoDConfig((x, y), theta))
+
+        return config
 
     #TODO: fix
     def get_current_config(self):
