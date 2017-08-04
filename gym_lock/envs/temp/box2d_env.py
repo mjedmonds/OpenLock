@@ -1,12 +1,9 @@
-import gym
-
-import numpy as np
-
 import Box2D as b2
-
-from gym import error, spaces
-from gym.utils import closer, seeding
+import gym
+import numpy as np
+from gym import spaces
 from gym.envs.classic_control import rendering
+from gym.utils import seeding
 
 FPS = 30
 
@@ -193,23 +190,20 @@ class LockEnv(gym.Env):
                 if isinstance(fixture, b2.b2EdgeShape)
                     rendering.Viewer.draw_line}
 
-            def _seed(self, seed=None):
-                """Sets the seed for this env's random number generator(s).
+                def _seed(self, seed=None):
+                    """Sets the seed for this env's random number generator(s).
 
-                Note:
-                        Some environments use multiple pseudorandom number generators.
-                        We want to capture all such seeds used in order to ensure that
-                        there aren't accidental correlations between multiple generators.
+                    Note:
+                            Some environments use multiple pseudorandom number generators.
+                            We want to capture all such seeds used in order to ensure that
+                            there aren't accidental correlations between multiple generators.
 
-                Returns:
-                        list<bigint>: Returns the list of seeds used in this env's random
-                            number generators. The first value in the list should be the
-                            "main" seed, or the value which a reproducer should pass to
-                            'seed'. Often, the main seed equals the provided 'seed', but
-                            this won't be true if seed=None, for example.
-                """
-                self.np_random, seed = seeding.np_random(seed)
-                return [seed]
-
-
-
+                    Returns:
+                            list<bigint>: Returns the list of seeds used in this env's random
+                                number generators. The first value in the list should be the
+                                "main" seed, or the value which a reproducer should pass to
+                                'seed'. Often, the main seed equals the provided 'seed', but
+                                this won't be true if seed=None, for example.
+                    """
+                    self.np_random, seed = seeding.np_random(seed)
+                    return [seed]

@@ -1,44 +1,36 @@
-import gym
-
-import numpy as np
-
 import Box2D as b2
-
-from gym import error, spaces
-from gym.utils import closer, seeding
+import gym
+import numpy as np
+from gym import spaces
 from gym.envs.classic_control import rendering
+from gym.utils import seeding
 
 from gym_lock.envs.world_defs.point_mass_lock_def import PointMassLockDef
 
 VIEWPORT_W = 600
 VIEWPORT_H = 400
-SCALE  = 30.0   # affects how fast-paced the game is, forces should be adjusted as well
+SCALE = 30.0  # affects how fast-paced the game is, forces should be adjusted as well
 FPS = 30
 
 
 class PointMassLockEnv(gym.Env):
-
     # Set this in SOME subclasses
-    metadata = {'render.modes': ['human']} #TODO what does this do?
-
+    metadata = {'render.modes': ['human']}  # TODO what does this do?
 
     ## Override in SOME subclasses
-    #def _close(self):
+    # def _close(self):
     #        pass
 
     # Set these in ALL subclasses
 
     def __init__(self):
 
-
-        self.action_space = spaces.Discrete(5) # up, down, left, right 
-        self.observation_space = spaces.Box(-np.inf, np.inf, [4]) # [x, y, vx, vy]
+        self.action_space = spaces.Discrete(5)  # up, down, left, right
+        self.observation_space = spaces.Box(-np.inf, np.inf, [4])  # [x, y, vx, vy]
         self.reward_range = (-np.inf, np.inf)
         self._seed()
         self.viewer = None
         self.world_def = PointMassLockDef()
-
-
 
     def _step(self, action):
         """Run one timestep of the environment's dynamics. When end of
@@ -56,9 +48,9 @@ class PointMassLockEnv(gym.Env):
                 done (boolean): whether the episode has ended, in which case further step() calls will return undefined results
                 info (dict): contains auxiliary diagnostic information (helpful for debugging, and sometimes learning)
         """
-        self.world_def.step(1.0/FPS, 10, 10)
+        self.world_def.step(1.0 / FPS, 10, 10)
         return np.zeros(4), 0, False, dict()
-         
+
     def _reset(self):
         """Resets the state of the environment and returns an initial observation.
 
@@ -122,16 +114,13 @@ class PointMassLockEnv(gym.Env):
                     self.viewer.draw_line(fixture.shape.vertices[0], fixture.shape.vertices[1])
                 elif isinstance(fixture.shape, b2.b2CircleShape):
                     # print fixture.body.transform
-                    trans = rendering.Transform(translation=t*fixture.shape.pos)
+                    trans = rendering.Transform(translation=t * fixture.shape.pos)
                     self.viewer.draw_circle(fixture.shape.radius).add_attr(trans)
                 elif isinstance(fixture.shape, b2.b2PolygonShape):
                     vertices = [fixture.body.transform * v for v in fixture.shape.vertices]
                     self.viewer.draw_polygon(vertices, filled=False)
 
-
-
-        return self.viewer.render(return_rgb_array = mode=='rgb_array')
-
+        return self.viewer.render(return_rgb_array=mode == 'rgb_array')
 
     def _seed(self, seed=None):
         """Sets the seed for this env's random number generator(s).
@@ -150,6 +139,3 @@ class PointMassLockEnv(gym.Env):
             """
         self.np_random, seed = seeding.np_random(seed)
         return [seed]
-
-
-

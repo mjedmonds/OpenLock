@@ -1,16 +1,12 @@
-import numpy as np
-
-from abc import ABCMeta, abstractmethod
-    
 import Box2D as b2
 
 FPS = 30
+
 
 # TODO: cleanup initialization/reset method
 # NOTE: action spaces are different..
 
 class PointMassLockDef(object):
-
     def __init__(self):
         super(PointMassLockDef, self).__init__()
 
@@ -121,13 +117,13 @@ class PointMassLockDef(object):
         self.body.linearVelocity = self.initial_linear_velocity
 
         # reset piston head
-        self.target_obj.position = (0,0)
+        self.target_obj.position = (0, 0)
         self.target_obj.initial_angle = 0
         self.target_obj.angularVelocity = 0
         self.target_obj.linearVelocity = (0, 0)
 
         # reset piston head
-        self.target.position = (0,0)
+        self.target.position = (0, 0)
         self.target.initial_angle = 0
         self.target.angularVelocity = 0
         self.target.linearVelocity = (0, 0)

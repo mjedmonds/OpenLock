@@ -1,12 +1,10 @@
-#TODO prepend terms _
+# TODO prepend terms _
 
-import numpy as np
-import time
 from common import wrapToMinusPiToPi
+
+
 class PIDController(object):
-
     def __init__(self, kp=10000, ki=1000, kd=1500, setpoint=0, dt=1, max_out=10000):
-
         self.kp = kp
         self.ki = ki
         self.kd = kd
@@ -14,16 +12,13 @@ class PIDController(object):
         self.dt = dt
         self.max_out = max_out
 
-
         self.previous_error = 0
-        self.error = 0 
+        self.error = 0
         self.integral = 0
         self.differential = 0
         self.previous_value = 0
 
-    
     def update(self, current_value):
-        
         self.previous_error = self.error
 
         self.error = wrapToMinusPiToPi(self.setpoint - current_value)
@@ -55,7 +50,7 @@ class PIDController(object):
 
     def set_kd(self, kd):
         self.kd = kd
-    
+
     def set_ki(self, ki):
         self.ki = ki
 
@@ -64,6 +59,3 @@ class PIDController(object):
 
     def set_max_out(self, max_out):
         self.max_out = max_out
-
-
-        

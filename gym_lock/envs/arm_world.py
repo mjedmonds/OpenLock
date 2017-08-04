@@ -5,9 +5,11 @@ from framework import Framework
 from gps.agent.box2d.settings import fwSettings
 from gps.proto.gps_pb2 import JOINT_ANGLES, JOINT_VELOCITIES, END_EFFECTOR_POINTS
 
+
 class ArmWorld(Framework):
     """ This class defines the 2 Link Arm and its environment."""
     name = "2 Link Arm"
+
     def __init__(self, x0, target, render):
         self.render = render
         if self.render:
@@ -96,7 +98,6 @@ class ArmWorld(Framework):
         new_pos = body2.GetWorldPoint((0, 4.5))
         body2.position += pos - new_pos
 
-
     def run(self):
         """Initiates the first time step
         """
@@ -134,14 +135,12 @@ class ArmWorld(Framework):
         self.body2.angularVelocity = 0
         self.set_joint_angles(self.body1, self.body2, self.x0[0], self.x0[1])
 
-
     def get_state(self):
         """Retrieves the state of the point mass"""
         state = {JOINT_ANGLES: np.array([self.joint1.angle,
                                          self.joint2.angle]),
                  JOINT_VELOCITIES: np.array([self.joint1.speed,
                                              self.joint2.speed]),
-                 END_EFFECTOR_POINTS: np.append(np.array(self.body2.position),[0])}
+                 END_EFFECTOR_POINTS: np.append(np.array(self.body2.position), [0])}
 
         return state
-
