@@ -75,14 +75,14 @@ class ArmLockEnv(gym.Env):
         if action:
 
             # update arm kinematic model
-            c = self.world_def.get_current_config()
+            c = self.world_def.get_rel_config()
 
             joint_config = [{'name' : '0-0'},
-                            {'name' : '0+1-', 'theta' : c[1][2], 'screw' : [0, 0, 0, 0, 0, 1]},
+                            {'name' : '0+1-', 'theta' : c[1].theta, 'screw' : [0, 0, 0, 0, 0, 1]},
                             {'name' : '1-1+', 'x' : 5},
-                            {'name' : '1+2-', 'theta' : c[2][2], 'screw' : [0, 0, 0, 0, 0, 1]}, 
+                            {'name' : '1+2-', 'theta' : c[2].theta, 'screw' : [0, 0, 0, 0, 0, 1]},
                             {'name' : '2-2+', 'x' : 5},
-                            {'name' : '2+3-', 'theta' : c[3][2], 'screw' : [0, 0, 0, 0, 0, 1]},
+                            {'name' : '2+3-', 'theta' : c[3].theta, 'screw' : [0, 0, 0, 0, 0, 1]},
                             {'name' : '3-3+', 'x' : 5}]
            
             new_chain = KinematicChain(joint_config)

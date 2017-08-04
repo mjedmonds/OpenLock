@@ -1,7 +1,7 @@
 import numpy as np
 import Box2D as b2
 from gym_lock.pid import PIDController
-from gym_lock.my_types import wrapMinusPiToPiToZeroToTwoPi, TwoDConfig
+from gym_lock.my_types import TwoDConfig
 FPS = 30
 
 # TODO: cleaner interface than indices between bodies and lengths
@@ -17,22 +17,7 @@ class ArmLockDef(object):
 
         self.x0 = x0
         width = 1.0 
-        
-        #angle = np.pi / 8
-        #yaxis = b2.b2Vec2([-np.sin(angle), np.cos(angle)]) * 10
-        #print yaxis
-        #edge = b2.b2EdgeShape()
-        #edge.vertices = [b2.b2Vec2(yaxis[0], 0), b2.b2Vec2(0, yaxis[1])]
-        
-        #self.world.CreateBody(
-        #    position = (0, 0),
-        #    angle = 0,
-        #    shapes = [edge])
-        #arm_body = self.world.CreateBody(
-        #    position = (0,0),
-        #    angle = angle,
-        #    shapes = [b2.b2PolygonShape(vertices=[(0,2), (0, -2), (10, 0)])],
-        #    active= False) 
+
         # create arm links 
         self.arm_bodies = []
         motor_fixtures = [] # needed for torque control
@@ -42,14 +27,7 @@ class ArmLockDef(object):
         base_fixture = b2.b2FixtureDef(
             shape=b2.b2PolygonShape(box=(1, 1)),
             density=100.0,
-            friction=1,
-        )
-        # create base
-        self.arm_bodies.append(self.world.CreateBody(
-            position = x0[0].pos,
-            angle = 0,
-            fixtures = base_fixture))
-        
+            friction=1)
         # define link properties
         link_fixture = b2.b2FixtureDef( # all links have same properties
             density = 1.0,
@@ -62,10 +40,18 @@ class ArmLockDef(object):
             friction = 1.0,
             categoryBits = 0x0001,
             maskBits = 0x0000)
+
+        # create base
+        self.arm_bodies.append(self.world.CreateBody(
+            position = x0[0].pos,
+            angle = 0,
+            fixtures = base_fixture))
+
         
         # add in "virtual" joint length so arm_bodies and arm_lengths are same length
         length = np.linalg.norm(x0[1][0] - x0[0][0])
-        self.arm_lengths.append(length) 
+        self.arm_lengths.append(length)
+
         # create the rest of the arm
         # body frame located at each joint
         for i in range(1, len(x0)):
@@ -114,19 +100,8 @@ class ArmLockDef(object):
         for i in range(0, len(self.joint_controllers)):
             cur = self.joint_controllers[i].setpoint
             new = cur + delta_setpoints[i]
-            #print 'start'
-            #print new
-            #print cur
-            #print '---'
             self.joint_controllers[i].change_setpoint(new)
 
-    def get_end_effector(self):
-        pos = self.arm_bodies[-1].position
-        theta = self.arm_bodies[-1].transform.angle
-        #TODO: named tuple
-        return (pos, theta)
-
-    #TODO: fix
     def get_abs_config(self):
         config = []
         for i in range(0, len(self.arm_bodies)):
@@ -138,8 +113,7 @@ class ArmLockDef(object):
 
         return config
 
-    #TODO: fix
-    def get_current_config(self):
+    def get_rel_config(self):
         config = []
         x = y = theta = 0
         for i in range(0, len(self.arm_bodies)):
@@ -155,7 +129,7 @@ class ArmLockDef(object):
             y = next_y
             theta = next_theta
 
-            config.append([dx, dy, dtheta])
+            config.append(TwoDConfig((dx, dy), dtheta))
 
         return config
 
