@@ -19,7 +19,7 @@ def get_adjoint(transform):
 
 class InverseKinematics(object):
 
-    def __init__(self, kinematic_chain=None, target=None, alpha=-0.05, eta=0.1):
+    def __init__(self, kinematic_chain=None, target=None, alpha=-0.01, eta=0.1):
         self.kinematic_chain = kinematic_chain
         self.target = target
         self.alpha = alpha
@@ -44,10 +44,8 @@ class InverseKinematics(object):
 
     def get_delta_theta(self):
         jacob = self.kinematic_chain.get_jacobian()
-        print np.linalg.matrix_rank(jacob)
         dtheta = jacob.transpose().dot(self.get_error())
-        dtheta = -0.05 * dtheta / np.linalg.norm(dtheta)
-        print dtheta
+        dtheta = self.alpha * dtheta / max(1, np.linalg.norm(dtheta))
         return dtheta
 
 class KinematicChain(object):

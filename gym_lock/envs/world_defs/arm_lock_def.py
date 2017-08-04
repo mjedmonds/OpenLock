@@ -103,10 +103,9 @@ class ArmLockDef(object):
                                    # arm_lengths and arm_bodies have same index 
         
         # set all PID controllers to initial angle
-        pts = [-np.pi, -np.pi/2, np.pi]
         config = self.get_abs_config()[1:] # ignore baseframe transform
         for i in range(0, len(self.arm_joints)):
-            self.joint_controllers.append(PIDController(setpoint=pts[i],
+            self.joint_controllers.append(PIDController(setpoint=config[i].theta,
                                                    dt=1.0/FPS))
 
     
