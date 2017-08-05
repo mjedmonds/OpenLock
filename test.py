@@ -25,13 +25,12 @@ c4 = generate_valid_config(-np.pi/2, 0, 0)
 c5 = generate_valid_config(np.pi / 2, 0, 0)
 
 for i in range(10000000):
-    print i
     env.render()
     if 0 == 0:
         if i < 500:
-            env.step(c4)
+            env.step(False)
         if i > 500:
-            env.step(c4)
+            env.step(False)
 
     else:
         env.step(False)

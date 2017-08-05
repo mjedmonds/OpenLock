@@ -1,7 +1,7 @@
 import numpy as np
 
 # defined named tuples
-from gym_lock.common import TwoDConfig
+from gym_lock.common import TwoDConfig, wrapToMinusPiToPi
 
 
 def get_adjoint(transform):
@@ -70,13 +70,23 @@ class KinematicChain(object):
     def get_link_config(self):
         total_transform = np.eye(4)
         link_locations = []
-        dtheta = 0
+        theta = 0
         for link in self.chain:
+            # if link.screw is not None:
+            #     print link.get_transform()
             total_transform = total_transform.dot(link.get_transform())
-            dtheta = dtheta + np.arccos(link.get_transform()[0, 0])
+                # dtheta = dtheta + np.arccos(link.get_transform()[0, 0]) \
+                #                   * np.sign(np.arcsin(link.get_transform()[0, 0]))
+
+                # print dtheta
+                # theta = wrapToMinusPiToPi(dtheta)
             if link.screw is None:
                 # link is a translation
-                link_locations.append(TwoDConfig(total_transform[:2, 3][0], total_transform[:2, 3][1], dtheta))
+                theta = np.arccos(total_transform[0, 0]) \
+                        * np.sign(np.arcsin(total_transform[0, 0]))
+                theta = wrapToMinusPiToPi(theta)
+                print theta
+                link_locations.append(TwoDConfig(total_transform[:2, 3][0], total_transform[:2, 3][1], theta))
         return link_locations
 
     def get_transform(self):

@@ -37,9 +37,9 @@ class ArmLockEnv(gym.Env):
         joint_config = [{'name': '0-0+', 'y': -world_size + 15.5},
                         {'name': '0+1-', 'theta': 0, 'screw': [0, 0, 0, 0, 0, 1]},
                         {'name': '1-1+', 'x': 5},
-                        {'name': '1+2-', 'theta': 0, 'screw': [0, 0, 0, 0, 0, 1]},
+                        {'name': '1+2-', 'theta': np.pi / 2, 'screw': [0, 0, 0, 0, 0, 1]},
                         {'name': '2-2+', 'x': 5},
-                        {'name': '2+3-', 'theta': 0, 'screw': [0, 0, 0, 0, 0, 1]},
+                        {'name': '2+3-', 'theta': -np.pi / 2, 'screw': [0, 0, 0, 0, 0, 1]},
                         {'name': '3-3+', 'x': 5}]
         self.chain = KinematicChain(joint_config)
 

@@ -11,11 +11,41 @@ FPS = 30
 # TODO: cleanup initialization/reset method
 # NOTE: action spaces are different..
 
+class stateMachineListener(b2.b2ContactListener):
+
+    def __init__(self):
+        b2.b2ContactListener.__init__(self)
+        print "creatded"
+
+    # def BeginContact(self, contact):
+    #     print 'begin'
+    #     exit()
+
+    # def EndContact(self, contact):
+    #     print'end'
+    #     exit()
+
+    # def PreSolve(self, contact, oldManifold):
+    #     print 'pre'
+    #     exit()
+    #
+    # def PostSolve(self, contact, impulse):
+    #     print 'post'
+    #     exit()
+    #     print impulse
+
 class ArmLockDef(object):
     def __init__(self, x0, world_size):
         super(ArmLockDef, self).__init__()
 
-        self.world = b2.b2World(gravity=(0, -2), doSleep=True)
+        listener = stateMachineListener()
+        self.world = b2.b2World(gravity=(0, -2),
+                                doSleep=False,
+                                contactlistener=listener,
+                                )
+        self.world.contactListener = listener
+        self.world.subStepping = True
+        self.world.SetAllowSleeping(False)
 
         self.x0 = x0
         width = 1.0
@@ -59,13 +89,18 @@ class ArmLockDef(object):
             fixtures=base_fixture))
 
         # add in "virtual" joint length so arm_bodies and arm_lengths are same length
-        length = np.linalg.norm(x0[1][0] - x0[0][0])
+        length = np.linalg.norm(np.array([0, 0]) - \
+                                np.array([x0[0].x, x0[0].y]))
+
         self.arm_lengths.append(length)
         # create the rest of the arm
         # body frame located at each joint
+
         for i in range(1, len(x0)):
-            length = np.linalg.norm(x0[i - 1][0] - x0[i][0])
+            length = np.linalg.norm(np.array([x0[i].x, x0[i].y] - \
+                                             np.array([x0[i - 1].x, x0[i - 1].y])))
             self.arm_lengths.append(length)
+
             link_fixture.shape = b2.b2PolygonShape(vertices=[(0, -width / 2),
                                                              (-length, -width / 2),
                                                              (-length, width / 2),
@@ -80,7 +115,6 @@ class ArmLockDef(object):
 
             motor_fixture.shape = b2.b2CircleShape(radius=(width), pos=(-length, 0))
             motor_fixtures.append(arm_body.CreateFixture(motor_fixture))
-
         # create arm joints
         self.arm_joints = []
         for i in range(1, len(self.arm_bodies)):
@@ -99,19 +133,57 @@ class ArmLockDef(object):
         # angles specified in x0
         self.joint_controllers = []
         config = self.get_abs_config()[1:]  # ignore baseframe transform
+        print config
         for i in range(0, len(self.arm_joints)):
             self.joint_controllers.append(PIDController(setpoint=config[i].theta,
                                                         dt=1.0 / FPS))
 
 
-        # setup object
-        obj_fixture = b2.b2FixtureDef(
-            shape=b2.b2CircleShape(radius=2.5),
+        # create door
+        door_width = 0.5
+        door_length = 10
+        door_fixture = b2.b2FixtureDef(
+            shape=b2.b2PolygonShape(vertices=[(0,-width),
+                                             (0, width),
+                                             (door_length, width),
+                                             (door_length, -width)]),
             density=1,
             friction=1.0)
-        self.world.CreateDynamicBody(
-            position = (0, -world_size + 2),
-            fixtures = obj_fixture)
+        self.door = self.world.CreateDynamicBody(
+            position = (0, 10),
+            fixtures = door_fixture)
+        self.door_hinge = self.world.CreateRevoluteJoint(
+            bodyA=self.door,  # end of link A
+            bodyB=self.ground,  # beginning of link B
+            localAnchorA=(0, 0),
+            localAnchorB=(0, 10))
+
+        # create lock
+        # create door
+        lock_width = 0.5
+        lock_length = 10
+        lock_fixture = b2.b2FixtureDef(
+            shape=b2.b2PolygonShape(box=(5, 0.5)),
+            density=1,
+            friction=1.0)
+        self.lock = self.world.CreateDynamicBody(
+            position = (17, -world_size + 15.5),
+            fixtures = lock_fixture,
+            angle = np.pi / 2)
+        self.lock_joint = self.world.CreatePrismaticJoint(
+            bodyA=self.lock,
+            bodyB=self.ground,
+            anchor=(0, 0),
+            axis=(0, 1),
+            lowerTranslation=0,
+            upperTranslation=1,
+            enableLimit=True,
+            motorSpeed=0.0,
+            enableMotor=True,
+        )
+
+    def update_state_machine(self, input):
+        pass
 
     def set_controllers(self, delta_setpoints):
         for i in range(0, len(self.joint_controllers)):
@@ -126,6 +198,7 @@ class ArmLockDef(object):
             x = self.arm_bodies[i].position[0]
             y = self.arm_bodies[i].position[1]
             theta = self.arm_bodies[i].transform.angle
+            print theta
 
             config.append(TwoDConfig(x, y, theta))
 
@@ -164,6 +237,7 @@ class ArmLockDef(object):
 
     def step(self, timestep, vel_iterations, pos_iterations):
         # update torques
+        self.update_state_machine(None)
         for i in range(1, len(self.arm_bodies)):
             body_angle = self.arm_bodies[i].transform.angle
             new_torque = self.joint_controllers[i - 1].update(body_angle)
