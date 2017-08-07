@@ -19,10 +19,12 @@ def get_adjoint(transform):
 
 
 class InverseKinematics(object):
-    def __init__(self, kinematic_chain, target, alpha=-0.01):
+    def __init__(self, kinematic_chain, target, alpha=-0.05, eps=0.0001, lam=35):
         self.kinematic_chain = kinematic_chain
         self.target = target
         self.alpha = alpha
+        self.eps = eps
+        self.lam = lam
 
     def set_target(self, new_target):
         self.target = new_target
@@ -41,10 +43,23 @@ class InverseKinematics(object):
         err_vec[5] = err_mat[1, 1] + err_mat[1, 0] + err_mat[0, 0]
         return err_vec
 
-    def get_delta_theta(self):
-        jacob = self.kinematic_chain.get_jacobian()
-        dtheta = jacob.transpose().dot(self.get_error())
-        dtheta = self.alpha * dtheta / max(1, np.linalg.norm(dtheta))
+    def get_delta_theta(self, alg='trans', clamp_delta=False):
+        jac = self.kinematic_chain.get_jacobian()
+        err = self.get_error()
+
+        if alg == 'trans':
+            dtheta = jac.transpose().dot(err)
+            dtheta = self.alpha * dtheta / max(1, np.linalg.norm(dtheta))
+        elif alg == 'pinv':
+            dtheta = np.linalg.pinv(jac).dot(err)
+        elif alg == 'dls':
+            jac_t = jac.transpose()
+            print jac.shape
+            dtheta = jac_t.dot(np.linalg.inv(jac.dot(jac_t)
+                               + self.lam ** 2 * np.eye(jac.shape[0]))).dot(err)
+        if clamp_delta:
+            dtheta[np.abs(dtheta) < self.eps] = 0
+
         return dtheta
 
 

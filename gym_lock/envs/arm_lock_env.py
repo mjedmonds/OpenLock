@@ -69,7 +69,7 @@ class ArmLockEnv(gym.Env):
             print 'take action'
             # update arm kinematic model
             c = self.world_def.get_rel_config()
-            print c
+            # print c
             # exit()
 
             joint_config = [{'name': '0-0'},
@@ -85,17 +85,18 @@ class ArmLockEnv(gym.Env):
             # update target kinematic model
             target_config = action
             self.target = KinematicChain(target_config)
-            for link in self.target.chain:
-                print link.get_transform()
-            print 'total'
-            print self.target.get_transform()
+            # for link in self.target.chain:
+            #     print link.get_transform()
+            # print 'total'
+            # print self.target.get_transform()
 
             # update inverse kinematics model
             self.invkine.set_current_config(new_chain)
             self.invkine.set_target(self.target)
 
             # update PID controllers
-            delta_theta = self.invkine.get_delta_theta()
+            delta_theta = self.invkine.get_delta_theta(alg='dls')
+            print delta_theta
             self.world_def.set_controllers(delta_theta)
             print 'action taken'
 

@@ -4,7 +4,7 @@ from common import wrapToMinusPiToPi
 
 
 class PIDController(object):
-    def __init__(self, kp=1000, ki=1000, kd=1500, setpoint=0, dt=1, max_out=10000):
+    def __init__(self, kp=1000, ki=1000, kd=1500, setpoint=0, dt=1, max_out=5000):
         self.kp = kp
         self.ki = ki
         self.kd = kd

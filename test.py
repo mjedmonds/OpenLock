@@ -17,21 +17,31 @@ def generate_valid_config(t1, t2, t3):
                     {'name' : '3-3+', 'x' : 5}]
     return joint_config
 
-c1 = generate_valid_config(0, np.pi / 2, 0)
+c1 = generate_valid_config(0, 0, 0)
 c2 = generate_valid_config(0, 0, np.pi / 2)
 c3 = generate_valid_config(0, np.pi / 2, np.pi / 2)
-c4 = generate_valid_config(-np.pi/2, 0, 0)
+c4 = generate_valid_config(np.pi, 0, 0)
 
-c5 = generate_valid_config(np.pi / 2, 0, 0)
+c5 = generate_valid_config(-np.pi / 2, np.pi/2, -np.pi/2)
+c6 = generate_valid_config(0, np.pi/2, -np.pi/2)
+
 
 for i in range(10000000):
     env.render()
-    if 0 == 0:
-        if i < 500:
-            env.step(False)
-        if i > 500:
-            env.step(False)
+    print i
+    if i < 1000:
+        env.step(c2)
+    # if i > 1000 and i < 2000:
+    #     env.step(c2)
+    # if i > 2000 and i < 3000:
+    #     env.step(c3)
+    # if i > 3000 and i < 4000:
+    #     env.step(c4)
+    # if i > 4000 and i < 5000:
+    #     env.step(c5)
+    # if i > 5000 and i < 6000:
+    #     env.step(c6)
 
     else:
-        env.step(False)
+        env.step(c2)
 
