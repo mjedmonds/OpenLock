@@ -20,17 +20,24 @@ def generate_valid_config(t1, t2, t3):
 c1 = generate_valid_config(0, np.pi / 2, 0)
 c2 = generate_valid_config(0, 0, np.pi / 2)
 c3 = generate_valid_config(0, np.pi / 2, np.pi / 2)
-c4 = generate_valid_config(-np.pi/2, 0, 0)
+c4 = generate_valid_config(-np.pi/2, np.pi/2, -np.pi/2)
 
 c5 = generate_valid_config(np.pi / 2, 0, 0)
+
+s = [1000, 2000, 3000 , 4000, 5000, 6000]
+
 
 for i in range(10000000):
     env.render()
     if 0 == 0:
-        if i < 500:
-            env.step(False)
-        if i > 500:
-            env.step(False)
+        if i < s[0]:
+            env.step(c1)
+        if i > s[0] and i < s[1]:
+            env.step(c2)
+        if i > s[1] and i < s[2]:
+            env.step(c3)
+        if i > s[2] and i < s[3]:
+            env.step(c4)
 
     else:
         env.step(False)
