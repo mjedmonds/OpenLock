@@ -63,25 +63,26 @@ class ArmLockDef(object):
         base_fixture = b2.b2FixtureDef(
             shape=b2.b2PolygonShape(box=(1, 1)),
             density=100.0,
-            friction=1)
+            friction=1,
+            categoryBits=0x0001,
+            maskBits=0x0000)
         # define link properties
         link_fixture = b2.b2FixtureDef(  # all links have same properties
             density=1.0,
             friction=1.0,
             categoryBits=0x0001,
-            maskBits=0x1111)
+            maskBits=0x0000)
         # define "motor" properties
         motor_fixture = b2.b2FixtureDef(  # all motors have same properties
             density=1.0,
             friction=1.0,
             categoryBits=0x0001,
-            maskBits=0x1111)
+            maskBits=0x0000)
 
         # create base
         self.arm_bodies.append(self.world.CreateBody(
             position=(x0[0].x, x0[0].y),
-            angle=0,
-            fixtures=base_fixture))
+            angle=0))
 
         # add in "virtual" joint length so arm_bodies and arm_lengths are same length
         length = np.linalg.norm(np.array([0, 0]) - \

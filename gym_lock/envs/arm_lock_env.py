@@ -34,12 +34,12 @@ class ArmLockEnv(gym.Env):
         world_size = 25
 
         # kinematics 
-        joint_config = [{'name': '0-0+', 'y': -world_size + 15.5},
-                        {'name': '0+1-', 'theta': 0, 'screw': [0, 0, 0, 0, 0, 1]},
+        joint_config = [{'name': '0-0+'},
+                        {'name': '0+1-', 'theta': np.pi / 4, 'screw': [0, 0, 0, 0, 0, 1]},
                         {'name': '1-1+', 'x': 5},
-                        {'name': '1+2-', 'theta': np.pi / 2, 'screw': [0, 0, 0, 0, 0, 1]},
+                        {'name': '1+2-', 'theta': np.pi / 4, 'screw': [0, 0, 0, 0, 0, 1]},
                         {'name': '2-2+', 'x': 5},
-                        {'name': '2+3-', 'theta': -np.pi / 2, 'screw': [0, 0, 0, 0, 0, 1]},
+                        {'name': '2+3-', 'theta': np.pi / 4, 'screw': [0, 0, 0, 0, 0, 1]},
                         {'name': '3-3+', 'x': 5}]
         self.chain = KinematicChain(joint_config)
 
@@ -66,8 +66,11 @@ class ArmLockEnv(gym.Env):
         """
         # action = target_config? 
         if action:
+            print 'take action'
             # update arm kinematic model
             c = self.world_def.get_rel_config()
+            print c
+            # exit()
 
             joint_config = [{'name': '0-0'},
                             {'name': '0+1-', 'theta': c[1].theta, 'screw': [0, 0, 0, 0, 0, 1]},
@@ -82,6 +85,10 @@ class ArmLockEnv(gym.Env):
             # update target kinematic model
             target_config = action
             self.target = KinematicChain(target_config)
+            for link in self.target.chain:
+                print link.get_transform()
+            print 'total'
+            print self.target.get_transform()
 
             # update inverse kinematics model
             self.invkine.set_current_config(new_chain)
@@ -90,6 +97,7 @@ class ArmLockEnv(gym.Env):
             # update PID controllers
             delta_theta = self.invkine.get_delta_theta()
             self.world_def.set_controllers(delta_theta)
+            print 'action taken'
 
         self.world_def.step(1.0 / FPS, 10, 10)
         return np.zeros(4), 0, False, dict()
