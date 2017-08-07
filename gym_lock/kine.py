@@ -17,9 +17,13 @@ def get_adjoint(transform):
     res[:3, 3:] = matrix_rep.dot(rot)
     return res
 
+def skew_sym_to_vector(matrix):
+    # matrix is 3 x 3
+    return np.array([matrix[2, 1], matrix[0, 2], matrix[1, 0]])
+
 
 class InverseKinematics(object):
-    def __init__(self, kinematic_chain, target, alpha=-0.05, eps=0.0001, lam=35):
+    def __init__(self, kinematic_chain, target, alpha=-0.05, eps=0.0001, lam=25):
         self.kinematic_chain = kinematic_chain
         self.target = target
         self.alpha = alpha
@@ -32,7 +36,7 @@ class InverseKinematics(object):
     def set_current_config(self, current_config):
         self.kinematic_chain = current_config
 
-    def get_error(self):
+    def get_error(self, clamp=False, clamp_mag=1):
         err_mat = self.kinematic_chain.get_transform() \
                       .dot(np.linalg.inv(self.target.get_transform())) \
                   - np.eye(4)
@@ -41,11 +45,21 @@ class InverseKinematics(object):
         err_vec[3] = err_mat[2, 2] + err_mat[2, 1] + err_mat[1, 1]
         err_vec[4] = err_mat[0, 0] + err_mat[0, 2] + err_mat[2, 2]
         err_vec[5] = err_mat[1, 1] + err_mat[1, 0] + err_mat[0, 0]
+
+        if clamp:
+            for i in range(0, len(err_vec)):
+                if np.abs(err_vec[i]) > clamp_mag:
+                    err_vec[i] = clamp_mag * np.sign(err_vec[i])
         return err_vec
 
-    def get_delta_theta(self, alg='trans', clamp_delta=False):
+    def get_delta_theta(self, alg='trans', clamp_delta=False, clamp_mag=True):
         jac = self.kinematic_chain.get_jacobian()
-        err = self.get_error()
+
+        if clamp_mag:
+            err = self.get_error(clamp=True)
+        else:
+            err = self.get_error()
+
 
         if alg == 'trans':
             dtheta = jac.transpose().dot(err)
@@ -54,9 +68,8 @@ class InverseKinematics(object):
             dtheta = np.linalg.pinv(jac).dot(err)
         elif alg == 'dls':
             jac_t = jac.transpose()
-            print jac.shape
             dtheta = jac_t.dot(np.linalg.inv(jac.dot(jac_t)
-                               + self.lam ** 2 * np.eye(jac.shape[0]))).dot(err)
+                               + (self.lam ** 2) * np.eye(jac.shape[0]))).dot(err)
         if clamp_delta:
             dtheta[np.abs(dtheta) < self.eps] = 0
 
@@ -150,28 +163,33 @@ class KinematicLink(object):
     def get_transform(self):
         return self.transform
 
+    def get_omega(self):
+        rot = self.transform[:3, :3]
+        if np.allclose(np.eye(3), rot):
+            # theta is 0
+            omega = np.zeros(3)
+        elif np.isclose(np.trace(rot), -1):
+            # theta is pi
+            if not np.isclose(rot[2, 2], -1):
+                # axis is z axis
+                factor = 1 / np.sqrt(2 * (1 + rot[2, 2]))
+                omega = factor * np.array([rot[0, 2], rot[1, 2], 1 + rot[2, 2]])
+        else:
+            # theta in [0, pi)
+            # rot[1, 0] is sin(theta)
+            omega_m = 1 / (2 * rot[1, 0]) * (rot - rot.transpose())
+            print omega_m
+            omega = skew_sym_to_vector(omega_m)
+        return omega
+
+
+
+
 
 def main():
-    joint_config = [{'name': '0-0+'},
-                    {'name': '0+1-', 'theta': 0, 'screw': [0, 0, 0, 0, 0, 1]},
-                    {'name': '1-1+', 'x': 1},
-                    {'name': '1+2-', 'theta': np.pi / 2, 'screw': [0, 0, 0, 0, 0, 1]},
-                    {'name': '2-2+', 'x': 1},
-                    {'name': '2+3-', 'theta': np.pi / 2, 'screw': [0, 0, 0, 0, 0, 1]},
-                    {'name': '3-3+', 'x': 1}]
-    target_config = [{'name': '0-0+'},
-                     {'name': '0+1-', 'theta': 0, 'screw': [0, 0, 0, 0, 0, 1]},
-                     {'name': '1-1+', 'x': 1},
-                     {'name': '1+2-', 'theta': 0, 'screw': [0, 0, 0, 0, 0, 1]},
-                     {'name': '2-2+', 'x': 1},
-                     {'name': '2+3-', 'theta': 0, 'screw': [0, 0, 0, 0, 0, 1]},
-                     {'name': '3-3+', 'x': 1}]
-
-    chain = KinematicChain(joint_config)
-    target = KinematicChain(target_config)
-
-    invk = InverseKinematics(chain, target, 0.1, 0.001)
-    # TODO choose alpha
+    # test get omega
+    trans = KinematicLink(theta=1.55, x=5, y=10)
+    print trans.get_omega()
 
 
 if __name__ == "__main__":
