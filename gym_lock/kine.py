@@ -72,20 +72,13 @@ class KinematicChain(object):
         link_locations = []
         theta = 0
         for link in self.chain:
-            # if link.screw is not None:
-            #     print link.get_transform()
+            # print link.get_transform()
             total_transform = total_transform.dot(link.get_transform())
-                # dtheta = dtheta + np.arccos(link.get_transform()[0, 0]) \
-                #                   * np.sign(np.arcsin(link.get_transform()[0, 0]))
-
-                # print dtheta
-                # theta = wrapToMinusPiToPi(dtheta)
             if link.screw is None:
                 # link is a translation
                 theta = np.arccos(total_transform[0, 0]) \
-                        * np.sign(np.arcsin(total_transform[0, 0]))
+                        * np.sign(np.arcsin(total_transform[1, 0]))
                 theta = wrapToMinusPiToPi(theta)
-                print theta
                 link_locations.append(TwoDConfig(total_transform[:2, 3][0], total_transform[:2, 3][1], theta))
         return link_locations
 
