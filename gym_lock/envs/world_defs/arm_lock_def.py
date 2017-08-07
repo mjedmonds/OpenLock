@@ -3,6 +3,7 @@ import numpy as np
 
 from gym_lock.common import TwoDConfig
 from gym_lock.pid import PIDController
+from gym_lock.common import wrapToMinusPiToPi
 
 FPS = 30
 
@@ -11,11 +12,11 @@ FPS = 30
 # TODO: cleanup initialization/reset method
 # NOTE: action spaces are different..
 
-class stateMachineListener(b2.b2ContactListener):
-
-    def __init__(self):
-        b2.b2ContactListener.__init__(self)
-        print "creatded"
+# class stateMachineListener(b2.b2ContactListener):
+#
+#     def __init__(self):
+#         b2.b2ContactListener.__init__(self)
+#         print "creatded"
 
     # def BeginContact(self, contact):
     #     print 'begin'
@@ -38,14 +39,8 @@ class ArmLockDef(object):
     def __init__(self, x0, world_size):
         super(ArmLockDef, self).__init__()
 
-        listener = stateMachineListener()
         self.world = b2.b2World(gravity=(0, -2),
-                                doSleep=False,
-                                contactlistener=listener,
-                                )
-        self.world.contactListener = listener
-        self.world.subStepping = True
-        self.world.SetAllowSleeping(False)
+                                doSleep=False)
 
         self.x0 = x0
         width = 1.0
@@ -139,48 +134,48 @@ class ArmLockDef(object):
                                                         dt=1.0 / FPS))
 
 
-        # create door
-        door_width = 0.5
-        door_length = 10
-        door_fixture = b2.b2FixtureDef(
-            shape=b2.b2PolygonShape(vertices=[(0,-width),
-                                             (0, width),
-                                             (door_length, width),
-                                             (door_length, -width)]),
-            density=1,
-            friction=1.0)
-        self.door = self.world.CreateDynamicBody(
-            position = (0, 10),
-            fixtures = door_fixture)
-        self.door_hinge = self.world.CreateRevoluteJoint(
-            bodyA=self.door,  # end of link A
-            bodyB=self.ground,  # beginning of link B
-            localAnchorA=(0, 0),
-            localAnchorB=(0, 10))
-
-        # create lock
-        # create door
-        lock_width = 0.5
-        lock_length = 10
-        lock_fixture = b2.b2FixtureDef(
-            shape=b2.b2PolygonShape(box=(5, 0.5)),
-            density=1,
-            friction=1.0)
-        self.lock = self.world.CreateDynamicBody(
-            position = (17, -world_size + 15.5),
-            fixtures = lock_fixture,
-            angle = np.pi / 2)
-        self.lock_joint = self.world.CreatePrismaticJoint(
-            bodyA=self.lock,
-            bodyB=self.ground,
-            anchor=(0, 0),
-            axis=(0, 1),
-            lowerTranslation=0,
-            upperTranslation=1,
-            enableLimit=True,
-            motorSpeed=0.0,
-            enableMotor=True,
-        )
+        # # create door
+        # door_width = 0.5
+        # door_length = 10
+        # door_fixture = b2.b2FixtureDef(
+        #     shape=b2.b2PolygonShape(vertices=[(0,-width),
+        #                                      (0, width),
+        #                                      (door_length, width),
+        #                                      (door_length, -width)]),
+        #     density=1,
+        #     friction=1.0)
+        # self.door = self.world.CreateDynamicBody(
+        #     position = (0, 10),
+        #     fixtures = door_fixture)
+        # self.door_hinge = self.world.CreateRevoluteJoint(
+        #     bodyA=self.door,  # end of link A
+        #     bodyB=self.ground,  # beginning of link B
+        #     localAnchorA=(0, 0),
+        #     localAnchorB=(0, 10))
+        #
+        # # create lock
+        # # create door
+        # lock_width = 0.5
+        # lock_length = 10
+        # lock_fixture = b2.b2FixtureDef(
+        #     shape=b2.b2PolygonShape(box=(5, 0.5)),
+        #     density=1,
+        #     friction=1.0)
+        # self.lock = self.world.CreateDynamicBody(
+        #     position = (17, -world_size + 15.5),
+        #     fixtures = lock_fixture,
+        #     angle = np.pi / 2)
+        # self.lock_joint = self.world.CreatePrismaticJoint(
+        #     bodyA=self.lock,
+        #     bodyB=self.ground,
+        #     anchor=(0, 0),
+        #     axis=(0, 1),
+        #     lowerTranslation=0,
+        #     upperTranslation=1,
+        #     enableLimit=True,
+        #     motorSpeed=0.0,
+        #     enableMotor=True,
+        # )
 
     def update_state_machine(self, input):
         pass
@@ -210,11 +205,11 @@ class ArmLockDef(object):
         for i in range(0, len(self.arm_bodies)):
             next_x = self.arm_bodies[i].position[0]
             next_y = self.arm_bodies[i].position[1]
-            next_theta = self.arm_bodies[i].transform.angle
+            next_theta = wrapToMinusPiToPi(self.arm_bodies[i].transform.angle)
 
             dx = next_x - x
             dy = next_y - y
-            dtheta = next_theta - theta
+            dtheta = wrapToMinusPiToPi(next_theta - theta)
 
             x = next_x
             y = next_y
@@ -225,7 +220,7 @@ class ArmLockDef(object):
         return config
 
     def apply_torque(self, idx, torque):
-        force = torque / self.arm_lengths[idx - 1]
+        force = torque / self.arm_lengths[idx]
 
         angle = self.arm_bodies[idx].transform.angle
         position = self.arm_bodies[idx].position
