@@ -3,6 +3,15 @@ import numpy as np
 # defined named tuples
 from gym_lock.common import TwoDConfig, wrapToMinusPiToPi
 
+def generate_valid_config(t1, t2, t3):
+    joint_config = [{'name' : '0-0'},
+                    {'name' : '0+1-', 'theta' : t1, 'screw' : [0, 0, 0, 0, 0, 1]},
+                    {'name' : '1-1+', 'x' : 5},
+                    {'name' : '1+2-', 'theta' : t2, 'screw' : [0, 0, 0, 0, 0, 1]},
+                    {'name' : '2-2+', 'x' : 5},
+                    {'name' : '2+3-', 'theta' : t3, 'screw' : [0, 0, 0, 0, 0, 1]},
+                    {'name' : '3-3+', 'x' : 5}]
+    return joint_config
 
 def get_adjoint(transform):
     rot = transform[:3, :3]
@@ -19,10 +28,11 @@ def get_adjoint(transform):
 
 
 class InverseKinematics(object):
-    def __init__(self, kinematic_chain, target, alpha=-0.01):
+    def __init__(self, kinematic_chain, target, alpha=0.01, lam=25):
         self.kinematic_chain = kinematic_chain
         self.target = target
         self.alpha = alpha
+        self.lam = lam
 
     def set_target(self, new_target):
         self.target = new_target
@@ -31,8 +41,8 @@ class InverseKinematics(object):
         self.kinematic_chain = current_config
 
     def get_error(self):
-        err_mat = self.kinematic_chain.get_transform() \
-                      .dot(np.linalg.inv(self.target.get_transform())) \
+        err_mat = self.target.get_transform() \
+                      .dot(np.linalg.inv(self.kinematic_chain.get_transform())) \
                   - np.eye(4)
         err_vec = np.zeros(6)
         err_vec[:3] = err_mat[:3, 3]
@@ -42,9 +52,18 @@ class InverseKinematics(object):
         return err_vec
 
     def get_delta_theta(self):
-        jacob = self.kinematic_chain.get_jacobian()
-        dtheta = jacob.transpose().dot(self.get_error())
-        dtheta = self.alpha * dtheta / max(1, np.linalg.norm(dtheta))
+        # jacob = self.kinematic_chain.get_jacobian()
+        # dtheta = jacob.transpose().dot(self.get_error())
+        # dtheta = self.alpha * dtheta #/ max(1, np.linalg.norm(dtheta))
+        err = self.get_error()
+        jac = self.kinematic_chain.get_jacobian()
+        jac_t = jac.transpose()
+        dtheta = np.linalg.inv(jac_t.dot(jac) \
+                               + (self.lam ** 2) * np.eye(jac.shape[1])).dot(jac_t).dot(err)
+
+
+
+
         return dtheta
 
 
@@ -67,7 +86,7 @@ class KinematicChain(object):
         for i in range(1, len(new_config)):
             self.chain[2 * i - 1].set_theta(new_config[i].theta)
 
-    def get_link_config(self):
+    def get_abs_config(self):
         total_transform = np.eye(4)
         link_locations = []
         theta = 0
@@ -81,6 +100,27 @@ class KinematicChain(object):
                 theta = wrapToMinusPiToPi(theta)
                 link_locations.append(TwoDConfig(total_transform[:2, 3][0], total_transform[:2, 3][1], theta))
         return link_locations
+
+    def get_rel_config(self):
+        link_locations = []
+        base = self.chain[0].get_transform()
+        theta = np.arccos(base[0, 0]) \
+                * np.sign(np.arcsin(base[1, 0]))
+        base_conf = TwoDConfig(base[0, 3], base[1, 3], theta)
+        link_locations.append(base_conf)
+        for i in range(1, len(self.chain)):
+            if self.chain[i].screw is None:
+                # i - 1 is static link
+                # i is rotational joint
+                trans = self.chain[i].get_transform()
+                rot = self.chain[i - 1].get_transform()
+                x = trans[0, 3]
+                y = trans[1, 3]
+                theta = np.arccos(rot[0, 0]) \
+                        * np.sign(np.arcsin(rot[1, 0]))
+                link_locations.append(TwoDConfig(x, y, theta))
+        return link_locations
+
 
     def get_transform(self):
         total_transform = np.eye(4)
@@ -136,27 +176,61 @@ class KinematicLink(object):
         return self.transform
 
 
+
+
 def main():
-    joint_config = [{'name': '0-0+'},
-                    {'name': '0+1-', 'theta': 0, 'screw': [0, 0, 0, 0, 0, 1]},
-                    {'name': '1-1+', 'x': 1},
-                    {'name': '1+2-', 'theta': np.pi / 2, 'screw': [0, 0, 0, 0, 0, 1]},
-                    {'name': '2-2+', 'x': 1},
-                    {'name': '2+3-', 'theta': np.pi / 2, 'screw': [0, 0, 0, 0, 0, 1]},
-                    {'name': '3-3+', 'x': 1}]
-    target_config = [{'name': '0-0+'},
-                     {'name': '0+1-', 'theta': 0, 'screw': [0, 0, 0, 0, 0, 1]},
-                     {'name': '1-1+', 'x': 1},
-                     {'name': '1+2-', 'theta': 0, 'screw': [0, 0, 0, 0, 0, 1]},
-                     {'name': '2-2+', 'x': 1},
-                     {'name': '2+3-', 'theta': 0, 'screw': [0, 0, 0, 0, 0, 1]},
-                     {'name': '3-3+', 'x': 1}]
 
-    chain = KinematicChain(joint_config)
-    target = KinematicChain(target_config)
+    import matplotlib.pyplot as plt
 
-    invk = InverseKinematics(chain, target, 0.1, 0.001)
-    # TODO choose alpha
+    delta = [np.pi/4, np.pi/4, np.pi/4]
+    start = [np.pi/4, np.pi/4, np.pi/4]
+
+    poses = dict()
+    leng = 10000
+    for i in range(0, leng):
+        poses[i] = generate_valid_config(start[0] + delta[0] * 1.0 * i / leng,
+                                         start[1] + delta[1] * 1.0 * i / leng,
+                                         start[2] + delta[2] * 1.0 * i / leng)
+
+    plt.ion()
+
+    chain = KinematicChain(poses[0])
+    print chain.get_rel_config()
+    exit()
+
+    for i in range(1, 100000):
+
+        targ = KinematicChain(poses[i])
+
+        con = invk.kinematic_chain.get_abs_config()
+
+        x = [c.x for c in con]
+        y = [c.y for c in con]
+        cur = [c.theta for c in con]
+
+        plt.plot(x, y)
+        plt.xlim([-3, 3])
+        plt.ylim([-3, 3])
+        plt.pause(1)
+        plt.cla()
+
+        dtheta = invk.get_delta_theta()
+        print dtheta
+
+        new = [dt + c for dt, c in zip(dtheta, cur)]
+        print new
+
+        new_config = generate_valid_config(new[0], new[1], new[2])
+        chain = KinematicChain(new_config)
+        invk.set_current_config(chain)
+
+        print np.linalg.norm(invk.get_error())
+
+        cur = new
+
+
+
+
 
 
 if __name__ == "__main__":
