@@ -28,11 +28,9 @@ def get_adjoint(transform):
 
 
 class InverseKinematics(object):
-    def __init__(self, kinematic_chain, target, alpha=0.01, lam=25):
+    def __init__(self, kinematic_chain, target):
         self.kinematic_chain = kinematic_chain
         self.target = target
-        self.alpha = alpha
-        self.lam = lam
 
     def set_target(self, new_target):
         self.target = new_target
@@ -40,7 +38,7 @@ class InverseKinematics(object):
     def set_current_config(self, current_config):
         self.kinematic_chain = current_config
 
-    def get_error(self):
+    def get_error_vec(self):
         err_mat = self.target.get_transform() \
                       .dot(np.linalg.inv(self.kinematic_chain.get_transform())) \
                   - np.eye(4)
@@ -51,23 +49,32 @@ class InverseKinematics(object):
         err_vec[5] = err_mat[1, 1] + err_mat[1, 0] + err_mat[0, 0]
         return err_vec
 
-    def get_delta_theta(self):
-        # jacob = self.kinematic_chain.get_jacobian()
-        # dtheta = jacob.transpose().dot(self.get_error())
-        # dtheta = self.alpha * dtheta #/ max(1, np.linalg.norm(dtheta))
+    def get_error(self):
+        return np.linalg.norm(self.get_error_vec())
 
-
-        err = self.get_error()
+    def get_delta_theta_dls(self, lam=3):
+        err = self.get_error_vec()
         jac = self.kinematic_chain.get_jacobian()
         jac_t = jac.transpose()
         dtheta = np.linalg.inv(jac_t.dot(jac) \
-                               + (self.lam ** 2) * np.eye(jac.shape[1])).dot(jac_t).dot(err)
-
-
-
-
+                               + (lam ** 2) * np.eye(jac.shape[1])).dot(jac_t).dot(err)
         return dtheta
 
+    def get_delta_theta_trans(self, alpha=0.01):
+        err = self.get_error_vec()
+        jacob = self.kinematic_chain.get_jacobian()
+        dtheta = jacob.transpose().dot(err)
+        dtheta = alpha * dtheta #/ max(1, np.linalg.norm(dtheta))
+        return dtheta
+
+    # def get_delta_theta(self, alg='trans', *kwargs):
+    #     err = self.get_error()
+    #     if alg == 'trans':
+    #         return self._get_delta_theta_trans(err, kwargs)
+    #     if alg == 'dls':
+    #         return self._get_delta_theta_dls(err, kwargs)
+    #     else:
+    #         return None
 
 class KinematicChain(object):
     def __init__(self, initial_configuration):
@@ -183,90 +190,80 @@ class KinematicLink(object):
 def main():
 
     import matplotlib.pyplot as plt
+    from Queue import Queue
     import time
 
-    # delta = [-np.pi/3, np.pi/4, np.pi/2]
-    # start = [np.pi/4, np.pi/4, 0]
-    # start = [wrapToMinusPiToPi(s + d) for s,d in zip(start, delta)]
-    # delta = [-np.pi, -np.pi, np.pi/2]
-    # print [wrapToMinusPiToPi(s + d) for s,d in zip(start, delta)]
+    # params
+    eta = 0.01
+    i = 0
 
-    delta = [-np.pi/4, np.pi, np.pi/2]
-    start = [np.pi/4, -np.pi, -np.pi/2]
-
-    poses = dict()
-    leng = 10000
-    for i in range(0, leng):
-        poses[i] = generate_valid_config(wrapToMinusPiToPi(start[0] + delta[0] * 1.0 * i / leng),
-                                         wrapToMinusPiToPi(start[1] + delta[1] * 1.0 * i / leng),
-                                         wrapToMinusPiToPi(start[2] + delta[2] * 1.0 * i / leng))
-    #
-    # start = [s + d for s,d in zip(start, delta)]
-    # delta = [-np.pi, -np.pi, np.pi/2]
-    # print [s + d for s,d in zip(start, delta)]
-    #
-    # for i in range(0, leng):
-    #     poses[i + leng] = generate_valid_config(start[0] + delta[0] * 1.0 * i / leng,
-    #                                      start[1] + delta[1] * 1.0 * i / leng,
-    #                                      start[2] + delta[2] * 1.0 * i / leng)
-
+    # setup
     plt.ion()
 
-    chain = KinematicChain(poses[0])
+    # generate discretized path
+    start = [np.pi/4, -np.pi, -np.pi/2]
+    end = [-np.pi, 0, 0]
+    delta = [e - s for e, s in zip(end, start)]
 
+    poses = Queue()
+    leng = 1000
+    for i in range(0, leng + 1):
+        poses.put(generate_valid_config(wrapToMinusPiToPi(start[0] + delta[0] * 1.0 * i / leng),
+                                        wrapToMinusPiToPi(start[1] + delta[1] * 1.0 * i / leng),
+                                        wrapToMinusPiToPi(start[2] + delta[2] * 1.0 * i / leng)))
 
-    for i in range(1, leng):
+    # set initial config and target
+    current_chain = KinematicChain(poses.get())
+    invk = InverseKinematics(current_chain, current_chain)
 
-        targ = KinematicChain(poses[i])
-        invk = InverseKinematics(chain, targ)
+    while(not poses.empty()):
+        i = i + 1
 
-        if i % 500 == 0:
+        # get next waypoint
+        next_waypoint = KinematicChain(poses.get())
+        # set inverse kinematics to have next waypoint
+        invk.set_target(next_waypoint)
+
+        # while err > eta, converge
+        err = invk.get_error() # prime the loop
+        print 'converging'
+        a = 0
+        while (err > eta):
+            a = a + 1
+            # get delta theta
+            # d_theta = invk.get_delta_theta_dls()
+            d_theta = invk.get_delta_theta_trans()
+            
+            # get current config
+            cur_theta = [c.theta for c in invk.kinematic_chain.get_rel_config()[1:]] # ignore virtual base link
+
+            # create new config
+            new_theta = [cur + delta for cur, delta in zip(cur_theta, d_theta)]
+
+            # update inverse kinematics model
+            invk.set_current_config(KinematicChain(generate_valid_config(new_theta[0],
+                                                                         new_theta[1],
+                                                                         new_theta[2])))
+
+            # update err
+            err = invk.get_error()
+        print 'converged in {} iterations'.format(a)
+        # converged on that waypoint
+
+        # plot
+        if i % 50 == 0:
+            print i
             con = invk.kinematic_chain.get_abs_config()
             x = [c.x for c in con]
             y = [c.y for c in con]
-
             plt.plot(x, y)
             plt.xlim([-15, 15])
             plt.ylim([-15, 15])
-            plt.pause(0.001)
-            # plt.cla()
 
-
-
-        dtheta = invk.get_delta_theta()
-        # print 'dtheta'
-        # print dtheta
-
-        cur = [c.theta for c in invk.kinematic_chain.get_rel_config()[1:]]
-        new = [dt + c for dt, c in zip(dtheta, cur)]
-        # print 'cur'
-        # print cur
-        # print 'new'
-        # print new
-
-        new_config = generate_valid_config(new[0], new[1], new[2])
-
-        chain = KinematicChain(new_config)
-
-        invk.set_current_config(chain)
-        print i
-        if i == leng - 1:
-            con = invk.kinematic_chain.get_abs_config()
-            x = [c.x for c in con]
-            y = [c.y for c in con]
-
-            plt.plot(x, y)
-            plt.xlim([-15, 15])
-            plt.ylim([-15, 15])
-            plt.title('0 0 0 to 45 45 45, dls')
-            plt.pause(0.001)
-            time.sleep(100)
-        # print np.linalg.norm(invk.get_error())
-
-
-
-
-
+            if poses.empty():
+                plt.pause(100)
+            else:
+                plt.pause(0.1)
 
 
 if __name__ == "__main__":
