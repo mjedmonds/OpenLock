@@ -4,9 +4,11 @@ import numpy as np
 from gym import spaces
 from gym.envs.classic_control import rendering
 from gym.utils import seeding
+from Queue import Queue
 
 from gym_lock.envs.world_defs.arm_lock_def import ArmLockDef
-from gym_lock.kine import KinematicChain, InverseKinematics
+from gym_lock.kine import KinematicChain, KinematicLink, InverseKinematics, generate_valid_config
+from gym_lock.common import transform_to_theta
 
 VIEWPORT_W = 1200
 VIEWPORT_H = 800
@@ -31,22 +33,40 @@ class ArmLockEnv(gym.Env):
         self.reward_range = (-np.inf, np.inf)
         self._seed()
         self.viewer = None
-        world_size = 25
 
-        # kinematics 
-        joint_config = [{'name': '0-0+'},
-                        {'name': '0+1-', 'theta': np.pi / 4, 'screw': [0, 0, 0, 0, 0, 1]},
-                        {'name': '1-1+', 'x': 5},
-                        {'name': '1+2-', 'theta': np.pi / 4, 'screw': [0, 0, 0, 0, 0, 1]},
-                        {'name': '2-2+', 'x': 5},
-                        {'name': '2+3-', 'theta': np.pi / 4, 'screw': [0, 0, 0, 0, 0, 1]},
-                        {'name': '3-3+', 'x': 5}]
-        self.chain = KinematicChain(joint_config)
+        # inverse kinematics params
+        self.alpha = 0.01 # for invk transpose alg
+        self.lam = 3 # for invk dls alg
+        self.epsilon = 0.01 # for convergence on path waypoint
+        self.step_delta = 0.05 # for path discretization
 
-        self.target = KinematicChain(joint_config)
-
+        # initialize inverse kinematics module with chain==target
+        initial_config = generate_valid_config(0, 0, 0)
+        self.chain = KinematicChain(initial_config)
+        self.target = KinematicChain(generate_valid_config(np.pi, 0, 0))
         self.invkine = InverseKinematics(self.chain, self.target)
-        self.world_def = ArmLockDef(self.chain.get_link_config(), world_size)
+
+        # setup Box2D world
+        self.world_def = ArmLockDef(self.chain.get_abs_config(), 25)
+
+    def _discretize_path(self):
+
+        # calculate number of discretized steps
+        cur = self.chain.get_total_delta_config()
+        targ = self.target.get_total_delta_config()
+        delta = [t - c for t, c in zip(targ, cur)]
+        num_steps = max([int(abs(d / self.step_delta)) for d in delta])
+
+        # generate discretized path
+        waypoints = []
+        for i in range(1, num_steps + 1):
+            waypoints.append(KinematicLink(x=cur.x + i * delta[0] / num_steps,
+                                         y=cur.y + i * delta[1] / num_steps,
+                                         theta=cur.theta + i * delta[2] / num_steps))
+
+        # sanity check: we actually reach the target config
+        assert np.allclose(waypoints[-1].get_transform(), self.target.get_transform())
+        return waypoints
 
     def _step(self, action):
         """Run one timestep of the environment's dynamics. When end of
@@ -64,40 +84,91 @@ class ArmLockEnv(gym.Env):
                 done (boolean): whether the episode has ended, in which case further step() calls will return undefined results
                 info (dict): contains auxiliary diagnostic information (helpful for debugging, and sometimes learning)
         """
-        # action = target_config? 
+        # action = target transform
+
         if action:
-            print 'take action'
-            # update arm kinematic model
-            c = self.world_def.get_rel_config()
-            print c
-            # exit()
+            # generate discretized path
+            start = [np.pi / 4, -np.pi, -np.pi / 2]
+            end = [-np.pi, 0, 0]
+            delta = [e - s for e, s in zip(end, start)]
 
-            joint_config = [{'name': '0-0'},
-                            {'name': '0+1-', 'theta': c[1].theta, 'screw': [0, 0, 0, 0, 0, 1]},
-                            {'name': '1-1+', 'x': 5},
-                            {'name': '1+2-', 'theta': c[2].theta, 'screw': [0, 0, 0, 0, 0, 1]},
-                            {'name': '2-2+', 'x': 5},
-                            {'name': '2+3-', 'theta': c[3].theta, 'screw': [0, 0, 0, 0, 0, 1]},
-                            {'name': '3-3+', 'x': 5}]
+            poses = Queue()
+            leng = 1000
+            for i in range(0, leng + 1):
+                poses.put(generate_valid_config(wrapToMinusPiToPi(start[0] + delta[0] * 1.0 * i / leng),
+                                                wrapToMinusPiToPi(start[1] + delta[1] * 1.0 * i / leng),
+                                                wrapToMinusPiToPi(start[2] + delta[2] * 1.0 * i / leng)))
 
-            new_chain = KinematicChain(joint_config)
+            # set initial config and target
+            current_chain = KinematicChain(poses.get())
+            invk = InverseKinematics(current_chain, current_chain)
 
-            # update target kinematic model
-            target_config = action
-            self.target = KinematicChain(target_config)
-            for link in self.target.chain:
-                print link.get_transform()
-            print 'total'
-            print self.target.get_transform()
+            while (not poses.empty()):
+                i = i + 1
 
-            # update inverse kinematics model
-            self.invkine.set_current_config(new_chain)
-            self.invkine.set_target(self.target)
+                # get next waypoint
+                next_waypoint = KinematicChain(poses.get())
+                # set inverse kinematics to have next waypoint
+                invk.set_target(next_waypoint)
 
-            # update PID controllers
-            delta_theta = self.invkine.get_delta_theta()
-            self.world_def.set_controllers(delta_theta)
-            print 'action taken'
+                # while err > eta, converge
+                err = invk.get_error()  # prime the loop
+                print 'converging'
+                a = 0
+                while (err > eta):
+                    a = a + 1
+                    # get delta theta
+                    # d_theta = invk.get_delta_theta_dls()
+                    d_theta = invk.get_delta_theta_trans()
+
+                    # get current config
+                    cur_theta = [c.theta for c in invk.kinematic_chain.get_rel_config()[1:]]  # ignore virtual base link
+
+                    # create new config
+                    new_theta = [cur + delta for cur, delta in zip(cur_theta, d_theta)]
+
+                    # update inverse kinematics model
+                    invk.set_current_config(KinematicChain(generate_valid_config(new_theta[0],
+                                                                                 new_theta[1],
+                                                                                 new_theta[2])))
+
+                    # update err
+                    err = invk.get_error()
+                print 'converged in {} iterations'.format(a)
+                # converged on that waypoint
+
+        # if action:
+        #     print 'take action'
+        #     # update arm kinematic model
+        #     c = self.world_def.get_rel_config()
+        #     # exit()
+        #
+        #     joint_config = [{'name': '0-0'},
+        #                     {'name': '0+1-', 'theta': c[1].theta, 'screw': [0, 0, 0, 0, 0, 1]},
+        #                     {'name': '1-1+', 'x': 5},
+        #                     {'name': '1+2-', 'theta': c[2].theta, 'screw': [0, 0, 0, 0, 0, 1]},
+        #                     {'name': '2-2+', 'x': 5},
+        #                     {'name': '2+3-', 'theta': c[3].theta, 'screw': [0, 0, 0, 0, 0, 1]},
+        #                     {'name': '3-3+', 'x': 5}]
+        #
+        #     new_chain = KinematicChain(joint_config)
+        #
+        #     # update target kinematic model
+        #     target_config = action
+        #     self.target = KinematicChain(target_config)
+        #     for link in self.target.chain:
+        #         print link.get_transform()
+        #     print 'total'
+        #     print self.target.get_transform()
+        #
+        #     # update inverse kinematics model
+        #     self.invkine.set_current_config(new_chain)
+        #     self.invkine.set_target(self.target)
+        #
+        #     # update PID controllers
+        #     delta_theta = self.invkine.get_delta_theta()
+        #     self.world_def.set_controllers(delta_theta)
+        #     print 'action taken'
 
         self.world_def.step(1.0 / FPS, 10, 10)
         return np.zeros(4), 0, False, dict()
@@ -190,3 +261,10 @@ class ArmLockEnv(gym.Env):
             """
         self.np_random, seed = seeding.np_random(seed)
         return [seed]
+
+def main():
+    env = ArmLockEnv()
+
+if __name__ == '__main__':
+    main()
+
