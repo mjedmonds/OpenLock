@@ -55,6 +55,8 @@ class InverseKinematics(object):
         # jacob = self.kinematic_chain.get_jacobian()
         # dtheta = jacob.transpose().dot(self.get_error())
         # dtheta = self.alpha * dtheta #/ max(1, np.linalg.norm(dtheta))
+
+
         err = self.get_error()
         jac = self.kinematic_chain.get_jacobian()
         jac_t = jac.transpose()
@@ -181,52 +183,86 @@ class KinematicLink(object):
 def main():
 
     import matplotlib.pyplot as plt
+    import time
 
-    delta = [np.pi/4, np.pi/4, np.pi/4]
-    start = [np.pi/4, np.pi/4, np.pi/4]
+    # delta = [-np.pi/3, np.pi/4, np.pi/2]
+    # start = [np.pi/4, np.pi/4, 0]
+    # start = [wrapToMinusPiToPi(s + d) for s,d in zip(start, delta)]
+    # delta = [-np.pi, -np.pi, np.pi/2]
+    # print [wrapToMinusPiToPi(s + d) for s,d in zip(start, delta)]
+
+    delta = [-np.pi/4, np.pi, np.pi/2]
+    start = [np.pi/4, -np.pi, -np.pi/2]
 
     poses = dict()
     leng = 10000
     for i in range(0, leng):
-        poses[i] = generate_valid_config(start[0] + delta[0] * 1.0 * i / leng,
-                                         start[1] + delta[1] * 1.0 * i / leng,
-                                         start[2] + delta[2] * 1.0 * i / leng)
+        poses[i] = generate_valid_config(wrapToMinusPiToPi(start[0] + delta[0] * 1.0 * i / leng),
+                                         wrapToMinusPiToPi(start[1] + delta[1] * 1.0 * i / leng),
+                                         wrapToMinusPiToPi(start[2] + delta[2] * 1.0 * i / leng))
+    #
+    # start = [s + d for s,d in zip(start, delta)]
+    # delta = [-np.pi, -np.pi, np.pi/2]
+    # print [s + d for s,d in zip(start, delta)]
+    #
+    # for i in range(0, leng):
+    #     poses[i + leng] = generate_valid_config(start[0] + delta[0] * 1.0 * i / leng,
+    #                                      start[1] + delta[1] * 1.0 * i / leng,
+    #                                      start[2] + delta[2] * 1.0 * i / leng)
 
     plt.ion()
 
     chain = KinematicChain(poses[0])
-    print chain.get_rel_config()
-    exit()
 
-    for i in range(1, 100000):
+
+    for i in range(1, leng):
 
         targ = KinematicChain(poses[i])
+        invk = InverseKinematics(chain, targ)
 
-        con = invk.kinematic_chain.get_abs_config()
+        if i % 500 == 0:
+            con = invk.kinematic_chain.get_abs_config()
+            x = [c.x for c in con]
+            y = [c.y for c in con]
 
-        x = [c.x for c in con]
-        y = [c.y for c in con]
-        cur = [c.theta for c in con]
+            plt.plot(x, y)
+            plt.xlim([-15, 15])
+            plt.ylim([-15, 15])
+            plt.pause(0.001)
+            # plt.cla()
 
-        plt.plot(x, y)
-        plt.xlim([-3, 3])
-        plt.ylim([-3, 3])
-        plt.pause(1)
-        plt.cla()
+
 
         dtheta = invk.get_delta_theta()
-        print dtheta
+        # print 'dtheta'
+        # print dtheta
 
+        cur = [c.theta for c in invk.kinematic_chain.get_rel_config()[1:]]
         new = [dt + c for dt, c in zip(dtheta, cur)]
-        print new
+        # print 'cur'
+        # print cur
+        # print 'new'
+        # print new
 
         new_config = generate_valid_config(new[0], new[1], new[2])
+
         chain = KinematicChain(new_config)
+
         invk.set_current_config(chain)
+        print i
+        if i == leng - 1:
+            con = invk.kinematic_chain.get_abs_config()
+            x = [c.x for c in con]
+            y = [c.y for c in con]
 
-        print np.linalg.norm(invk.get_error())
+            plt.plot(x, y)
+            plt.xlim([-15, 15])
+            plt.ylim([-15, 15])
+            plt.title('0 0 0 to 45 45 45, dls')
+            plt.pause(0.001)
+            time.sleep(100)
+        # print np.linalg.norm(invk.get_error())
 
-        cur = new
 
 
 
