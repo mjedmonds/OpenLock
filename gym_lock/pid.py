@@ -4,7 +4,7 @@ from common import wrapToMinusPiToPi
 
 
 class PIDController(object):
-    def __init__(self, kp=5000, ki=0, kd=2000, setpoint=0, dt=1, max_out=10000):
+    def __init__(self, kp=2500, ki=0, kd=200, setpoint=0, dt=1, max_out=2000):
         self.kp = kp
         self.ki = ki
         self.kd = kd
@@ -19,10 +19,8 @@ class PIDController(object):
         self.previous_value = 0
 
     def update(self, current_value):
-        self.previous_error = self.error
 
         self.error = wrapToMinusPiToPi(self.setpoint - current_value)
-
         self.integral = self.integral + self.error * self.dt
         self.differential = (self.error - self.previous_error) / self.dt
 
@@ -32,9 +30,17 @@ class PIDController(object):
 
         out = p_term + i_term + d_term
 
-        # clamp range
+        # clamp_mag range
         out = max(-self.max_out, min(out, self.max_out))
 
+        self.previous_error = self.error
+
+
+        # print out
+        # print self.error
+        # print out
+        import time
+        # time.sleep(0.1)
         return out
 
     def set_setpoint(self, setpoint):

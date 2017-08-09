@@ -68,14 +68,14 @@ class ArmLockDef(object):
             maskBits=0x0000)
         # define link properties
         link_fixture = b2.b2FixtureDef(  # all links have same properties
-            density=1.0,
-            friction=1.0,
+            density=0.1,
+            friction=3.0,
             categoryBits=0x0001,
             maskBits=0x0000)
         # define "motor" properties
         motor_fixture = b2.b2FixtureDef(  # all motors have same properties
-            density=1.0,
-            friction=1.0,
+            density=0.1,
+            friction=3.0,
             categoryBits=0x0001,
             maskBits=0x0000)
 
@@ -122,16 +122,29 @@ class ArmLockDef(object):
                 localAnchorB=(-self.arm_lengths[i], 0),
                 enableMotor=True,
                 motorSpeed=0,
-                maxMotorTorque=400,
+                maxMotorTorque=500,
                 enableLimit=False))
 
         # create joint PID controllers and initialize to
         # angles specified in x0
         self.joint_controllers = []
         config = self.get_abs_config()[1:]  # ignore baseframe transform
+        # pts = [-np.pi, 0, 0, 0]
+        # pts = [-np.pi, np.pi/2, -np.pi/2, -np.pi/2]
+
+        kp = kd = ki = max_torque = np.array([1, 1.0 / 2, 1.0 / 4, 1.0 / 8])
+
+        kp = kp * 18000
+        kd= kd * 750
+        ki= ki * 0
+        max_torque = np.array([1, 1, 1, 1]) * 2000
         for i in range(0, len(self.arm_joints)):
-            self.joint_controllers.append(PIDController(setpoint=config[i].theta,
-                                                        dt=1.0 / FPS))
+            self.joint_controllers.append(PIDController(kp=kp[i],
+                                                        ki=ki[i],
+                                                        kd=kd[i],
+                                                        setpoint=config[i].theta,
+                                                        dt=1.0 / FPS,
+                                                        max_out=max_torque[i]))
 
 
         # # create door
@@ -181,9 +194,11 @@ class ArmLockDef(object):
         pass
 
     def set_controllers(self, delta_setpoints):
+        conf = self.get_rel_config()[1:]
         for i in range(0, len(self.joint_controllers)):
-            cur = self.joint_controllers[i].setpoint
-            new = cur + delta_setpoints[i]
+            cur = conf[i].theta
+            print 'cur: {} new: {}'.format(cur, cur+delta_setpoints[i])
+            new = wrapToMinusPiToPi(cur + delta_setpoints[i])
             self.joint_controllers[i].set_setpoint(new)
 
     def get_abs_config(self):
@@ -231,12 +246,15 @@ class ArmLockDef(object):
 
     def step(self, timestep, vel_iterations, pos_iterations):
         # update torques
-        self.update_state_machine(None)
+
+        conf = self.get_rel_config()
         for i in range(1, len(self.arm_bodies)):
-            body_angle = self.arm_bodies[i].transform.angle
+            body_angle = conf[i].theta
             new_torque = self.joint_controllers[i - 1].update(body_angle)
             self.apply_torque(i, new_torque)
+
         self.world.Step(timestep, vel_iterations, pos_iterations)
+
 
     # TODO: implement
     def reset_world(self):

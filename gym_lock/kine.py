@@ -1,16 +1,19 @@
 import numpy as np
 
 # defined named tuples
-from gym_lock.common import TwoDConfig, wrapToMinusPiToPi, transform_to_theta
+from gym_lock.common import TwoDConfig, wrapToMinusPiToPi, transform_to_theta, clamp_mag
 
-def generate_valid_config(t1, t2, t3):
+def generate_valid_config(t1, t2, t3, t4):
     joint_config = [{'name' : '0-0'},
                     {'name' : '0+1-', 'theta' : t1, 'screw' : [0, 0, 0, 0, 0, 1]},
                     {'name' : '1-1+', 'x' : 5},
                     {'name' : '1+2-', 'theta' : t2, 'screw' : [0, 0, 0, 0, 0, 1]},
                     {'name' : '2-2+', 'x' : 5},
                     {'name' : '2+3-', 'theta' : t3, 'screw' : [0, 0, 0, 0, 0, 1]},
-                    {'name' : '3-3+', 'x' : 5}]
+                    {'name' : '3-3+', 'x' : 5},
+                    {'name': '3+4-', 'theta': t4, 'screw': [0, 0, 0, 0, 0, 1]},
+                    {'name': '4-4+', 'x': 5}
+                    ]
     return joint_config
 
 def get_adjoint(transform):
@@ -38,7 +41,7 @@ class InverseKinematics(object):
     def set_current_config(self, current_config):
         self.kinematic_chain = current_config
 
-    def get_error_vec(self):
+    def get_error_vec(self, clamp=False):
         err_mat = self.target.get_transform() \
                       .dot(np.linalg.inv(self.kinematic_chain.get_transform())) \
                   - np.eye(4)
@@ -47,24 +50,35 @@ class InverseKinematics(object):
         err_vec[3] = err_mat[2, 2] + err_mat[2, 1] + err_mat[1, 1]
         err_vec[4] = err_mat[0, 0] + err_mat[0, 2] + err_mat[2, 2]
         err_vec[5] = err_mat[1, 1] + err_mat[1, 0] + err_mat[0, 0]
+
+        if clamp:
+            err_vec = clamp_mag(err_vec, clamp)
+
         return err_vec
 
     def get_error(self):
         return np.linalg.norm(self.get_error_vec())
 
-    def get_delta_theta_dls(self, lam=3):
-        err = self.get_error_vec()
+    def get_delta_theta_dls(self, lam=3, clamp_err=False, clamp_theta=False):
+        err = self.get_error_vec(clamp=clamp_err)
         jac = self.kinematic_chain.get_jacobian()
         jac_t = jac.transpose()
         dtheta = np.linalg.inv(jac_t.dot(jac) \
                                + (lam ** 2) * np.eye(jac.shape[1])).dot(jac_t).dot(err)
+        if clamp_theta:
+            dtheta = clamp_mag(dtheta, clamp_theta)
+
         return dtheta
 
-    def get_delta_theta_trans(self, alpha=0.01):
-        err = self.get_error_vec()
+    def get_delta_theta_trans(self, alpha=0.01, clamp_err=False, clamp_theta=False):
+        err = self.get_error_vec(clamp=clamp_err)
         jacob = self.kinematic_chain.get_jacobian()
         dtheta = jacob.transpose().dot(err)
         dtheta = alpha * dtheta #/ max(1, np.linalg.norm(dtheta))
+
+        if clamp_theta:
+            dtheta = clamp_mag(dtheta, clamp_theta)
+
         return dtheta
 
     # def get_delta_theta(self, alg='trans', *kwargs):
@@ -200,7 +214,7 @@ def main():
     import time
 
     # params
-    eta = 0.01
+    epsilon = 0.01
     i = 0
 
     # setup
