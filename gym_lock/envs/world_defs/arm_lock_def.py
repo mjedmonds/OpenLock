@@ -129,7 +129,6 @@ class ArmLockDef(object):
         # angles specified in x0
         self.joint_controllers = []
         config = self.get_abs_config()[1:]  # ignore baseframe transform
-        print config
         for i in range(0, len(self.arm_joints)):
             self.joint_controllers.append(PIDController(setpoint=config[i].theta,
                                                         dt=1.0 / FPS))
@@ -194,7 +193,6 @@ class ArmLockDef(object):
             x = self.arm_bodies[i].position[0]
             y = self.arm_bodies[i].position[1]
             theta = self.arm_bodies[i].transform.angle
-            print theta
 
             config.append(TwoDConfig(x, y, theta))
 

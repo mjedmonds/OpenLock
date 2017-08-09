@@ -8,7 +8,7 @@ from Queue import Queue
 
 from gym_lock.envs.world_defs.arm_lock_def import ArmLockDef
 from gym_lock.kine import KinematicChain, KinematicLink, InverseKinematics, generate_valid_config
-from gym_lock.common import transform_to_theta
+from gym_lock.common import transform_to_theta, wrapToMinusPiToPi
 
 VIEWPORT_W = 1200
 VIEWPORT_H = 800
@@ -36,8 +36,8 @@ class ArmLockEnv(gym.Env):
 
         # inverse kinematics params
         self.alpha = 0.01 # for invk transpose alg
-        self.lam = 3 # for invk dls alg
-        self.epsilon = 0.01 # for convergence on path waypoint
+        self.lam = 1 # for invk dls alg
+        self.epsilon = 0.1 # for convergence on path waypoint
         self.step_delta = 0.05 # for path discretization
 
         # initialize inverse kinematics module with chain==target
@@ -49,23 +49,29 @@ class ArmLockEnv(gym.Env):
         # setup Box2D world
         self.world_def = ArmLockDef(self.chain.get_abs_config(), 25)
 
-    def _discretize_path(self):
+    def _discretize_path(self, action):
 
         # calculate number of discretized steps
         cur = self.chain.get_total_delta_config()
-        targ = self.target.get_total_delta_config()
+        targ = action.get_total_delta_config()
+
         delta = [t - c for t, c in zip(targ, cur)]
+
         num_steps = max([int(abs(d / self.step_delta)) for d in delta])
+
+        if num_steps == 0:
+            return None
 
         # generate discretized path
         waypoints = []
         for i in range(1, num_steps + 1):
             waypoints.append(KinematicLink(x=cur.x + i * delta[0] / num_steps,
                                          y=cur.y + i * delta[1] / num_steps,
-                                         theta=cur.theta + i * delta[2] / num_steps))
+                                         theta=wrapToMinusPiToPi(cur.theta + i * delta[2] / num_steps)))
 
         # sanity check: we actually reach the target config
-        assert np.allclose(waypoints[-1].get_transform(), self.target.get_transform())
+
+        assert np.allclose(waypoints[-1].get_transform(), action.get_transform())
         return waypoints
 
     def _step(self, action):
@@ -84,57 +90,61 @@ class ArmLockEnv(gym.Env):
                 done (boolean): whether the episode has ended, in which case further step() calls will return undefined results
                 info (dict): contains auxiliary diagnostic information (helpful for debugging, and sometimes learning)
         """
-        # action = target transform
+        # action = virtual KinematicLink
 
         if action:
-            # generate discretized path
-            start = [np.pi / 4, -np.pi, -np.pi / 2]
-            end = [-np.pi, 0, 0]
-            delta = [e - s for e, s in zip(end, start)]
 
-            poses = Queue()
-            leng = 1000
-            for i in range(0, leng + 1):
-                poses.put(generate_valid_config(wrapToMinusPiToPi(start[0] + delta[0] * 1.0 * i / leng),
-                                                wrapToMinusPiToPi(start[1] + delta[1] * 1.0 * i / leng),
-                                                wrapToMinusPiToPi(start[2] + delta[2] * 1.0 * i / leng)))
+           # update current configuration
+           cur_theta = [c.theta for c in self.world_def.get_rel_config()[1:]] # ignore virtual base link
+           new_conf = generate_valid_config(cur_theta[0], cur_theta[1], cur_theta[2])
+           self.chain = KinematicChain(new_conf)
 
-            # set initial config and target
-            current_chain = KinematicChain(poses.get())
-            invk = InverseKinematics(current_chain, current_chain)
+           # update invk model
+           self.invkine.set_current_config(self.chain)
 
-            while (not poses.empty()):
-                i = i + 1
+           # generate discretized waypoints
+           waypoints = self._discretize_path(action)
 
-                # get next waypoint
-                next_waypoint = KinematicChain(poses.get())
-                # set inverse kinematics to have next waypoint
-                invk.set_target(next_waypoint)
+           if waypoints is None:
+               return np.zeros(4), 0, True, dict()
+
+           for i in range(0, len(waypoints)):
+
+                # set next waypoint
+                self.invkine.set_target(waypoints[i])
 
                 # while err > eta, converge
-                err = invk.get_error()  # prime the loop
-                print 'converging'
+                err = self.invkine.get_error()  # prime the loop
+
+                # print 'converging'
                 a = 0
-                while (err > eta):
+                err = self.invkine.get_error()
+                while (err > self.epsilon):
                     a = a + 1
+
                     # get delta theta
-                    # d_theta = invk.get_delta_theta_dls()
-                    d_theta = invk.get_delta_theta_trans()
+                    d_theta = self.invkine.get_delta_theta_dls(lam=self.lam)
+                    # d_theta = self.invkine.get_delta_theta_trans()
 
-                    # get current config
-                    cur_theta = [c.theta for c in invk.kinematic_chain.get_rel_config()[1:]]  # ignore virtual base link
+                    # update controllers
+                    self.world_def.set_controllers(d_theta)
 
-                    # create new config
-                    new_theta = [cur + delta for cur, delta in zip(cur_theta, d_theta)]
+                    # step
+                    self.world_def.step(1.0 / FPS, 10, 10)
 
-                    # update inverse kinematics model
-                    invk.set_current_config(KinematicChain(generate_valid_config(new_theta[0],
-                                                                                 new_theta[1],
-                                                                                 new_theta[2])))
+                    # update current configuration
+                    cur_theta = [c.theta for c in self.world_def.get_rel_config()[1:]]  # ignore virtual base link
+                    new_conf = generate_valid_config(cur_theta[0], cur_theta[1], cur_theta[2])
+                    self.chain = KinematicChain(new_conf)
 
-                    # update err
-                    err = invk.get_error()
-                print 'converged in {} iterations'.format(a)
+                    # update inverse kine
+                    self.invkine.set_current_config(self.chain)
+
+                    # update error
+                    err = self.invkine.get_error()
+
+                # print 'converged in {} iterations'.format(a)
+                super(ArmLockEnv, self).render()
                 # converged on that waypoint
 
         # if action:

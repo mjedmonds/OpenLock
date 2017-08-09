@@ -1,7 +1,7 @@
 import numpy as np
 
 # defined named tuples
-from gym_lock.common import TwoDConfig, wrapToMinusPiToPi
+from gym_lock.common import TwoDConfig, wrapToMinusPiToPi, transform_to_theta
 
 def generate_valid_config(t1, t2, t3):
     joint_config = [{'name' : '0-0'},
@@ -104,8 +104,7 @@ class KinematicChain(object):
             total_transform = total_transform.dot(link.get_transform())
             if link.screw is None:
                 # link is a translation
-                theta = np.arccos(total_transform[0, 0]) \
-                        * np.sign(np.arcsin(total_transform[1, 0]))
+                theta = transform_to_theta(total_transform)
                 theta = wrapToMinusPiToPi(theta)
                 link_locations.append(TwoDConfig(total_transform[:2, 3][0], total_transform[:2, 3][1], theta))
         return link_locations
@@ -125,10 +124,17 @@ class KinematicChain(object):
                 rot = self.chain[i - 1].get_transform()
                 x = trans[0, 3]
                 y = trans[1, 3]
-                theta = np.arccos(rot[0, 0]) \
-                        * np.sign(np.arcsin(rot[1, 0]))
+                theta = transform_to_theta(rot)
+
                 link_locations.append(TwoDConfig(x, y, theta))
         return link_locations
+
+    def get_total_delta_config(self):
+        trans = self.get_transform()
+        x = trans[0, 3]
+        y = trans[1, 3]
+        theta = transform_to_theta(trans)
+        return TwoDConfig(x, y, theta)
 
 
     def get_transform(self):
@@ -224,11 +230,11 @@ def main():
         # set inverse kinematics to have next waypoint
         invk.set_target(next_waypoint)
 
-        # while err > eta, converge
+        # while err > epsilon, converge
         err = invk.get_error() # prime the loop
         print 'converging'
         a = 0
-        while (err > eta):
+        while (err > epsilon):
             a = a + 1
             # get delta theta
             # d_theta = invk.get_delta_theta_dls()

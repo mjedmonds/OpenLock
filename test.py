@@ -6,6 +6,9 @@ env = gym.make('arm_lock-v0')
 env.reset()
 
 import numpy as np
+from numpy import pi
+
+from gym_lock.kine import KinematicChain
 
 def generate_valid_config(t1, t2, t3):
     joint_config = [{'name' : '0-0'},
@@ -17,28 +20,36 @@ def generate_valid_config(t1, t2, t3):
                     {'name' : '3-3+', 'x' : 5}]
     return joint_config
 
-c1 = generate_valid_config(0, np.pi / 2, 0)
-c2 = generate_valid_config(0, 0, np.pi / 2)
-c3 = generate_valid_config(0, np.pi / 2, np.pi / 2)
-c4 = generate_valid_config(-np.pi/2, np.pi/2, -np.pi/2)
+def gen_theta():
+    return (np.random.ranf() - 0.5) * 2 * np.pi
 
-c5 = generate_valid_config(np.pi / 2, 0, 0)
+configs = []
+for i in range(0, 10):
+    configs.append(generate_valid_config(gen_theta(), gen_theta(), gen_theta()))
 
-s = [1000, 2000, 3000 , 4000, 5000, 6000]
-
+targ = KinematicChain(configs[i])
+idx = 0
+print configs[idx]
 
 for i in range(10000000):
     env.render()
-    if 0 == 0:
-        if i < s[0]:
-            env.step(c1)
-        if i > s[0] and i < s[1]:
-            env.step(c2)
-        if i > s[1] and i < s[2]:
-            env.step(c3)
-        if i > s[2] and i < s[3]:
-            env.step(c4)
+    obs, rew, done, info = env.step(targ)
 
-    else:
-        env.step(False)
+    if done:
+        idx = idx + 1
+        targ = KinematicChain(configs[idx])
+        print 'new target'
+        print configs[idx]
+
+    # if 0 == 0:
+    #     if i < s[0]:
+    #         env.step(c1)
+    #     if i > s[0] and i < s[1]:
+    #         env.step(c2)
+    #     if i > s[1] and i < s[2]:
+    #         env.step(c3)
+    #     if i > s[2] and i < s[3]:
+    #         env.step(c4)
+    # else:
+    #     env.step(False)
 
