@@ -6,19 +6,19 @@ from gym_lock.common import TwoDConfig, wrapToMinusPiToPi, transform_to_theta, c
 # turns on all assertions
 DEBUG = True
 
+
 # TODO: move elsewhere, or get rid of dict config and just pass in list of links?
-def generate_valid_config(t1, t2, t3, t4):
-    joint_config = [{'name' : '0-0'},
-                    {'name' : '0+1-', 'theta' : t1, 'screw' : [0, 0, 0, 0, 0, 1]},
-                    {'name' : '1-1+', 'x' : 5},
-                    {'name' : '1+2-', 'theta' : t2, 'screw' : [0, 0, 0, 0, 0, 1]},
-                    {'name' : '2-2+', 'x' : 5},
-                    {'name' : '2+3-', 'theta' : t3, 'screw' : [0, 0, 0, 0, 0, 1]},
-                    {'name' : '3-3+', 'x' : 5},
-                    {'name': '3+4-', 'theta': t4, 'screw': [0, 0, 0, 0, 0, 1]},
-                    {'name': '4-4+', 'x': 5}
-                    ]
-    return joint_config
+def generate_four_arm(t1, t2, t3, t4):
+    return [KinematicLink(),
+            KinematicLink(theta=t1, screw=[0, 0, 0, 0, 0, 1]),
+            KinematicLink(x=5),
+            KinematicLink(theta=t2, screw=[0, 0, 0, 0, 0, 1]),
+            KinematicLink(x=5),
+            KinematicLink(theta=t3, screw=[0, 0, 0, 0, 0, 1]),
+            KinematicLink(x=5),
+            KinematicLink(theta=t4, screw=[0, 0, 0, 0, 0, 1]),
+            KinematicLink(x=5)]
+
 
 def get_adjoint(transform):
     rot = transform[:3, :3]
@@ -33,8 +33,8 @@ def get_adjoint(transform):
     res[:3, 3:] = matrix_rep.dot(rot)
     return res
 
-def discretize_path(cur, action, step_delta):
 
+def discretize_path(cur, action, step_delta):
     # calculate number of discretized steps
     cur = cur.get_total_delta_config()
     targ = action.get_total_delta_config()
@@ -49,13 +49,15 @@ def discretize_path(cur, action, step_delta):
     # generate discretized path
     waypoints = []
     for i in range(0, num_steps + 1):
-        waypoints.append(KinematicLink(x=cur.x + i * delta[0] / num_steps,
-                                     y=cur.y + i * delta[1] / num_steps,
-                                     theta=wrapToMinusPiToPi(cur.theta + i * delta[2] / num_steps)))
+        waypoints.append(TwoDKinematicTransform(x=cur.x + i * delta[0] / num_steps,
+                                                y=cur.y + i * delta[1] / num_steps,
+                                                theta=wrapToMinusPiToPi(cur.theta + i * delta[2] / num_steps)))
+
     # sanity check: we actually reach the target config
     assert np.allclose(waypoints[-1].get_transform(), action.get_transform())
 
     return waypoints
+
 
 class InverseKinematics(object):
     def __init__(self, kinematic_chain, target):
@@ -101,118 +103,122 @@ class InverseKinematics(object):
         err = self.get_error_vec(clamp=clamp_err)
         jacob = self.kinematic_chain.get_jacobian()
         dtheta = jacob.transpose().dot(err)
-        dtheta = alpha * dtheta #/ max(1, np.linalg.norm(dtheta))
+        dtheta = alpha * dtheta  # / max(1, np.linalg.norm(dtheta))
 
         if clamp_theta:
             dtheta = clamp_mag(dtheta, clamp_theta)
 
         return dtheta
 
-class KinematicChain(object):
-    def __init__(self, initial_configuration, cog_links=None):
-        self.configuration = initial_configuration
-        self.chain = []
-        for link in self.configuration:
-            self.chain.append(KinematicLink(**link))
 
-        self.cog_links = cog_links
+class KinematicChain(object):
+    def __init__(self, chain):
+        self.chain = chain
+
         self._check_rep()
 
     def _check_rep(self):
         if DEBUG:
-            if self.cog_links:
-                # there should be one cog_link for every link
-                assert len(self.cog_links) == (len(self.chain) - 1) / 2
-
-            # there should always be an odd number of links
-            # 1 virtual link + 1 rot and 1 trans for every link
-            assert len(self.chain) % 2 == 1
-
-            # a chain always has 1 virutal link and 2 real links
-            assert len(self.chain) >= 3
-
+            # a chain always has at least 1 virutal link and 1 real links
+            assert len(self.chain) >= 2
 
     def update_chain(self, new_config):
-        assert len(new_config) * 2 - 1 == len(self.chain)
+        assert len(new_config) == len(self.chain)
 
         # update baseframe
-        self.chain[0].set_x(new_config[0].x)
-        self.chain[0].set_y(new_config[0].y)
-        self.chain[0].set_theta(new_config[0].theta)
+        self.chain[0].minus.set_theta(new_config[0].theta)
+        self.chain[0].plus.set_x(new_config[0].x)
 
         # update angles at each joint
         for i in range(1, len(new_config)):
-            self.chain[2 * i - 1].set_theta(new_config[i].theta)
+            self.chain[i].minus.set_theta(new_config[i].theta)
 
     def get_abs_config(self):
         total_transform = np.eye(4)
         link_locations = []
-        theta = 0
         for link in self.chain:
-            # print link.get_transform()
-            total_transform = total_transform.dot(link.get_transform())
-            if link.screw is None:
-                # link is a translation
-                theta = transform_to_theta(total_transform)
-                theta = wrapToMinusPiToPi(theta)
-                link_locations.append(TwoDConfig(total_transform[:2, 3][0], total_transform[:2, 3][1], theta))
+            total_transform = total_transform.dot(link.minus.transform).dot(link.plus.transform)
+            theta = transform_to_theta(total_transform)
+            theta = wrapToMinusPiToPi(theta)
+            link_locations.append(TwoDConfig(total_transform[:2, 3][0], total_transform[:2, 3][1], theta))
         return link_locations
 
     def get_rel_config(self):
         link_locations = []
-        base = self.chain[0].get_transform()
-        theta = np.arccos(base[0, 0]) \
-                * np.sign(np.arcsin(base[1, 0]))
-        base_conf = TwoDConfig(base[0, 3], base[1, 3], theta)
-        link_locations.append(base_conf)
-        for i in range(1, len(self.chain)):
-            if self.chain[i].screw is None:
-                # i - 1 is static link
-                # i is rotational joint
-                trans = self.chain[i].get_transform()
-                rot = self.chain[i - 1].get_transform()
-                x = trans[0, 3]
-                y = trans[1, 3]
-                theta = transform_to_theta(rot)
 
-                link_locations.append(TwoDConfig(x, y, theta))
+        for link in self.chain:
+            theta = link.minus.theta
+            x = link.plus.x
+            y = link.plus.y
+            link_locations.append(TwoDConfig(x, y, theta))
+
         return link_locations
 
     def get_total_delta_config(self):
-        trans = self.get_transform()
-        x = trans[0, 3]
-        y = trans[1, 3]
-        theta = transform_to_theta(trans)
+        total = self.get_transform()
+        x = total[0, 3]
+        y = total[1, 3]
+        theta = transform_to_theta(total)
         return TwoDConfig(x, y, theta)
-
 
     def get_transform(self, name=None):
         total_transform = np.eye(4)
-        i=0
         for link in self.chain:
-            i = i +1
-            total_transform = total_transform.dot(link.get_transform())
-            if link.name == name:
-                print 'break'
-                break
-            print i
+            total_transform = total_transform.dot(link.minus.transform).dot(link.plus.transform)
         return total_transform
 
     def get_jacobian(self):
-        transform = np.eye(4)
+        total_transform = np.eye(4)
         jacobian = []
-        for i in range(0, len(self.chain)):
-            transform = transform.dot(self.chain[i].get_transform())
-            if self.chain[i].screw is not None:
-                # end of a link
-                screw = self.chain[i].screw
-                adj = get_adjoint(transform)
-                jacobian_i = adj.dot(screw)
-                jacobian.append(jacobian_i)
-        return np.array(jacobian).transpose()
+
+        for link in self.chain:
+
+            # transform to proximal end
+            total_transform = total_transform.dot(link.minus.transform)
+
+            if link.minus.screw is not None:
+                # screw is on proximal end (i.e. revolute joint)
+
+                # transform screw to inertial frame
+                jacobian.append(get_adjoint(total_transform).dot(link.minus.screw))
+
+            # transform to distal end
+            total_transform = total_transform.dot(link.plus.transform)
+
+            # if link.plus.screw is not None:
+            #     
+            #     # TODO: remove this, should never get here with current config?
+            #     assert 1 == 0
+            #     
+            #     # screw is on distal end (i.e. translational joint)
+            #     
+            #     # transform screw to inertial frame
+            #     jacobian.append(get_adjoint(total_transform).dot(link.plus.screw))
+
+        res = np.array(jacobian).transpose()
+
+        # jacobian should have a column for every link in kinematic chain (except virtual)
+        # and row for each w_{x, y z} and v_{x, y, z}
+        assert res.shape == (6, len(self.chain) - 1)
+
+        return res
 
 
 class KinematicLink(object):
+    def __init__(self, minus, cog, plus, inertia_matrix):
+        self.minus = minus
+        self.cog = cog
+        self.plus = plus
+        self.inertia_matrix = inertia_matrix
+
+        self._check_rep()
+
+    def _check_rep(self):
+        assert self.minus.shape == self.cog.shape == self.plus.shape == (4, 4)
+        assert self.inertia_matrix.shape == (6, 6)
+
+
+class TwoDKinematicTransform(object):
     def __init__(self, theta=0, x=0, y=0, scale=1, screw=None, name='KinematicLink'):
         self.transform = np.asarray([[np.cos(theta), -np.sin(theta), 0, x],
                                      [np.sin(theta), np.cos(theta), 0, y],
@@ -246,10 +252,7 @@ class KinematicLink(object):
         return self.transform
 
 
-
-
 def main():
-
     import matplotlib.pyplot as plt
     from Queue import Queue
     import time
@@ -261,32 +264,9 @@ def main():
 
     # setup
     plt.ion()
-    current_chain = KinematicChain(generate_valid_config(0, 0, 0, 0))
-
-    t_1minus_l1 = KinematicLink(x=2.5).get_transform()
-    t_0_1minus = current_chain.get_transform(name='0+1-')
-    print t_0_1minus
-
-    t_0_l1 = t_0_1minus.dot(t_1minus_l1)
-    print t_0_l1
-    adj_l1_0 = np.linalg.inv(get_adjoint(t_0_l1))
-
-    jac = current_chain.get_jacobian()
-    print jac
-
-    jac_1 = adj_l1_0.dot(jac)
-
-    print jac_1
-
-    # jac_b = ad
-    # print jac_b
-
-
-    exit()
-
-    targ = KinematicChain(generate_valid_config(np.pi / 2, 0, 0, np.pi / 2))
+    current_chain = KinematicChain(generate_four_arm(0, 0, 0, 0))
+    targ = KinematicChain(generate_four_arm(np.pi / 2, 0, 0, 0))
     poses = discretize_path(current_chain, targ, delta_step)
-
 
     # initialize with target and current the same
     invk = InverseKinematics(current_chain, current_chain)
@@ -304,7 +284,7 @@ def main():
         # print poses[-1].get_transform()
 
         # while err > epsilon, converge
-        err = invk.get_error() # prime the loop
+        err = invk.get_error()  # prime the loop
         print 'converging'
         a = 0
         while (err > epsilon):
@@ -313,18 +293,18 @@ def main():
             d_theta = invk.get_delta_theta_dls(lam=20)
 
             # d_theta = invk.get_delta_theta_trans()
-            
+
             # get current config
-            cur_theta = [c.theta for c in invk.kinematic_chain.get_rel_config()[1:]] # ignore virtual base link
+            cur_theta = [c.theta for c in invk.kinematic_chain.get_rel_config()[1:]]  # ignore virtual base link
 
             # create new config
             new_theta = [cur + delta for cur, delta in zip(cur_theta, d_theta)]
 
             # update inverse kinematics model
-            invk.set_current_config(KinematicChain(generate_valid_config(new_theta[0],
-                                                                         new_theta[1],
-                                                                         new_theta[2],
-                                                                         new_theta[3])))
+            invk.set_current_config(KinematicChain(generate_four_arm(new_theta[0],
+                                                                     new_theta[1],
+                                                                     new_theta[2],
+                                                                     new_theta[3])))
 
             # update err
             err = invk.get_error()
@@ -352,6 +332,6 @@ def main():
                 plt.cla()
 
 
-
 if __name__ == "__main__":
     main()
+
