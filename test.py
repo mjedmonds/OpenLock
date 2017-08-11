@@ -20,14 +20,21 @@ def gen_theta():
 targ = KinematicChain(generate_valid_config(pi/2, 0, 0, pi/2))
 idx = 0
 
+done = False
+
 for i in range(10000000):
     env.render()
-
-    obs, rew, done, info = env.step(targ)
-
-
-
+    env.step(False)
     # if done:
+    #     env.step(False)
+    # else:
+    #     obs, rew, done, info = env.step(targ)
+    #     print done
+
+
+
+
+        # if done:
     #     idx = idx + 1
     #     targ = KinematicChain(configs[idx])
     #     print 'new target'

@@ -39,7 +39,7 @@ class ArmLockDef(object):
     def __init__(self, x0, world_size):
         super(ArmLockDef, self).__init__()
 
-        self.world = b2.b2World(gravity=(0, -2),
+        self.world = b2.b2World(gravity=(0, 0),
                                 doSleep=False)
 
         self.x0 = x0
@@ -72,12 +72,14 @@ class ArmLockDef(object):
             friction=3.0,
             categoryBits=0x0001,
             maskBits=0x0000)
-        # define "motor" properties
-        motor_fixture = b2.b2FixtureDef(  # all motors have same properties
-            density=0.1,
-            friction=3.0,
-            categoryBits=0x0001,
-            maskBits=0x0000)
+
+        # NOTE: remove motor for simpler COG calc
+        # # define "motor" properties
+        # motor_fixture = b2.b2FixtureDef(  # all motors have same properties
+        #     density=0.1,
+        #     friction=3.0,
+        #     categoryBits=0x0001,
+        #     maskBits=0x0000)
 
         # create base
         self.arm_bodies.append(self.world.CreateBody(
@@ -122,27 +124,27 @@ class ArmLockDef(object):
                 localAnchorB=(-self.arm_lengths[i], 0),
                 enableMotor=True,
                 motorSpeed=0,
-                maxMotorTorque=500,
-                enableLimit=False))
+                maxMotorTorque=500.0,
+                enableLimit=True))
 
         # create joint PID controllers and initialize to
         # angles specified in x0
         self.joint_controllers = []
         config = self.get_abs_config()[1:]  # ignore baseframe transform
-        # pts = [-np.pi, 0, 0, 0]
-        # pts = [-np.pi, np.pi/2, -np.pi/2, -np.pi/2]
+        # pts = [0.1, 0.1, 0.1, 0.1]
+        pts = [-np.pi, np.pi/2, -np.pi/2, -np.pi/2]
 
-        kp = kd = ki = max_torque = np.array([1, 1.0 / 2, 1.0 / 4, 1.0 / 8])
+        kp = kd = ki = max_torque = np.array([1, 1.0/2, 1.0/4, 1.0/16])
 
-        kp = kp * 18000
-        kd= kd * 750
-        ki= ki * 0
-        max_torque = np.array([1, 1, 1, 1]) * 2000
+        kp = kp * 22000 * 1
+        kd= kd * 1500 * 1
+        ki= ki * 500 * 10
+        max_torque = np.array([1, 1, 1, 1]) * 1000000
         for i in range(0, len(self.arm_joints)):
             self.joint_controllers.append(PIDController(kp=kp[i],
                                                         ki=ki[i],
                                                         kd=kd[i],
-                                                        setpoint=config[i].theta,
+                                                        setpoint=pts[i],
                                                         dt=1.0 / FPS,
                                                         max_out=max_torque[i]))
 
@@ -197,7 +199,7 @@ class ArmLockDef(object):
         conf = self.get_rel_config()[1:]
         for i in range(0, len(self.joint_controllers)):
             cur = conf[i].theta
-            print 'cur: {} new: {}'.format(cur, cur+delta_setpoints[i])
+            # print 'cur: {} new: {}'.format(cur, cur+delta_setpoints[i])
             new = wrapToMinusPiToPi(cur + delta_setpoints[i])
             self.joint_controllers[i].set_setpoint(new)
 

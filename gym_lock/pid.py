@@ -24,6 +24,7 @@ class PIDController(object):
         self.integral = self.integral + self.error * self.dt
         self.differential = (self.error - self.previous_error) / self.dt
 
+
         p_term = self.kp * self.error
         i_term = self.ki * self.integral
         d_term = self.kd * self.differential
@@ -35,12 +36,6 @@ class PIDController(object):
 
         self.previous_error = self.error
 
-
-        # print out
-        # print self.error
-        # print out
-        import time
-        # time.sleep(0.1)
         return out
 
     def set_setpoint(self, setpoint):

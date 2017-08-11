@@ -7,7 +7,7 @@ from gym.utils import seeding
 from Queue import Queue
 
 from gym_lock.envs.world_defs.arm_lock_def import ArmLockDef
-from gym_lock.kine import KinematicChain, KinematicLink, InverseKinematics, generate_valid_config
+from gym_lock.kine import KinematicChain, discretize_path, InverseKinematics, generate_valid_config
 from gym_lock.common import transform_to_theta, wrapToMinusPiToPi
 
 VIEWPORT_W = 1200
@@ -37,8 +37,8 @@ class ArmLockEnv(gym.Env):
         # inverse kinematics params
         self.alpha = 0.01 # for invk transpose alg
         self.lam = 1 # for invk dls alg
-        self.epsilon = 0.1 # for convergence on path waypoint
-        self.step_delta = 0.05 # for path discretization
+        self.epsilon = 1 # for convergence on path waypoint
+        self.step_delta = 0.5 # for path discretization
 
         # initialize inverse kinematics module with chain==target
         initial_config = generate_valid_config(0, 0, 0, 0)
@@ -49,30 +49,93 @@ class ArmLockEnv(gym.Env):
         # setup Box2D world
         self.world_def = ArmLockDef(self.chain.get_abs_config(), 25)
 
-    def _discretize_path(self, action):
 
-        # calculate number of discretized steps
-        cur = self.chain.get_total_delta_config()
-        targ = action.get_total_delta_config()
 
-        delta = [t - c for t, c in zip(targ, cur)]
+    def _step(self, action):
+        """Run one timestep of the environment's dynamics. When end of
+        episode is reached, you are responsible for calling `reset()`
+        to reset this environment's state.
+        Accepts an action and returns a tuple (observation, reward, done, info).
+        Args:
+                action (object): an action provided by the environment
+        Returns:
+                observation (object): agent's observation of the current environment
+                reward (float) : amount of reward returned after previous action
+                done (boolean): whether the episode has ended, in which case further step() calls will return undefined results
+                info (dict): contains auxiliary diagnostic information (helpful for debugging, and sometimes learning)
+        """
+        # action = virtual KinematicLink
 
-        num_steps = max([int(abs(d / self.step_delta)) for d in delta])
+        if action:
 
-        if num_steps == 0:
-            return None
+           # update invk model
+           self.invkine.set_current_config(self.chain)
 
-        # generate discretized path
-        waypoints = []
-        for i in range(1, num_steps + 1):
-            waypoints.append(KinematicLink(x=cur.x + i * delta[0] / num_steps,
-                                         y=cur.y + i * delta[1] / num_steps,
-                                         theta=wrapToMinusPiToPi(cur.theta + i * delta[2] / num_steps)))
+           # generate discretized waypoints
+           waypoints = discretize_path(self.chain, action, self.step_delta)
+           # print len(waypoints)
 
-        # sanity check: we actually reach the target config
+           if waypoints is None:
+               return np.zeros(4), 0, True, dict()
 
-        assert np.allclose(waypoints[-1].get_transform(), action.get_transform())
-        return waypoints
+
+           for i in range(1, len(waypoints)):
+
+                # set next waypoint
+                self.invkine.set_target(waypoints[i])
+
+                # update current configuration
+                cur_theta = [c.theta for c in self.world_def.get_rel_config()[1:]]
+                new_conf = generate_valid_config(cur_theta[0], cur_theta[1], cur_theta[2], cur_theta[3])
+                self.chain = KinematicChain(new_conf)
+
+                print 'converging'
+                a = 0
+                err = self.invkine.get_error()
+                while (err > 5):
+                    print err
+                    a = a + 1
+
+                    if a > 500:
+                        print a
+                        print err
+
+                    # update inverse kine
+                    self.invkine.set_current_config(self.chain)
+
+                    # get delta theta
+                    d_theta = self.invkine.get_delta_theta_dls(lam=20)
+
+                    # update controllers
+                    self.world_def.set_controllers(d_theta)
+
+                    # step
+                    self.world_def.step(1.0 / FPS, 10, 10)
+                    super(ArmLockEnv, self).render()
+
+                    # wait for joints to stop moving
+                    joint_speed = any([abs(joint.speed) > 0.001 for joint in self.world_def.arm_joints])
+                    while (joint_speed):
+                        # print 'here'/
+                        self.world_def.step(1.0 / FPS, 10, 10)
+                        super(ArmLockEnv, self).render()
+                        joint_speed = any([abs(joint.speed) > 0.001 for joint in self.world_def.arm_joints])
+                        # print [abs(joint.speed) > 0.01 for joint in self.world_def.arm_joints]
+
+                    # update current configuration
+                    cur_theta = [c.theta for c in self.world_def.get_rel_config()[1:]]  # ignore virtual base link
+                    new_conf = generate_valid_config(cur_theta[0], cur_theta[1], cur_theta[2], cur_theta[3])
+                    self.chain = KinematicChain(new_conf)
+
+                    # update error
+                    err = self.invkine.get_error()
+
+                print 'converged in {} iterations'.format(a)
+                # converged on that waypoint
+        else:
+            self.world_def.step(1.0 / FPS, 10, 10)
+            return np.zeros(4), 0, False, dict()
+
 
     # def _step(self, action):
     #     """Run one timestep of the environment's dynamics. When end of

@@ -3,6 +3,10 @@ import numpy as np
 # defined named tuples
 from gym_lock.common import TwoDConfig, wrapToMinusPiToPi, transform_to_theta, clamp_mag
 
+# turns on all assertions
+DEBUG = True
+
+# TODO: move elsewhere, or get rid of dict config and just pass in list of links?
 def generate_valid_config(t1, t2, t3, t4):
     joint_config = [{'name' : '0-0'},
                     {'name' : '0+1-', 'theta' : t1, 'screw' : [0, 0, 0, 0, 0, 1]},
@@ -29,6 +33,29 @@ def get_adjoint(transform):
     res[:3, 3:] = matrix_rep.dot(rot)
     return res
 
+def discretize_path(cur, action, step_delta):
+
+    # calculate number of discretized steps
+    cur = cur.get_total_delta_config()
+    targ = action.get_total_delta_config()
+
+    delta = [t - c for t, c in zip(targ, cur)]
+
+    num_steps = max([int(abs(d / step_delta)) for d in delta])
+
+    if num_steps == 0:
+        return None
+
+    # generate discretized path
+    waypoints = []
+    for i in range(0, num_steps + 1):
+        waypoints.append(KinematicLink(x=cur.x + i * delta[0] / num_steps,
+                                     y=cur.y + i * delta[1] / num_steps,
+                                     theta=wrapToMinusPiToPi(cur.theta + i * delta[2] / num_steps)))
+    # sanity check: we actually reach the target config
+    assert np.allclose(waypoints[-1].get_transform(), action.get_transform())
+
+    return waypoints
 
 class InverseKinematics(object):
     def __init__(self, kinematic_chain, target):
@@ -81,21 +108,29 @@ class InverseKinematics(object):
 
         return dtheta
 
-    # def get_delta_theta(self, alg='trans', *kwargs):
-    #     err = self.get_error()
-    #     if alg == 'trans':
-    #         return self._get_delta_theta_trans(err, kwargs)
-    #     if alg == 'dls':
-    #         return self._get_delta_theta_dls(err, kwargs)
-    #     else:
-    #         return None
-
 class KinematicChain(object):
-    def __init__(self, initial_configuration):
+    def __init__(self, initial_configuration, cog_links=None):
         self.configuration = initial_configuration
         self.chain = []
         for link in self.configuration:
             self.chain.append(KinematicLink(**link))
+
+        self.cog_links = cog_links
+        self._check_rep()
+
+    def _check_rep(self):
+        if DEBUG:
+            if self.cog_links:
+                # there should be one cog_link for every link
+                assert len(self.cog_links) == (len(self.chain) - 1) / 2
+
+            # there should always be an odd number of links
+            # 1 virtual link + 1 rot and 1 trans for every link
+            assert len(self.chain) % 2 == 1
+
+            # a chain always has 1 virutal link and 2 real links
+            assert len(self.chain) >= 3
+
 
     def update_chain(self, new_config):
         assert len(new_config) * 2 - 1 == len(self.chain)
@@ -151,10 +186,16 @@ class KinematicChain(object):
         return TwoDConfig(x, y, theta)
 
 
-    def get_transform(self):
+    def get_transform(self, name=None):
         total_transform = np.eye(4)
+        i=0
         for link in self.chain:
+            i = i +1
             total_transform = total_transform.dot(link.get_transform())
+            if link.name == name:
+                print 'break'
+                break
+            print i
         return total_transform
 
     def get_jacobian(self):
@@ -216,33 +257,51 @@ def main():
     # params
     epsilon = 0.01
     i = 0
+    delta_step = 0.5
 
     # setup
     plt.ion()
+    current_chain = KinematicChain(generate_valid_config(0, 0, 0, 0))
 
-    # generate discretized path
-    start = [np.pi/4, -np.pi, -np.pi/2]
-    end = [-np.pi, 0, 0]
-    delta = [e - s for e, s in zip(end, start)]
+    t_1minus_l1 = KinematicLink(x=2.5).get_transform()
+    t_0_1minus = current_chain.get_transform(name='0+1-')
+    print t_0_1minus
 
-    poses = Queue()
-    leng = 1000
-    for i in range(0, leng + 1):
-        poses.put(generate_valid_config(wrapToMinusPiToPi(start[0] + delta[0] * 1.0 * i / leng),
-                                        wrapToMinusPiToPi(start[1] + delta[1] * 1.0 * i / leng),
-                                        wrapToMinusPiToPi(start[2] + delta[2] * 1.0 * i / leng)))
+    t_0_l1 = t_0_1minus.dot(t_1minus_l1)
+    print t_0_l1
+    adj_l1_0 = np.linalg.inv(get_adjoint(t_0_l1))
 
-    # set initial config and target
-    current_chain = KinematicChain(poses.get())
+    jac = current_chain.get_jacobian()
+    print jac
+
+    jac_1 = adj_l1_0.dot(jac)
+
+    print jac_1
+
+    # jac_b = ad
+    # print jac_b
+
+
+    exit()
+
+    targ = KinematicChain(generate_valid_config(np.pi / 2, 0, 0, np.pi / 2))
+    poses = discretize_path(current_chain, targ, delta_step)
+
+
+    # initialize with target and current the same
     invk = InverseKinematics(current_chain, current_chain)
 
-    while(not poses.empty()):
-        i = i + 1
+    print len(poses)
+
+    for i in range(1, len(poses)):
 
         # get next waypoint
-        next_waypoint = KinematicChain(poses.get())
+        next_waypoint = poses[i]
         # set inverse kinematics to have next waypoint
         invk.set_target(next_waypoint)
+
+        # print next_waypoint.get_transform()
+        # print poses[-1].get_transform()
 
         # while err > epsilon, converge
         err = invk.get_error() # prime the loop
@@ -251,8 +310,9 @@ def main():
         while (err > epsilon):
             a = a + 1
             # get delta theta
-            # d_theta = invk.get_delta_theta_dls()
-            d_theta = invk.get_delta_theta_trans()
+            d_theta = invk.get_delta_theta_dls(lam=20)
+
+            # d_theta = invk.get_delta_theta_trans()
             
             # get current config
             cur_theta = [c.theta for c in invk.kinematic_chain.get_rel_config()[1:]] # ignore virtual base link
@@ -263,27 +323,34 @@ def main():
             # update inverse kinematics model
             invk.set_current_config(KinematicChain(generate_valid_config(new_theta[0],
                                                                          new_theta[1],
-                                                                         new_theta[2])))
+                                                                         new_theta[2],
+                                                                         new_theta[3])))
 
             # update err
             err = invk.get_error()
+
+            if a > 500:
+                print err
+
         print 'converged in {} iterations'.format(a)
         # converged on that waypoint
 
         # plot
-        if i % 50 == 0:
+        if i % 1 == 0:
             print i
             con = invk.kinematic_chain.get_abs_config()
             x = [c.x for c in con]
             y = [c.y for c in con]
             plt.plot(x, y)
-            plt.xlim([-15, 15])
-            plt.ylim([-15, 15])
+            plt.xlim([-20, 20])
+            plt.ylim([-20, 20])
 
-            if poses.empty():
+            if i == len(poses) - 1:
                 plt.pause(100)
             else:
                 plt.pause(0.1)
+                plt.cla()
+
 
 
 if __name__ == "__main__":
