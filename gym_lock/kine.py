@@ -1,3 +1,4 @@
+from __future__ import division
 import numpy as np
 
 # defined named tuples
@@ -68,7 +69,6 @@ def discretize_path(cur, action, step_delta):
 
     return waypoints
 
-
 class InverseKinematics(object):
     def __init__(self, kinematic_chain, target):
         self.kinematic_chain = kinematic_chain
@@ -119,7 +119,6 @@ class InverseKinematics(object):
             dtheta = clamp_mag(dtheta, clamp_theta)
 
         return dtheta
-
 
 class KinematicChain(object):
     def __init__(self, base, chain):
@@ -223,7 +222,27 @@ class KinematicChain(object):
 
         return res
 
+    def get_inertia_matrix(self):
 
+        # compute body jacobians at each COG
+        jacobians = [np.zeros((6, len(self.chain))) for i in range(0, len(self.chain))]
+        for i in range(0, len(self.chain)):
+            total_transform = np.eye(4)
+
+            # get transform up to i'th frame
+            jacobians[i][:, i] = np.linalg.inv(get_adjoint(total_transform.dot(self.chain[i].cog.transform))).dot(
+                self.chain[i].minus.screw)
+
+            # fill in i'th column of every jacobian
+            for j in range(i + 1, len(self.chain)):
+
+                total_transform = total_transform.dot(self.chain[i].plus.transform).dot(self.chain[i + 1].minus.transform)
+                # T_ipjm
+
+                jacobians[j][:, i] = np.linalg.inv(get_adjoint(total_transform.dot(self.chain[j].cog.transform))).dot(self.chain[i].minus.screw)
+
+
+        return jacobians
 class KinematicLink(object):
     def __init__(self, minus, cog, plus, inertia_matrix):
         self.minus = minus
@@ -277,6 +296,8 @@ def main():
     from Queue import Queue
     import time
 
+
+
     # params
     epsilon = 0.01
     i = 0
@@ -286,6 +307,12 @@ def main():
     plt.ion()
     base = TwoDKinematicTransform()
     current_chain = KinematicChain(base, generate_four_arm(0, 0, 0, 0))
+
+    jacs = current_chain.get_inertia_matrix()
+    print jacs
+    exit()
+
+
     targ = KinematicChain(base, generate_four_arm(np.pi / 2, 0, 0, 0))
     poses = discretize_path(current_chain, targ, delta_step)
 
