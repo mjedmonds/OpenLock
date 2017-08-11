@@ -8,16 +8,26 @@ DEBUG = True
 
 
 # TODO: move elsewhere, or get rid of dict config and just pass in list of links?
-def generate_four_arm(t1, t2, t3, t4):
-    return [KinematicLink(),
-            KinematicLink(theta=t1, screw=[0, 0, 0, 0, 0, 1]),
-            KinematicLink(x=5),
-            KinematicLink(theta=t2, screw=[0, 0, 0, 0, 0, 1]),
-            KinematicLink(x=5),
-            KinematicLink(theta=t3, screw=[0, 0, 0, 0, 0, 1]),
-            KinematicLink(x=5),
-            KinematicLink(theta=t4, screw=[0, 0, 0, 0, 0, 1]),
-            KinematicLink(x=5)]
+def generate_four_arm(t1, t2, t3, t4, length=5):
+    return [KinematicLink(TwoDKinematicTransform(name='0+1-' ,theta=t1, screw=[0, 0, 0, 0, 0, 1]),
+                          TwoDKinematicTransform(name='1_cog', x=length / 2),
+                          TwoDKinematicTransform(name='1-1+', x=length),
+                          np.eye(6)),
+
+            KinematicLink(TwoDKinematicTransform(name='0+2-', theta=t2, screw=[0, 0, 0, 0, 0, 1]),
+                          TwoDKinematicTransform(name='2_cog', x=length / 2),
+                          TwoDKinematicTransform(name='2-2+', x=length),
+                          np.eye(6)),
+
+            KinematicLink(TwoDKinematicTransform(name='0+3-', theta=t3, screw=[0, 0, 0, 0, 0, 1]),
+                          TwoDKinematicTransform(name='3_cog', x=length / 2),
+                          TwoDKinematicTransform(name='3-3+', x=length),
+                          np.eye(6)),
+
+            KinematicLink(TwoDKinematicTransform(name='0+4-', theta=t4, screw=[0, 0, 0, 0, 0, 1]),
+                          TwoDKinematicTransform(name='4_cog', x=length / 2),
+                          TwoDKinematicTransform(name='4-4+', x=length),
+                          np.eye(6))]
 
 
 def get_adjoint(transform):
@@ -112,8 +122,9 @@ class InverseKinematics(object):
 
 
 class KinematicChain(object):
-    def __init__(self, chain):
+    def __init__(self, base, chain):
         self.chain = chain
+        self.base = base
 
         self._check_rep()
 
@@ -123,19 +134,26 @@ class KinematicChain(object):
             assert len(self.chain) >= 2
 
     def update_chain(self, new_config):
-        assert len(new_config) == len(self.chain)
+        assert len(new_config) == len(self.chain) + 1
 
         # update baseframe
-        self.chain[0].minus.set_theta(new_config[0].theta)
-        self.chain[0].plus.set_x(new_config[0].x)
+        self.base.set_theta(new_config[0].theta)
+        self.base.set_x(new_config[0].x)
+        self.base.set_y(new_config[0].y)
+
 
         # update angles at each joint
-        for i in range(1, len(new_config)):
-            self.chain[i].minus.set_theta(new_config[i].theta)
+        for link, conf in zip(self.chain, new_config):
+            link.minus.set_theta(conf.theta)
 
     def get_abs_config(self):
-        total_transform = np.eye(4)
+        total_transform = self.base.get_transform()
         link_locations = []
+
+        # add base
+        link_locations.append(TwoDConfig(self.base.x, self.base.y, self.base.theta))
+
+        # add arm links
         for link in self.chain:
             total_transform = total_transform.dot(link.minus.transform).dot(link.plus.transform)
             theta = transform_to_theta(total_transform)
@@ -145,6 +163,8 @@ class KinematicChain(object):
 
     def get_rel_config(self):
         link_locations = []
+
+        link_locations.append(TwoDConfig(self.base.x, self.base.y, self.base.theta))
 
         for link in self.chain:
             theta = link.minus.theta
@@ -162,13 +182,13 @@ class KinematicChain(object):
         return TwoDConfig(x, y, theta)
 
     def get_transform(self, name=None):
-        total_transform = np.eye(4)
+        total_transform = self.base.get_transform()
         for link in self.chain:
             total_transform = total_transform.dot(link.minus.transform).dot(link.plus.transform)
         return total_transform
 
     def get_jacobian(self):
-        total_transform = np.eye(4)
+        total_transform = self.base.get_transform()
         jacobian = []
 
         for link in self.chain:
@@ -199,7 +219,7 @@ class KinematicChain(object):
 
         # jacobian should have a column for every link in kinematic chain (except virtual)
         # and row for each w_{x, y z} and v_{x, y, z}
-        assert res.shape == (6, len(self.chain) - 1)
+        assert res.shape == (6, len(self.chain))
 
         return res
 
@@ -214,12 +234,12 @@ class KinematicLink(object):
         self._check_rep()
 
     def _check_rep(self):
-        assert self.minus.shape == self.cog.shape == self.plus.shape == (4, 4)
+        assert self.minus.transform.shape == self.cog.transform.shape == self.plus.transform.shape == (4, 4)
         assert self.inertia_matrix.shape == (6, 6)
 
 
 class TwoDKinematicTransform(object):
-    def __init__(self, theta=0, x=0, y=0, scale=1, screw=None, name='KinematicLink'):
+    def __init__(self, theta=0, x=0, y=0, scale=1, screw=None, name=None):
         self.transform = np.asarray([[np.cos(theta), -np.sin(theta), 0, x],
                                      [np.sin(theta), np.cos(theta), 0, y],
                                      [0, 0, 1, 0],
@@ -264,8 +284,9 @@ def main():
 
     # setup
     plt.ion()
-    current_chain = KinematicChain(generate_four_arm(0, 0, 0, 0))
-    targ = KinematicChain(generate_four_arm(np.pi / 2, 0, 0, 0))
+    base = TwoDKinematicTransform()
+    current_chain = KinematicChain(base, generate_four_arm(0, 0, 0, 0))
+    targ = KinematicChain(base, generate_four_arm(np.pi / 2, 0, 0, 0))
     poses = discretize_path(current_chain, targ, delta_step)
 
     # initialize with target and current the same
@@ -301,7 +322,7 @@ def main():
             new_theta = [cur + delta for cur, delta in zip(cur_theta, d_theta)]
 
             # update inverse kinematics model
-            invk.set_current_config(KinematicChain(generate_four_arm(new_theta[0],
+            invk.set_current_config(KinematicChain(base, generate_four_arm(new_theta[0],
                                                                      new_theta[1],
                                                                      new_theta[2],
                                                                      new_theta[3])))
