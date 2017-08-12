@@ -68,7 +68,7 @@ class ArmLockDef(object):
             maskBits=0x0000)
         # define link properties
         link_fixture = b2.b2FixtureDef(  # all links have same properties
-            density=0.1,
+            density=1,
             friction=3.0,
             categoryBits=0x0001,
             maskBits=0x0000)
@@ -111,8 +111,9 @@ class ArmLockDef(object):
 
             self.arm_bodies.append(arm_body)
 
-            motor_fixture.shape = b2.b2CircleShape(radius=(width), pos=(-length, 0))
-            motor_fixtures.append(arm_body.CreateFixture(motor_fixture))
+            # motor_fixture.shape = b2.b2CircleShape(radius=(width), pos=(-length, 0))
+            # motor_fixtures.append(arm_body.CreateFixture(motor_fixture))
+
         # create arm joints
         self.arm_joints = []
         for i in range(1, len(self.arm_bodies)):

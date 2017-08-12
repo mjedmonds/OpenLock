@@ -9,26 +9,35 @@ DEBUG = True
 
 
 # TODO: move elsewhere, or get rid of dict config and just pass in list of links?
-def generate_four_arm(t1, t2, t3, t4, length=5):
+def generate_four_arm(t1, t2, t3, t4, length=5, width=1, density=1):
+
+    i_xx = (density * (length ** 3) * width) / 12
+    i_yy = (density * (width ** 3) * length) / 12
+    i_zz = (density * width * length / 12) * (width ** 2 + length ** 2)
+    m = length * width * density
+
+    inertia_matrix = np.diag([m, m, m, i_xx, i_yy, i_zz])
+
+
     return [KinematicLink(TwoDKinematicTransform(name='0+1-' ,theta=t1, screw=[0, 0, 0, 0, 0, 1]),
                           TwoDKinematicTransform(name='1_cog', x=length / 2),
                           TwoDKinematicTransform(name='1-1+', x=length),
-                          np.eye(6)),
+                          inertia_matrix),
 
             KinematicLink(TwoDKinematicTransform(name='0+2-', theta=t2, screw=[0, 0, 0, 0, 0, 1]),
                           TwoDKinematicTransform(name='2_cog', x=length / 2),
                           TwoDKinematicTransform(name='2-2+', x=length),
-                          np.eye(6)),
+                          inertia_matrix),
 
             KinematicLink(TwoDKinematicTransform(name='0+3-', theta=t3, screw=[0, 0, 0, 0, 0, 1]),
                           TwoDKinematicTransform(name='3_cog', x=length / 2),
                           TwoDKinematicTransform(name='3-3+', x=length),
-                          np.eye(6)),
+                          inertia_matrix),
 
             KinematicLink(TwoDKinematicTransform(name='0+4-', theta=t4, screw=[0, 0, 0, 0, 0, 1]),
                           TwoDKinematicTransform(name='4_cog', x=length / 2),
                           TwoDKinematicTransform(name='4-4+', x=length),
-                          np.eye(6))]
+                          inertia_matrix)]
 
 
 def get_adjoint(transform):
@@ -241,14 +250,18 @@ class KinematicChain(object):
 
                 jacobians[j][:, i] = np.linalg.inv(get_adjoint(total_transform.dot(self.chain[j].cog.transform))).dot(self.chain[i].minus.screw)
 
+        return sum([jacobian.transpose().dot(link.inertia_matrix).dot(jacobian) \
+                    for link, jacobian in zip(self.chain, jacobians)])
 
-        return jacobians
+
 class KinematicLink(object):
-    def __init__(self, minus, cog, plus, inertia_matrix):
+    def __init__(self, minus, cog, plus, inertia_matrix, density=1):
         self.minus = minus
         self.cog = cog
         self.plus = plus
+        self.density = density
         self.inertia_matrix = inertia_matrix
+
 
         self._check_rep()
 
