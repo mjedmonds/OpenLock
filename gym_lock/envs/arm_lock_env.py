@@ -7,7 +7,7 @@ from gym.utils import seeding
 from Queue import Queue
 
 from gym_lock.envs.world_defs.arm_lock_def import ArmLockDef
-from gym_lock.kine import KinematicChain, discretize_path, InverseKinematics, generate_valid_config
+from gym_lock.kine import KinematicChain, discretize_path, InverseKinematics, generate_four_arm, TwoDKinematicTransform
 from gym_lock.common import transform_to_theta, wrapToMinusPiToPi
 
 VIEWPORT_W = 1200
@@ -41,13 +41,14 @@ class ArmLockEnv(gym.Env):
         self.step_delta = 0.5 # for path discretization
 
         # initialize inverse kinematics module with chain==target
-        initial_config = generate_valid_config(0, 0, 0, 0)
-        self.chain = KinematicChain(initial_config)
-        self.target = KinematicChain(initial_config)
+        initial_config = generate_four_arm(0, 0, 0, 0)
+        self.base = TwoDKinematicTransform()
+        self.chain = KinematicChain(self.base, initial_config)
+        self.target = KinematicChain(self.base, initial_config)
         self.invkine = InverseKinematics(self.chain, self.target)
 
         # setup Box2D world
-        self.world_def = ArmLockDef(self.chain.get_abs_config(), 25)
+        self.world_def = ArmLockDef(self.chain, 25)
 
 
 
@@ -86,7 +87,7 @@ class ArmLockEnv(gym.Env):
 
                 # update current configuration
                 cur_theta = [c.theta for c in self.world_def.get_rel_config()[1:]]
-                new_conf = generate_valid_config(cur_theta[0], cur_theta[1], cur_theta[2], cur_theta[3])
+                new_conf = generate_four_arm(cur_theta[0], cur_theta[1], cur_theta[2], cur_theta[3])
                 self.chain = KinematicChain(new_conf)
 
                 print 'converging'
@@ -124,7 +125,7 @@ class ArmLockEnv(gym.Env):
 
                     # update current configuration
                     cur_theta = [c.theta for c in self.world_def.get_rel_config()[1:]]  # ignore virtual base link
-                    new_conf = generate_valid_config(cur_theta[0], cur_theta[1], cur_theta[2], cur_theta[3])
+                    new_conf = generate_four_arm(cur_theta[0], cur_theta[1], cur_theta[2], cur_theta[3])
                     self.chain = KinematicChain(new_conf)
 
                     # update error
@@ -162,7 +163,7 @@ class ArmLockEnv(gym.Env):
     #
     #         # update current configuration
     #         cur_theta = [c.theta for c in self.world_def.get_rel_config()[1:]] # ignore virtual base link
-    #         new_conf = generate_valid_config(cur_theta[0], cur_theta[1], cur_theta[2], cur_theta[3])
+    #         new_conf = generate_four_arm(cur_theta[0], cur_theta[1], cur_theta[2], cur_theta[3])
     #         self.chain = KinematicChain(new_conf)
     #
     #         # update invk model
@@ -179,7 +180,7 @@ class ArmLockEnv(gym.Env):
     #
     #             # update current configuration
     #             cur_theta = [c.theta for c in self.world_def.get_rel_config()[1:]]  # ignore virtual base link
-    #             new_conf = generate_valid_config(cur_theta[0], cur_theta[1], cur_theta[2], cur_theta[3])
+    #             new_conf = generate_four_arm(cur_theta[0], cur_theta[1], cur_theta[2], cur_theta[3])
     #             self.chain = KinematicChain(new_conf)
     #
     #             # update inverse kine

@@ -2,7 +2,7 @@ import Box2D as b2
 import numpy as np
 
 from gym_lock.common import TwoDConfig
-from gym_lock.pid import PIDController
+from gym_lock.pid_central import PIDController
 from gym_lock.common import wrapToMinusPiToPi
 
 FPS = 30
@@ -36,13 +36,14 @@ FPS = 30
     #     print impulse
 
 class ArmLockDef(object):
-    def __init__(self, x0, world_size):
+    def __init__(self, chain, world_size):
         super(ArmLockDef, self).__init__()
 
         self.world = b2.b2World(gravity=(0, 0),
                                 doSleep=False)
 
-        self.x0 = x0
+        self.x0 = chain.get_abs_config()
+        self.chain = chain
         width = 1.0
 
         # create boundaries
@@ -63,13 +64,13 @@ class ArmLockDef(object):
         base_fixture = b2.b2FixtureDef(
             shape=b2.b2PolygonShape(box=(1, 1)),
             density=100.0,
-            friction=1,
+            friction=1.0,
             categoryBits=0x0001,
             maskBits=0x0000)
         # define link properties
         link_fixture = b2.b2FixtureDef(  # all links have same properties
-            density=1,
-            friction=3.0,
+            density=1.0,
+            friction=1.0,
             categoryBits=0x0001,
             maskBits=0x0000)
 
@@ -83,20 +84,21 @@ class ArmLockDef(object):
 
         # create base
         self.arm_bodies.append(self.world.CreateBody(
-            position=(x0[0].x, x0[0].y),
+            position=(self.x0[0].x, self.x0[0].y),
             angle=0))
 
+        #TODO: sqrt?
         # add in "virtual" joint length so arm_bodies and arm_lengths are same length
         length = np.linalg.norm(np.array([0, 0]) - \
-                                np.array([x0[0].x, x0[0].y]))
+                                np.array([self.x0[0].x, self.x0[0].y]))
 
         self.arm_lengths.append(length)
         # create the rest of the arm
         # body frame located at each joint
 
-        for i in range(1, len(x0)):
-            length = np.linalg.norm(np.array([x0[i].x, x0[i].y] - \
-                                             np.array([x0[i - 1].x, x0[i - 1].y])))
+        for i in range(1, len(self.x0)):
+            length = np.linalg.norm(np.array([self.x0[i].x, self.x0[i].y] - \
+                                             np.array([self.x0[i - 1].x, self.x0[i - 1].y])))
             self.arm_lengths.append(length)
 
             link_fixture.shape = b2.b2PolygonShape(vertices=[(0, -width / 2),
@@ -105,8 +107,8 @@ class ArmLockDef(object):
                                                              (0, width / 2)
                                                              ])
             arm_body = self.world.CreateDynamicBody(
-                position=(x0[i].x, x0[i].y),
-                angle=x0[i].theta,
+                position=(self.x0[i].x, self.x0[i].y),
+                angle=self.x0[i].theta,
                 fixtures=link_fixture)
 
             self.arm_bodies.append(arm_body)
@@ -125,30 +127,39 @@ class ArmLockDef(object):
                 localAnchorB=(-self.arm_lengths[i], 0),
                 enableMotor=True,
                 motorSpeed=0,
-                maxMotorTorque=500.0,
-                enableLimit=True))
+                maxMotorTorque=0.0,
+                enableLimit=False))
 
         # create joint PID controllers and initialize to
         # angles specified in x0
-        self.joint_controllers = []
-        config = self.get_abs_config()[1:]  # ignore baseframe transform
+
+        pts = np.array([0,0,0,1.5])
+
+        self.controller = PIDController(np.diag(np.full(len(self.arm_joints), 0.01)),
+                                        np.diag(np.full(len(self.arm_joints), 0)),
+                                        np.diag(np.full(len(self.arm_joints), 0.005)),
+                                        pts)
+
+        # OLD CONTROLLER
+        # self.joint_controllers = []
+        # config = self.get_abs_config()[1:]  # ignore baseframe transform
         # pts = [0.1, 0.1, 0.1, 0.1]
-        pts = [-np.pi, np.pi/2, -np.pi/2, -np.pi/2]
-
-        kp = kd = ki = max_torque = np.array([1, 1.0/2, 1.0/4, 1.0/16])
-
-        kp = kp * 22000 * 1
-        kd= kd * 1500 * 1
-        ki= ki * 500 * 10
-        max_torque = np.array([1, 1, 1, 1]) * 1000000
-        for i in range(0, len(self.arm_joints)):
-            self.joint_controllers.append(PIDController(kp=kp[i],
-                                                        ki=ki[i],
-                                                        kd=kd[i],
-                                                        setpoint=pts[i],
-                                                        dt=1.0 / FPS,
-                                                        max_out=max_torque[i]))
-
+        # pts = [0, 0, 0, np.pi/2]
+        #
+        # kp = kd = ki = max_torque = np.array([1, 1.0/2, 1.0/4, 1.0/16])
+        #
+        # kp = kp * 10000
+        # kd= kd * 3000
+        # ki= ki * 0
+        # max_torque = np.array([1, 1, 1, 1]) * 100000
+        # for i in range(0, len(self.arm_joints)):
+        #     self.joint_controllers.append(PIDController(kp=kp[i],
+        #                                                 ki=ki[i],
+        #                                                 kd=kd[i],
+        #                                                 setpoint=pts[i],
+        #                                                 dt=1.0 / FPS,
+        #                                                 max_out=max_torque[i]))
+        # END OLD CONTROLLER
 
         # # create door
         # door_width = 0.5
@@ -197,12 +208,19 @@ class ArmLockDef(object):
         pass
 
     def set_controllers(self, delta_setpoints):
-        conf = self.get_rel_config()[1:]
-        for i in range(0, len(self.joint_controllers)):
-            cur = conf[i].theta
-            # print 'cur: {} new: {}'.format(cur, cur+delta_setpoints[i])
-            new = wrapToMinusPiToPi(cur + delta_setpoints[i])
-            self.joint_controllers[i].set_setpoint(new)
+        new = self.controller.setpoint + np.array(delta_setpoints)
+        new = np.apply_along_axis(wrapToMinusPiToPi, new)
+
+        self.controller.set_setpoint(new)
+
+
+        # OLD
+        # conf = self.get_rel_config()[1:]
+        # for i in range(0, len(self.joint_controllers)):
+        #     cur = conf[i].theta
+        #     # print 'cur: {} new: {}'.format(cur, cur+delta_setpoints[i])
+        #     new = wrapToMinusPiToPi(cur + delta_setpoints[i])
+        #     self.joint_controllers[i].set_setpoint(new)
 
     def get_abs_config(self):
         config = []
@@ -250,12 +268,23 @@ class ArmLockDef(object):
     def step(self, timestep, vel_iterations, pos_iterations):
         # update torques
 
-        conf = self.get_rel_config()
-        for i in range(1, len(self.arm_bodies)):
-            body_angle = conf[i].theta
-            new_torque = self.joint_controllers[i - 1].update(body_angle)
-            self.apply_torque(i, new_torque)
+        conf = np.array([c.theta for c in self.get_rel_config()[1:]])
+        new_torque = self.controller.update(conf, self.chain.get_inertia_matrix())
+        print 'new torque'
+        print new_torque
 
+        for i in range(0, len(new_torque)):
+            self.apply_torque(i + 1, new_torque[i])
+
+        # OLD
+        # for i in range(1, len(self.arm_bodies)):
+        #     body_angle = conf[i].theta
+        #     new_torque = self.joint_controllers[i - 1].update(body_angle)
+        #     self.apply_torque(i, new_torque)
+        # END OLD
+
+        print self.arm_bodies[1]
+        exit()
         self.world.Step(timestep, vel_iterations, pos_iterations)
 
 

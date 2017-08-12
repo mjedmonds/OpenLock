@@ -36,6 +36,8 @@ class PIDController(object):
 
         self.previous_error = self.error
 
+        print out
+        print self.setpoint
         return out
 
     def set_setpoint(self, setpoint):

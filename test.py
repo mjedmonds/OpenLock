@@ -8,7 +8,7 @@ env.reset()
 import numpy as np
 from numpy import pi
 
-from gym_lock.kine import KinematicChain, generate_valid_config
+from gym_lock.kine import KinematicChain, generate_four_arm, TwoDKinematicTransform
 
 def gen_theta():
     return (np.random.ranf() - 0.5) * 2 * np.pi
@@ -17,7 +17,8 @@ def gen_theta():
 # for i in range(0, 10):
 #     configs.append(generate_valid_config(gen_theta(), gen_theta(), gen_theta()))
 
-targ = KinematicChain(generate_valid_config(pi/2, 0, 0, pi/2))
+base=TwoDKinematicTransform()
+targ = KinematicChain(base, generate_four_arm(pi/2, 0, 0, pi/2))
 idx = 0
 
 done = False
