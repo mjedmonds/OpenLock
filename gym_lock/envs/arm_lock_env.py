@@ -9,11 +9,11 @@ from Queue import Queue
 from gym_lock.envs.world_defs.arm_lock_def import ArmLockDef
 from gym_lock.kine import KinematicChain, discretize_path, InverseKinematics, generate_four_arm, TwoDKinematicTransform
 from gym_lock.common import transform_to_theta, wrapToMinusPiToPi
+from gym_lock.common import FPS
 
 VIEWPORT_W = 1200
 VIEWPORT_H = 800
 SCALE = 30.0  # affects how fast-paced the game is, forces should be adjusted as well
-FPS = 30
 
 
 class ArmLockEnv(gym.Env):
@@ -66,7 +66,6 @@ class ArmLockEnv(gym.Env):
                 info (dict): contains auxiliary diagnostic information (helpful for debugging, and sometimes learning)
         """
         # action = virtual KinematicLink
-
         if action:
 
            # update invk model

@@ -24,7 +24,8 @@ idx = 0
 done = False
 
 for i in range(10000000):
-    env.render()
+    if env.world_def.clock % 10 == 0:
+        env.render()
     env.step(False)
     # if done:
     #     env.step(False)

@@ -11,13 +11,12 @@ DEBUG = True
 # TODO: move elsewhere, or get rid of dict config and just pass in list of links?
 def generate_four_arm(t1, t2, t3, t4, length=5, width=1, density=1):
 
-    i_xx = (density * (length ** 3) * width) / 12
-    i_yy = (density * (width ** 3) * length) / 12
-    i_zz = (density * width * length / 12) * (width ** 2 + length ** 2)
+    i_xx = 0 #(density * (length ** 3) * width) / 12
+    i_yy = 0 #(density * (width ** 3) * length) / 12
+    i_zz = (density * width * length / 12.0) * (width ** 2 + length ** 2)
     m = length * width * density
 
     inertia_matrix = np.diag([m, m, m, i_xx, i_yy, i_zz])
-
 
     return [KinematicLink(TwoDKinematicTransform(name='0+1-' ,theta=t1, screw=[0, 0, 0, 0, 0, 1]),
                           TwoDKinematicTransform(name='1_cog', x=length / 2),
@@ -151,8 +150,9 @@ class KinematicChain(object):
 
 
         # update angles at each joint
-        for link, conf in zip(self.chain, new_config):
+        for link, conf in zip(self.chain, new_config[1:]):
             link.minus.set_theta(conf.theta)
+
 
     def get_abs_config(self):
         total_transform = self.base.get_transform()
@@ -250,8 +250,10 @@ class KinematicChain(object):
 
                 jacobians[j][:, i] = np.linalg.inv(get_adjoint(total_transform.dot(self.chain[j].cog.transform))).dot(self.chain[i].minus.screw)
 
-        return sum([jacobian.transpose().dot(link.inertia_matrix).dot(jacobian) \
+        ret = sum([jacobian.transpose().dot(link.inertia_matrix).dot(jacobian) \
                     for link, jacobian in zip(self.chain, jacobians)])
+
+        return ret
 
 
 class KinematicLink(object):

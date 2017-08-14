@@ -42,6 +42,12 @@ class ArmLockDef(object):
         self.world = b2.b2World(gravity=(0, 0),
                                 doSleep=False)
 
+        self.clock = 0
+
+        self.num_steps = 0
+        self.start = np.array([0,0,0,0])
+
+
         self.x0 = chain.get_abs_config()
         self.chain = chain
         width = 1.0
@@ -109,13 +115,19 @@ class ArmLockDef(object):
             arm_body = self.world.CreateDynamicBody(
                 position=(self.x0[i].x, self.x0[i].y),
                 angle=self.x0[i].theta,
-                fixtures=link_fixture)
+                fixtures=link_fixture,
+                linearDamping=0.5,
+                angularDamping=1)
 
             self.arm_bodies.append(arm_body)
 
             # motor_fixture.shape = b2.b2CircleShape(radius=(width), pos=(-length, 0))
             # motor_fixtures.append(arm_body.CreateFixture(motor_fixture))
 
+        # for arm in self.arm_bodies:
+        #     if len(arm.fixtures) > 0:
+        #         print arm.massData
+        # exit()
         # create arm joints
         self.arm_joints = []
         for i in range(1, len(self.arm_bodies)):
@@ -127,19 +139,13 @@ class ArmLockDef(object):
                 localAnchorB=(-self.arm_lengths[i], 0),
                 enableMotor=True,
                 motorSpeed=0,
-                maxMotorTorque=0.0,
+                maxMotorTorque=0,
                 enableLimit=False))
 
         # create joint PID controllers and initialize to
         # angles specified in x0
 
-        pts = np.array([0,0,0,1.5])
-
-        self.controller = PIDController(np.diag(np.full(len(self.arm_joints), 0.01)),
-                                        np.diag(np.full(len(self.arm_joints), 0)),
-                                        np.diag(np.full(len(self.arm_joints), 0.005)),
-                                        pts)
-
+        self.__init_cascade_controller()
         # OLD CONTROLLER
         # self.joint_controllers = []
         # config = self.get_abs_config()[1:]  # ignore baseframe transform
@@ -204,6 +210,44 @@ class ArmLockDef(object):
         #     enableMotor=True,
         # )
 
+    def __init_cascade_controller(self):
+        pts = [np.pi/2, -np.pi/2, np.pi/2, -np.pi/2]
+        self.pos_controller = PIDController([1] * len(self.arm_joints),
+                                        [0] * len(self.arm_joints),
+                                        [0.05] * len(self.arm_joints),
+                                        pts)
+
+        pts = [0, 0, 0, 0]
+        self.vel_controller = PIDController([2000] * len(self.arm_joints),
+                                            [0] * len(self.arm_joints),
+                                            [0] * len(self.arm_joints),
+                                            pts)
+
+    def update_cascade_controller(self, theta):
+        # get current
+        if self.clock % 3000 == 0:
+            self.pos_controller.set_setpoint([-np.pi/2, np.pi/2, -np.pi/2, np.pi/2])
+        if self.clock % 5000 == 0:
+            self.pos_controller.set_setpoint([-np.pi, 0, 0, 0])
+        if self.clock % 7000 == 0:
+            self.pos_controller.set_setpoint([np.pi/2, 0, 0, 0])
+        if self.clock % 50 == 0:
+            print 'diff'
+            print self.pos_controller.differential
+            print 'pro'
+            print self.pos_controller.error
+            print 'out'
+            vel_setpoints = self.pos_controller.update(theta)
+            print vel_setpoints
+            self.vel_controller.set_setpoint(vel_setpoints)
+
+        joint_speeds = [joint.speed for joint in self.arm_joints]
+        torques = self.vel_controller.update(joint_speeds)
+
+        return torques
+
+
+
     def update_state_machine(self, input):
         pass
 
@@ -266,27 +310,18 @@ class ArmLockDef(object):
         self.arm_bodies[idx].ApplyForce(force=force_vector, point=position, wake=True)
 
     def step(self, timestep, vel_iterations, pos_iterations):
-        # update torques
+        self.clock += 1
 
-        conf = np.array([c.theta for c in self.get_rel_config()[1:]])
-        new_torque = self.controller.update(conf, self.chain.get_inertia_matrix())
-        print 'new torque'
-        print new_torque
+        # update torques
+        conf = self.get_rel_config()
+        theta = [c.theta for c in conf[1:]]
+        # self.chain.update_chain(conf)
+        new_torque = self.update_cascade_controller(theta)
 
         for i in range(0, len(new_torque)):
             self.apply_torque(i + 1, new_torque[i])
 
-        # OLD
-        # for i in range(1, len(self.arm_bodies)):
-        #     body_angle = conf[i].theta
-        #     new_torque = self.joint_controllers[i - 1].update(body_angle)
-        #     self.apply_torque(i, new_torque)
-        # END OLD
-
-        print self.arm_bodies[1]
-        exit()
         self.world.Step(timestep, vel_iterations, pos_iterations)
-
 
     # TODO: implement
     def reset_world(self):
