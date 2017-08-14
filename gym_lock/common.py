@@ -4,6 +4,7 @@ import numpy as np
 
 TwoDConfig = namedtuple('Config', 'x y theta')
 
+FPS = 120
 
 # map [-inf, inf] -> [-pi, pi]
 # note that pi -> -pi
