@@ -72,14 +72,14 @@ class ArmLockDef(object):
             density=100.0,
             friction=1.0,
             categoryBits=0x0001,
-            maskBits=0x1111)
+            maskBits=0x1110)
 
         # define link properties
         link_fixture = b2.b2FixtureDef(  # all links have same properties
             density=1.0,
             friction=1.0,
             categoryBits=0x0001,
-            maskBits=0x1111)
+            maskBits=0x1110)
 
         # create base
         self.arm_bodies.append(self.world.CreateBody(
@@ -129,7 +129,7 @@ class ArmLockDef(object):
                 enableLimit=False))
 
 
-        self.__init_door_lock()
+        # self.__init_door_lock()
         self.__init_cascade_controller()
 
 
@@ -182,20 +182,22 @@ class ArmLockDef(object):
             axis=(1, 0),
             lowerTranslation=0,
             upperTranslation=2,
+            enableLimit = True
         )
 
 
     def __init_cascade_controller(self):
         pts = [c.theta for c in self.chain.get_rel_config()[1:]]
+        pts = [np.pi, -np.pi, -np.pi/2, 0]
         self.pos_controller = PIDController([1] * len(self.arm_joints),
-                                        [0] * len(self.arm_joints),
-                                        [0.05] * len(self.arm_joints),
+                                        [0.0000001] * len(self.arm_joints),
+                                        [0.0] * len(self.arm_joints),
                                         pts)
 
         # initialize with zero velocity
         pts = [0, 0, 0, 0]
-        self.vel_controller = PIDController([2000] * len(self.arm_joints),
-                                            [0] * len(self.arm_joints),
+        self.vel_controller = PIDController([1000] * len(self.arm_joints),
+                                            [0.0] * len(self.arm_joints),
                                             [0] * len(self.arm_joints),
                                             pts,
                                             max_out=5)
@@ -203,14 +205,20 @@ class ArmLockDef(object):
     def update_cascade_controller(self, theta):
         # TODO: formalize clockrate
         if self.clock % 50 == 0:
-
+            # print 'here'
+            # print self.pos_controller.setpoint
+            # print self.pos_controller.integral
             vel_setpoints = self.pos_controller.update(theta)
             self.vel_controller.set_setpoint(vel_setpoints)
+            print vel_setpoints
 
         joint_speeds = [joint.speed for joint in self.arm_joints]
         torques = self.vel_controller.update(joint_speeds)
         if self.clock % 50 == 0:
+            print '_--------------'
             print torques
+            print self.pos_controller.integral
+            print self.pos_controller.i_term
         return torques
 
 
@@ -221,6 +229,8 @@ class ArmLockDef(object):
             self.bolt_joint = None
 
     def set_controllers(self, delta_setpoints):
+        print 'wtf?'
+        exit()
         new = [wrapToMinusPiToPi(c + n) \
                for c, n in zip(self.pos_controller.setpoint, delta_setpoints)]
         self.pos_controller.set_setpoint(new)

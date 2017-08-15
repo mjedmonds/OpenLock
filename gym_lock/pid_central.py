@@ -13,6 +13,9 @@ class PIDController(object):
         self.max_out = max_out
         self.steps = 0
 
+        self.i_term = 0
+
+
         self.previous_error = self.error = self.integral = \
             self.differential = self.previous_value = [0] * len(setpoint)
 
@@ -23,6 +26,9 @@ class PIDController(object):
 
         p_term = [kp * e for kp, e in zip(self.kp, self.error)]
         i_term = [ki * e for ki, e in zip(self.ki, self.integral)]
+        # i_term = [max(-100, min(i, 100)) for o in out]
+        self.i_term = i_term
+
         d_term = [kd * e for kd, e in zip(self.kd, self.differential)]
 
         self.previous_error = self.error
@@ -30,8 +36,8 @@ class PIDController(object):
         # TODO: incorporate dynamics?
         out = [p + i + d for p, i, d in zip(p_term, i_term, d_term)]
 
-        # clamp out
-        out = [max(-self.max_out, min(o, self.max_out)) for o in out]
+        # # # clamp out
+        # out = [max(-self.max_out, min(o, self.max_out)) for o in out]
 
         return out
 

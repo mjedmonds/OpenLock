@@ -42,7 +42,7 @@ class ArmLockEnv(gym.Env):
         self.step_delta = 0.1 # for path discretization
 
         # initialize inverse kinematics module with chain==target
-        initial_config = generate_four_arm(3*np.pi/8, -6*np.pi/8, 6*np.pi/8, -6*np.pi/8)
+        initial_config = generate_four_arm(0, 0, 0, 0)
         self.base = TwoDKinematicTransform()
         self.chain = KinematicChain(self.base, initial_config)
         self.target = KinematicChain(self.base, initial_config)

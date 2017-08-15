@@ -26,14 +26,15 @@ import time
 for i in range(10000000):
     # if env.world_def.clock % 10 == 0:
     #     env.render()
-    obs, rew, done, info = env.step(KinematicChain(base, generate_four_arm(np.pi/4, -np.pi/4, 0, 0)))
-    obs, rew, done, info = env.step(KinematicChain(base, generate_four_arm(3*np.pi/8, -6*np.pi/8, 6*np.pi/8, -6*np.pi/8)))
-    obs, rew, done, info = env.step(KinematicChain(base, generate_four_arm(-np.pi/4, np.pi/4, 0, 0)))
-    obs, rew, done, info = env.step(KinematicChain(base, generate_four_arm(3*np.pi/8, -6*np.pi/8, 6*np.pi/8, -6*np.pi/8)))
+    # obs, rew, done, info = env.step(KinematicChain(base, generate_four_arm(-np.pi/4, 0, np.pi/4, 0)))
+    # obs, rew, done, info = env.step(KinematicChain(base, generate_four_arm(np.pi/4, -np.pi/4, 0, 0)))
+    # obs, rew, done, info = env.step(KinematicChain(base, generate_four_arm(3*np.pi/8, -6*np.pi/8, 6*np.pi/8, -6*np.pi/8)))
 
-    # env.step(False)
-    if done:
-        exit()
-    env.render()
+    # # env.step(False)
+    # if done:
+    #     exit()
+    env.step(False)
+    if i % 10 == 0:
+        env.render()
 
 
