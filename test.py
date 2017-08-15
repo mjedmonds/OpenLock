@@ -22,33 +22,18 @@ targ = KinematicChain(base, generate_four_arm(-np.pi, 0, 0, 0))
 idx = 0
 
 done = False
-
+import time
 for i in range(10000000):
     # if env.world_def.clock % 10 == 0:
     #     env.render()
+    obs, rew, done, info = env.step(KinematicChain(base, generate_four_arm(np.pi/4, -np.pi/4, 0, 0)))
+    obs, rew, done, info = env.step(KinematicChain(base, generate_four_arm(3*np.pi/8, -6*np.pi/8, 6*np.pi/8, -6*np.pi/8)))
+    obs, rew, done, info = env.step(KinematicChain(base, generate_four_arm(-np.pi/4, np.pi/4, 0, 0)))
+    obs, rew, done, info = env.step(KinematicChain(base, generate_four_arm(3*np.pi/8, -6*np.pi/8, 6*np.pi/8, -6*np.pi/8)))
+
+    # env.step(False)
     if done:
-        env.step(False)
-    else:
-        obs, rew, done, info = env.step(targ)
+        exit()
+    env.render()
 
-
-
-
-        # if done:
-    #     idx = idx + 1
-    #     targ = KinematicChain(configs[idx])
-    #     print 'new target'
-    #     print configs[idx]
-
-    # if 0 == 0:
-    #     if i < s[0]:
-    #         env.step(c1)
-    #     if i > s[0] and i < s[1]:
-    #         env.step(c2)
-    #     if i > s[1] and i < s[2]:
-    #         env.step(c3)
-    #     if i > s[2] and i < s[3]:
-    #         env.step(c4)
-    # else:
-    #     env.step(False)
 

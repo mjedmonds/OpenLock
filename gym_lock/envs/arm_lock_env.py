@@ -42,7 +42,7 @@ class ArmLockEnv(gym.Env):
         self.step_delta = 0.1 # for path discretization
 
         # initialize inverse kinematics module with chain==target
-        initial_config = generate_four_arm(0, 0, 0, 0)
+        initial_config = generate_four_arm(3*np.pi/8, -6*np.pi/8, 6*np.pi/8, -6*np.pi/8)
         self.base = TwoDKinematicTransform()
         self.chain = KinematicChain(self.base, initial_config)
         self.target = KinematicChain(self.base, initial_config)
@@ -69,7 +69,6 @@ class ArmLockEnv(gym.Env):
                 done (boolean): whether the episode has ended, in which case further step() calls will return undefined results
                 info (dict): contains auxiliary diagnostic information (helpful for debugging, and sometimes learning)
         """
-
         if action:
 
            # update current config
@@ -97,8 +96,11 @@ class ArmLockEnv(gym.Env):
                 err = self.invkine.get_error()
                 while (err > 0.01):
                     a = a + 1
-                    print err
 
+
+                    if a > 500:
+                        'Could not converge'
+                        return np.zeros(4), 0, True, dict()
 
                     # update current config
                     self.update_current_config()
@@ -108,7 +110,6 @@ class ArmLockEnv(gym.Env):
 
                     # get delta theta
                     d_theta = self.invkine.get_delta_theta_dls(lam=0.5)
-                    print d_theta
 
                     # update controllers
                     self.world_def.set_controllers(d_theta)
@@ -118,8 +119,10 @@ class ArmLockEnv(gym.Env):
                     self.world_def.step(1.0 / FPS, 10, 10)
 
                     for i in range(0, 100):
+                        # if a > 50:
+                        #     self._render()
                         self.world_def.step(1.0 / FPS, 10, 10)
-
+                    self._render()
                     # while (err > 3):
                     #     b += 1
                     #     print b
@@ -135,7 +138,6 @@ class ArmLockEnv(gym.Env):
                     #     self.world_def.step(1.0 / FPS, 10, 10)
 
                     # print 'PID converged in {} iterations'.format(b)
-                super(ArmLockEnv, self).render()
 
                 print 'waypoint converged in {} iterations'.format(a)
                 # converged on that waypoint

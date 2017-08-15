@@ -28,7 +28,12 @@ class PIDController(object):
         self.previous_error = self.error
 
         # TODO: incorporate dynamics?
-        return [p + i + d for p, i, d in zip(p_term, i_term, d_term)]
+        out = [p + i + d for p, i, d in zip(p_term, i_term, d_term)]
+
+        # clamp out
+        out = [max(-self.max_out, min(o, self.max_out)) for o in out]
+
+        return out
 
 
     def set_setpoint(self, setpoint):

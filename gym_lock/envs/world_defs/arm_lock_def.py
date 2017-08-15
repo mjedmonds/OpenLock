@@ -60,7 +60,7 @@ class ArmLockDef(object):
                                      (-world_size, world_size),
                                      (-world_size, -world_size)])
 
-        # create arm links 
+        # create arm links
         self.arm_bodies = []
         motor_fixtures = []  # needed for torque control
         self.arm_lengths = []  # needed for joints
@@ -72,36 +72,29 @@ class ArmLockDef(object):
             density=100.0,
             friction=1.0,
             categoryBits=0x0001,
-            maskBits=0x0000)
+            maskBits=0x1111)
+
         # define link properties
         link_fixture = b2.b2FixtureDef(  # all links have same properties
             density=1.0,
             friction=1.0,
             categoryBits=0x0001,
-            maskBits=0x0000)
-
-        # NOTE: remove motor for simpler COG calc
-        # # define "motor" properties
-        # motor_fixture = b2.b2FixtureDef(  # all motors have same properties
-        #     density=0.1,
-        #     friction=3.0,
-        #     categoryBits=0x0001,
-        #     maskBits=0x0000)
+            maskBits=0x1111)
 
         # create base
         self.arm_bodies.append(self.world.CreateBody(
             position=(self.x0[0].x, self.x0[0].y),
             angle=0))
 
-        #TODO: sqrt?
+        #TODO: remove?
         # add in "virtual" joint length so arm_bodies and arm_lengths are same length
         length = np.linalg.norm(np.array([0, 0]) - \
                                 np.array([self.x0[0].x, self.x0[0].y]))
 
         self.arm_lengths.append(length)
+
         # create the rest of the arm
         # body frame located at each joint
-
         for i in range(1, len(self.x0)):
             length = np.linalg.norm(np.array([self.x0[i].x, self.x0[i].y] - \
                                              np.array([self.x0[i - 1].x, self.x0[i - 1].y])))
@@ -121,13 +114,6 @@ class ArmLockDef(object):
 
             self.arm_bodies.append(arm_body)
 
-            # motor_fixture.shape = b2.b2CircleShape(radius=(width), pos=(-length, 0))
-            # motor_fixtures.append(arm_body.CreateFixture(motor_fixture))
-
-        # for arm in self.arm_bodies:
-        #     if len(arm.fixtures) > 0:
-        #         print arm.massData
-        # exit()
         # create arm joints
         self.arm_joints = []
         for i in range(1, len(self.arm_bodies)):
@@ -142,76 +128,65 @@ class ArmLockDef(object):
                 maxMotorTorque=0,
                 enableLimit=False))
 
-        # create joint PID controllers and initialize to
-        # angles specified in x0
 
+        self.__init_door_lock()
         self.__init_cascade_controller()
-        # OLD CONTROLLER
-        # self.joint_controllers = []
-        # config = self.get_abs_config()[1:]  # ignore baseframe transform
-        # pts = [0.1, 0.1, 0.1, 0.1]
-        # pts = [0, 0, 0, np.pi/2]
-        #
-        # kp = kd = ki = max_torque = np.array([1, 1.0/2, 1.0/4, 1.0/16])
-        #
-        # kp = kp * 10000
-        # kd= kd * 3000
-        # ki= ki * 0
-        # max_torque = np.array([1, 1, 1, 1]) * 100000
-        # for i in range(0, len(self.arm_joints)):
-        #     self.joint_controllers.append(PIDController(kp=kp[i],
-        #                                                 ki=ki[i],
-        #                                                 kd=kd[i],
-        #                                                 setpoint=pts[i],
-        #                                                 dt=1.0 / FPS,
-        #                                                 max_out=max_torque[i]))
-        # END OLD CONTROLLER
 
-        # # create door
-        # door_width = 0.5
-        # door_length = 10
-        # door_fixture = b2.b2FixtureDef(
-        #     shape=b2.b2PolygonShape(vertices=[(0,-width),
-        #                                      (0, width),
-        #                                      (door_length, width),
-        #                                      (door_length, -width)]),
-        #     density=1,
-        #     friction=1.0)
-        # self.door = self.world.CreateDynamicBody(
-        #     position = (0, 10),
-        #     fixtures = door_fixture)
-        # self.door_hinge = self.world.CreateRevoluteJoint(
-        #     bodyA=self.door,  # end of link A
-        #     bodyB=self.ground,  # beginning of link B
-        #     localAnchorA=(0, 0),
-        #     localAnchorB=(0, 10))
-        #
-        # # create lock
-        # # create door
-        # lock_width = 0.5
-        # lock_length = 10
-        # lock_fixture = b2.b2FixtureDef(
-        #     shape=b2.b2PolygonShape(box=(5, 0.5)),
-        #     density=1,
-        #     friction=1.0)
-        # self.lock = self.world.CreateDynamicBody(
-        #     position = (17, -world_size + 15.5),
-        #     fixtures = lock_fixture,
-        #     angle = np.pi / 2)
-        # self.lock_joint = self.world.CreatePrismaticJoint(
-        #     bodyA=self.lock,
-        #     bodyB=self.ground,
-        #     anchor=(0, 0),
-        #     axis=(0, 1),
-        #     lowerTranslation=0,
-        #     upperTranslation=1,
-        #     enableLimit=True,
-        #     motorSpeed=0.0,
-        #     enableMotor=True,
-        # )
+
+    def __init_door_lock(self):
+
+        # create door
+        door_width = 0.5
+        door_length = 10
+        door_fixture = b2.b2FixtureDef(
+            shape=b2.b2PolygonShape(vertices=[(0,-door_width),
+                                             (0, door_width),
+                                             (door_length, door_width),
+                                             (door_length, -door_width)]),
+            density=1,
+            friction=1.0)
+        self.door = self.world.CreateDynamicBody(
+            position = (15, 10),
+            angle = -np.pi/2,
+            fixtures = door_fixture)
+
+        self.door_hinge = self.world.CreateRevoluteJoint(
+            bodyA=self.door,  # end of link A
+            bodyB=self.ground,  # beginning of link B
+            localAnchorA=(0, 0),
+            localAnchorB=(15, 10),
+            enableMotor=True,
+            motorSpeed=0,
+            maxMotorTorque=100000,
+            enableLimit=True)
+
+
+        lock_width = 0.5
+        lock_length = 5
+        lock_fixture = b2.b2FixtureDef(
+            shape=b2.b2PolygonShape(vertices=[(0,-lock_width),
+                                                    (0, lock_width),
+                                                    (lock_length, lock_width),
+                                                    (lock_length, -lock_width)]),
+            density=1,
+            friction=1.0)
+
+        self.lock = self.world.CreateDynamicBody(
+            position = (15, -5),
+            angle = -np.pi/2,
+            fixtures = lock_fixture)
+        self.lock_joint = self.world.CreatePrismaticJoint(
+            bodyA=self.lock,
+            bodyB=self.ground,
+            anchor=(0, 0),
+            axis=(1, 0),
+            lowerTranslation=0,
+            upperTranslation=2,
+        )
+
 
     def __init_cascade_controller(self):
-        pts = [c.theta for c in self.chain.get_rel_config()]
+        pts = [c.theta for c in self.chain.get_rel_config()[1:]]
         self.pos_controller = PIDController([1] * len(self.arm_joints),
                                         [0] * len(self.arm_joints),
                                         [0.05] * len(self.arm_joints),
@@ -222,22 +197,28 @@ class ArmLockDef(object):
         self.vel_controller = PIDController([2000] * len(self.arm_joints),
                                             [0] * len(self.arm_joints),
                                             [0] * len(self.arm_joints),
-                                            pts)
+                                            pts,
+                                            max_out=5)
 
     def update_cascade_controller(self, theta):
         # TODO: formalize clockrate
         if self.clock % 50 == 0:
+
             vel_setpoints = self.pos_controller.update(theta)
             self.vel_controller.set_setpoint(vel_setpoints)
+
         joint_speeds = [joint.speed for joint in self.arm_joints]
         torques = self.vel_controller.update(joint_speeds)
-
+        if self.clock % 50 == 0:
+            print torques
         return torques
 
 
 
-    def update_state_machine(self, input):
-        pass
+    def update_state_machine(self):
+        if self.lock_joint.translation > 1.0 and self.bolt_joint:
+            self.door_hinge.maxMotorTorque = 70
+            self.bolt_joint = None
 
     def set_controllers(self, delta_setpoints):
         new = [wrapToMinusPiToPi(c + n) \
@@ -290,6 +271,7 @@ class ArmLockDef(object):
     def step(self, timestep, vel_iterations, pos_iterations):
         self.clock += 1
 
+        # self.update_state_machine()
 
         # update torques
         theta = [c.theta for c in self.get_rel_config()[1:]]
