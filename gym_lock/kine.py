@@ -323,12 +323,8 @@ def main():
     base = TwoDKinematicTransform()
     current_chain = KinematicChain(base, generate_four_arm(0, 0, 0, 0))
 
-    jacs = current_chain.get_inertia_matrix()
-    print jacs
-    exit()
 
-
-    targ = KinematicChain(base, generate_four_arm(np.pi / 2, 0, 0, 0))
+    targ = KinematicChain(base, generate_four_arm(np.pi / 2, 0, 0, np.pi/2))
     poses = discretize_path(current_chain, targ, delta_step)
 
     # initialize with target and current the same
@@ -371,9 +367,6 @@ def main():
 
             # update err
             err = invk.get_error()
-
-            if a > 500:
-                print err
 
         print 'converged in {} iterations'.format(a)
         # converged on that waypoint

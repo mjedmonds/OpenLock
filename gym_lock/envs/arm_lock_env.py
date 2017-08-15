@@ -33,12 +33,13 @@ class ArmLockEnv(gym.Env):
         self.reward_range = (-np.inf, np.inf)
         self._seed()
         self.viewer = None
+        self.clock = 0
 
         # inverse kinematics params
         self.alpha = 0.01 # for invk transpose alg
         self.lam = 1 # for invk dls alg
-        self.epsilon = 1 # for convergence on path waypoint
-        self.step_delta = 0.5 # for path discretization
+        self.epsilon = 0.01 # for convergence on path waypoint
+        self.step_delta = 0.1 # for path discretization
 
         # initialize inverse kinematics module with chain==target
         initial_config = generate_four_arm(0, 0, 0, 0)
@@ -50,7 +51,10 @@ class ArmLockEnv(gym.Env):
         # setup Box2D world
         self.world_def = ArmLockDef(self.chain, 25)
 
-
+    def update_current_config(self):
+        cur_theta = [c.theta for c in self.world_def.get_rel_config()[1:]]
+        new_conf = generate_four_arm(cur_theta[0], cur_theta[1], cur_theta[2], cur_theta[3])
+        self.chain = KinematicChain(self.base, new_conf)
 
     def _step(self, action):
         """Run one timestep of the environment's dynamics. When end of
@@ -65,73 +69,77 @@ class ArmLockEnv(gym.Env):
                 done (boolean): whether the episode has ended, in which case further step() calls will return undefined results
                 info (dict): contains auxiliary diagnostic information (helpful for debugging, and sometimes learning)
         """
-        # action = virtual KinematicLink
+
         if action:
 
-           # update invk model
-           self.invkine.set_current_config(self.chain)
+           # update current config
+           self.update_current_config()
 
            # generate discretized waypoints
            waypoints = discretize_path(self.chain, action, self.step_delta)
-           # print len(waypoints)
 
+           # we're already at the config
            if waypoints is None:
                return np.zeros(4), 0, True, dict()
 
 
-           for i in range(1, len(waypoints)):
-
-                # set next waypoint
-                self.invkine.set_target(waypoints[i])
+           for i in range(1, len(waypoints)): # waypoint 0 is current config
 
                 # update current configuration
-                cur_theta = [c.theta for c in self.world_def.get_rel_config()[1:]]
-                new_conf = generate_four_arm(cur_theta[0], cur_theta[1], cur_theta[2], cur_theta[3])
-                self.chain = KinematicChain(new_conf)
+                self.update_current_config()
+
+                # update invk
+                self.invkine.set_current_config(self.chain)
+                self.invkine.set_target(waypoints[i])
 
                 print 'converging'
                 a = 0
                 err = self.invkine.get_error()
-                while (err > 5):
-                    print err
+                while (err > 0.01):
                     a = a + 1
+                    print err
 
-                    if a > 500:
-                        print a
-                        print err
 
+                    # update current config
+                    self.update_current_config()
                     # update inverse kine
                     self.invkine.set_current_config(self.chain)
+                    err = self.invkine.get_error()
 
                     # get delta theta
-                    d_theta = self.invkine.get_delta_theta_dls(lam=20)
+                    d_theta = self.invkine.get_delta_theta_dls(lam=0.5)
+                    print d_theta
 
                     # update controllers
                     self.world_def.set_controllers(d_theta)
 
-                    # step
+                    # wait for PID to converge
+                    b = 0
                     self.world_def.step(1.0 / FPS, 10, 10)
-                    super(ArmLockEnv, self).render()
 
-                    # wait for joints to stop moving
-                    joint_speed = any([abs(joint.speed) > 0.001 for joint in self.world_def.arm_joints])
-                    while (joint_speed):
-                        # print 'here'/
+                    for i in range(0, 100):
                         self.world_def.step(1.0 / FPS, 10, 10)
-                        super(ArmLockEnv, self).render()
-                        joint_speed = any([abs(joint.speed) > 0.001 for joint in self.world_def.arm_joints])
-                        # print [abs(joint.speed) > 0.01 for joint in self.world_def.arm_joints]
 
-                    # update current configuration
-                    cur_theta = [c.theta for c in self.world_def.get_rel_config()[1:]]  # ignore virtual base link
-                    new_conf = generate_four_arm(cur_theta[0], cur_theta[1], cur_theta[2], cur_theta[3])
-                    self.chain = KinematicChain(new_conf)
+                    # while (err > 3):
+                    #     b += 1
+                    #     print b
+                    #     # update current configuration
+                    #     cur_theta = [c.theta for c in self.world_def.get_rel_config()[1:]]  # ignore virtual base link
+                    #     new_conf = generate_four_arm(cur_theta[0], cur_theta[1], cur_theta[2], cur_theta[3])
+                    #
+                    #     self.chain = KinematicChain(self.base, new_conf)
+                    #     self.invkine.set_current_config(self.chain)
+                    #     err = self.invkine.get_error()
+                    #     print err
+                    #
+                    #     self.world_def.step(1.0 / FPS, 10, 10)
 
-                    # update error
-                    err = self.invkine.get_error()
+                    # print 'PID converged in {} iterations'.format(b)
+                super(ArmLockEnv, self).render()
 
-                print 'converged in {} iterations'.format(a)
+                print 'waypoint converged in {} iterations'.format(a)
                 # converged on that waypoint
+           return np.zeros(4), 0, True, dict()
         else:
             self.world_def.step(1.0 / FPS, 10, 10)
             return np.zeros(4), 0, False, dict()

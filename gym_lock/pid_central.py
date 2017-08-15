@@ -17,12 +17,10 @@ class PIDController(object):
             self.differential = self.previous_value = [0] * len(setpoint)
 
     def update(self, current_value):
-        if not len(self.setpoint) == len(current_value):
-            print self.setpoint
-            print current_value
         self.error = [wrapToMinusPiToPi(s - c) for s, c in zip(self.setpoint, current_value)]
         self.integral = [(i + e) * self.dt for i, e in zip(self.integral, self.error)]
         self.differential = [(e - p) / self.dt for e, p in zip(self.error, self.previous_error)]
+
         p_term = [kp * e for kp, e in zip(self.kp, self.error)]
         i_term = [ki * e for ki, e in zip(self.ki, self.integral)]
         d_term = [kd * e for kd, e in zip(self.kd, self.differential)]

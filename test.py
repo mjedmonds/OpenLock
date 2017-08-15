@@ -18,20 +18,18 @@ def gen_theta():
 #     configs.append(generate_valid_config(gen_theta(), gen_theta(), gen_theta()))
 
 base=TwoDKinematicTransform()
-targ = KinematicChain(base, generate_four_arm(pi/2, 0, 0, pi/2))
+targ = KinematicChain(base, generate_four_arm(-np.pi, 0, 0, 0))
 idx = 0
 
 done = False
 
 for i in range(10000000):
-    if env.world_def.clock % 10 == 0:
-        env.render()
-    env.step(False)
-    # if done:
-    #     env.step(False)
-    # else:
-    #     obs, rew, done, info = env.step(targ)
-    #     print done
+    # if env.world_def.clock % 10 == 0:
+    #     env.render()
+    if done:
+        env.step(False)
+    else:
+        obs, rew, done, info = env.step(targ)
 
 
 

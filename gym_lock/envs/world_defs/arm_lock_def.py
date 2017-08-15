@@ -211,12 +211,13 @@ class ArmLockDef(object):
         # )
 
     def __init_cascade_controller(self):
-        pts = [np.pi/2, -np.pi/2, np.pi/2, -np.pi/2]
+        pts = [c.theta for c in self.chain.get_rel_config()]
         self.pos_controller = PIDController([1] * len(self.arm_joints),
                                         [0] * len(self.arm_joints),
                                         [0.05] * len(self.arm_joints),
                                         pts)
 
+        # initialize with zero velocity
         pts = [0, 0, 0, 0]
         self.vel_controller = PIDController([2000] * len(self.arm_joints),
                                             [0] * len(self.arm_joints),
@@ -224,23 +225,10 @@ class ArmLockDef(object):
                                             pts)
 
     def update_cascade_controller(self, theta):
-        # get current
-        if self.clock % 3000 == 0:
-            self.pos_controller.set_setpoint([-np.pi/2, np.pi/2, -np.pi/2, np.pi/2])
-        if self.clock % 5000 == 0:
-            self.pos_controller.set_setpoint([-np.pi, 0, 0, 0])
-        if self.clock % 7000 == 0:
-            self.pos_controller.set_setpoint([np.pi/2, 0, 0, 0])
+        # TODO: formalize clockrate
         if self.clock % 50 == 0:
-            print 'diff'
-            print self.pos_controller.differential
-            print 'pro'
-            print self.pos_controller.error
-            print 'out'
             vel_setpoints = self.pos_controller.update(theta)
-            print vel_setpoints
             self.vel_controller.set_setpoint(vel_setpoints)
-
         joint_speeds = [joint.speed for joint in self.arm_joints]
         torques = self.vel_controller.update(joint_speeds)
 
@@ -252,19 +240,9 @@ class ArmLockDef(object):
         pass
 
     def set_controllers(self, delta_setpoints):
-        new = self.controller.setpoint + np.array(delta_setpoints)
-        new = np.apply_along_axis(wrapToMinusPiToPi, new)
-
-        self.controller.set_setpoint(new)
-
-
-        # OLD
-        # conf = self.get_rel_config()[1:]
-        # for i in range(0, len(self.joint_controllers)):
-        #     cur = conf[i].theta
-        #     # print 'cur: {} new: {}'.format(cur, cur+delta_setpoints[i])
-        #     new = wrapToMinusPiToPi(cur + delta_setpoints[i])
-        #     self.joint_controllers[i].set_setpoint(new)
+        new = [wrapToMinusPiToPi(c + n) \
+               for c, n in zip(self.pos_controller.setpoint, delta_setpoints)]
+        self.pos_controller.set_setpoint(new)
 
     def get_abs_config(self):
         config = []
@@ -312,10 +290,9 @@ class ArmLockDef(object):
     def step(self, timestep, vel_iterations, pos_iterations):
         self.clock += 1
 
+
         # update torques
-        conf = self.get_rel_config()
-        theta = [c.theta for c in conf[1:]]
-        # self.chain.update_chain(conf)
+        theta = [c.theta for c in self.get_rel_config()[1:]]
         new_torque = self.update_cascade_controller(theta)
 
         for i in range(0, len(new_torque)):
