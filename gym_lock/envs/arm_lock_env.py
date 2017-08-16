@@ -4,12 +4,10 @@ import numpy as np
 from gym import spaces
 from gym.envs.classic_control import rendering
 from gym.utils import seeding
-from Queue import Queue
-
+from matplotlib import pyplot as plt
+from gym_lock.common import FPS
 from gym_lock.envs.world_defs.arm_lock_def import ArmLockDef
 from gym_lock.kine import KinematicChain, discretize_path, InverseKinematics, generate_four_arm, TwoDKinematicTransform
-from gym_lock.common import transform_to_theta, wrapToMinusPiToPi
-from gym_lock.common import FPS
 
 VIEWPORT_W = 1200
 VIEWPORT_H = 800
@@ -36,24 +34,24 @@ class ArmLockEnv(gym.Env):
         self.clock = 0
 
         # inverse kinematics params
-        self.alpha = 0.01 # for invk transpose alg
-        self.lam = 1 # for invk dls alg
-        self.epsilon = 0.01 # for convergence on path waypoint
-        self.step_delta = 0.1 # for path discretization
+        self.alpha = 0.01  # for invk transpose alg
+        self.lam = 1  # for invk dls alg
+        self.epsilon = 0.01  # for convergence on path waypoint
+        self.step_delta = 0.1  # for path discretization
 
         # initialize inverse kinematics module with chain==target
-        initial_config = generate_four_arm(0, 0, 0, 0)
+        initial_config = generate_four_arm(np.pi, np.pi/2, np.pi/2, 0, np.pi/2)
         self.base = TwoDKinematicTransform()
         self.chain = KinematicChain(self.base, initial_config)
         self.target = KinematicChain(self.base, initial_config)
         self.invkine = InverseKinematics(self.chain, self.target)
 
         # setup Box2D world
-        self.world_def = ArmLockDef(self.chain, 25)
+        self.world_def = ArmLockDef(self.chain, 35)
 
     def update_current_config(self):
         cur_theta = [c.theta for c in self.world_def.get_rel_config()[1:]]
-        new_conf = generate_four_arm(cur_theta[0], cur_theta[1], cur_theta[2], cur_theta[3])
+        new_conf = generate_four_arm(cur_theta[0], cur_theta[1], cur_theta[2], cur_theta[3], cur_theta[4])
         self.chain = KinematicChain(self.base, new_conf)
 
     def _step(self, action):
@@ -69,20 +67,27 @@ class ArmLockEnv(gym.Env):
                 done (boolean): whether the episode has ended, in which case further step() calls will return undefined results
                 info (dict): contains auxiliary diagnostic information (helpful for debugging, and sometimes learning)
         """
+
         if action:
 
-           # update current config
-           self.update_current_config()
+            targ_x, targ_y, targ_theta = action.get_abs_config()[-1]
+            self.world_def.draw_target_arrow(targ_x, targ_y, targ_theta)
 
-           # generate discretized waypoints
-           waypoints = discretize_path(self.chain, action, self.step_delta)
+            all_dtheta = []
 
-           # we're already at the config
-           if waypoints is None:
-               return np.zeros(4), 0, True, dict()
+            # update current config
+            self.update_current_config()
 
+            # generate discretized waypoints
+            waypoints = discretize_path(self.chain, action, self.step_delta)
+            print action
+            print len(waypoints)
 
-           for i in range(1, len(waypoints)): # waypoint 0 is current config
+            # we're already at the config
+            if waypoints is None:
+                return np.zeros(4), 0, True, dict()
+
+            for i in range(1, len(waypoints)):  # waypoint 0 is current config
 
                 # update current configuration
                 self.update_current_config()
@@ -94,58 +99,67 @@ class ArmLockEnv(gym.Env):
                 print 'converging'
                 a = 0
                 err = self.invkine.get_error()
-                while (err > 0.01):
+                while (err > 1):
                     a = a + 1
 
+                    # get delta theta
+                    d_theta = self.invkine.get_delta_theta_dls(lam=0.5)
+                    all_dtheta.append(d_theta)
 
-                    if a > 500:
-                        'Could not converge'
-                        return np.zeros(4), 0, True, dict()
+                    # update controllers
+                    self.world_def.set_controllers(d_theta)
+
+                    # for i in range(0, 500):
+                    #     self.world_def.step(1.0 / FPS, 10, 10)
+                        # print self.world_def.pos_controller.error
+
+                    # wait for PID to converge and stop
+                    print 'converging on theta'
+                    b = 0
+                    # self.world_def.step(1.0 / FPS, 10, 10)
+                    theta_err = sum([e ** 2 for e in self.world_def.pos_controller.error])
+                    vel_err = sum([e ** 2 for e in self.world_def.vel_controller.error])
+                    while (theta_err > 0.001 or vel_err > 0.001):
+                        if b % 10 == 0 and b > 250:
+                            self._render()
+                        if b > 2000:
+                            # print self.world_def.lock_joint.translation
+                            return np.zeros(4), 0, False, dict()
+
+                        b += 1
+                        self.world_def.step(1.0 / FPS, 10, 10)
+                        theta_err = sum([e ** 2 for e in self.world_def.pos_controller.error])
+                        vel_err = sum([e ** 2 for e in self.world_def.vel_controller.error])
+                        # joint_speed = sum([joint.speed ** 2 for joint in self.world_def.arm_joints])
+                        # if b % 10 == 0:
+                        #     self._render()
+                    print 'converged on theta in {} iterations'.format(b)
+
+                    # print 'PID converged in {} iterations'.format(b)
 
                     # update current config
                     self.update_current_config()
                     # update inverse kine
                     self.invkine.set_current_config(self.chain)
                     err = self.invkine.get_error()
-
-                    # get delta theta
-                    d_theta = self.invkine.get_delta_theta_dls(lam=0.5)
-
-                    # update controllers
-                    self.world_def.set_controllers(d_theta)
-
-                    # wait for PID to converge
-                    b = 0
-                    self.world_def.step(1.0 / FPS, 10, 10)
-
-                    for i in range(0, 100):
-                        # if a > 50:
-                        #     self._render()
-                        self.world_def.step(1.0 / FPS, 10, 10)
-                    self._render()
-                    # while (err > 3):
-                    #     b += 1
-                    #     print b
-                    #     # update current configuration
-                    #     cur_theta = [c.theta for c in self.world_def.get_rel_config()[1:]]  # ignore virtual base link
-                    #     new_conf = generate_four_arm(cur_theta[0], cur_theta[1], cur_theta[2], cur_theta[3])
-                    #
-                    #     self.chain = KinematicChain(self.base, new_conf)
-                    #     self.invkine.set_current_config(self.chain)
-                    #     err = self.invkine.get_error()
-                    #     print err
-                    #
-                    #     self.world_def.step(1.0 / FPS, 10, 10)
-
-                    # print 'PID converged in {} iterations'.format(b)
+                    if a > 50:
+                        print d_theta
+                        self._render()
 
                 print 'waypoint converged in {} iterations'.format(a)
+                self._render()
+
                 # converged on that waypoint
-           return np.zeros(4), 0, True, dict()
+            # if len(all_dtheta) > 0:
+            #     print d_theta
+            #     for i in range(0, len(all_dtheta[0])):
+            #         plt.plot(all_dtheta[:][i])
+            # plt.show()
+
+            return np.zeros(4), 0, True, dict()
         else:
             self.world_def.step(1.0 / FPS, 10, 10)
             return np.zeros(4), 0, False, dict()
-
 
     # def _step(self, action):
     #     """Run one timestep of the environment's dynamics. When end of
@@ -307,9 +321,10 @@ class ArmLockEnv(gym.Env):
         self.np_random, seed = seeding.np_random(seed)
         return [seed]
 
+
 def main():
     env = ArmLockEnv()
 
+
 if __name__ == '__main__':
     main()
-

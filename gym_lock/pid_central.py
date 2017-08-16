@@ -4,7 +4,7 @@ import numpy as np
 from common import wrapToMinusPiToPi
 
 class PIDController(object):
-    def __init__(self, kp, ki, kd, setpoint, dt=1, max_out=2000, max_int=500):
+    def __init__(self, kp, ki, kd, setpoint, dt=1, max_out=None, max_int=500):
         self.kp = kp
         self.ki = ki
         self.kd = kd
@@ -12,6 +12,7 @@ class PIDController(object):
         self.dt = dt
         self.max_out = max_out
         self.steps = 0
+        self.error = 0
 
         self.i_term = 0
 
@@ -36,8 +37,8 @@ class PIDController(object):
         # TODO: incorporate dynamics?
         out = [p + i + d for p, i, d in zip(p_term, i_term, d_term)]
 
-        # # # clamp out
-        # out = [max(-self.max_out, min(o, self.max_out)) for o in out]
+        if self.max_out:
+            out = [max(-self.max_out, min(o, self.max_out)) for o in out]
 
         return out
 

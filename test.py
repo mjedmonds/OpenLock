@@ -6,9 +6,10 @@ env = gym.make('arm_lock-v0')
 env.reset()
 
 import numpy as np
+import random as ran
 from numpy import pi
 
-from gym_lock.kine import KinematicChain, generate_four_arm, TwoDKinematicTransform
+from gym_lock.kine import KinematicChain, generate_four_arm, TwoDKinematicTransform, KinematicLink
 
 def gen_theta():
     return (np.random.ranf() - 0.5) * 2 * np.pi
@@ -18,23 +19,48 @@ def gen_theta():
 #     configs.append(generate_valid_config(gen_theta(), gen_theta(), gen_theta()))
 
 base=TwoDKinematicTransform()
-targ = KinematicChain(base, generate_four_arm(-np.pi, 0, 0, 0))
-idx = 0
+
+def generate_random_config():
+    t1, t2, t3, t4, t5 = [(ran.random() - 0.5) * 2 * np.pi for i in range(0, 5)]
+    print t1, t2, t3, t4
+    return generate_four_arm(t1, t2, t3, t4, t5)
+
 
 done = False
 import time
-for i in range(10000000):
+while(True):
     # if env.world_def.clock % 10 == 0:
     #     env.render()
-    # obs, rew, done, info = env.step(KinematicChain(base, generate_four_arm(-np.pi/4, 0, np.pi/4, 0)))
-    # obs, rew, done, info = env.step(KinematicChain(base, generate_four_arm(np.pi/4, -np.pi/4, 0, 0)))
-    # obs, rew, done, info = env.step(KinematicChain(base, generate_four_arm(3*np.pi/8, -6*np.pi/8, 6*np.pi/8, -6*np.pi/8)))
 
-    # # env.step(False)
-    # if done:
-    #     exit()
-    env.step(False)
-    if i % 10 == 0:
-        env.render()
+    # env.step(KinematicChain(base, generate_random_config()))
+    env.step(KinematicChain(base, [KinematicLink(TwoDKinematicTransform(),
+                                                 TwoDKinematicTransform(),
+                                                 TwoDKinematicTransform(name='1-1+', x=16, y=5, theta=0),
+                                                 None)]))
+    # exit()
+    env.step(KinematicChain(base, [KinematicLink(TwoDKinematicTransform(),
+                                                 TwoDKinematicTransform(),
+                                                 TwoDKinematicTransform(name='1-1+', x=5, y=0, theta=0),
+                                                 None)]))
+    env.step(KinematicChain(base, [KinematicLink(TwoDKinematicTransform(),
+                                                 TwoDKinematicTransform(),
+                                                 TwoDKinematicTransform(name='1-1+', x=15, y=-7.5, theta=0),
+                                                 None)]))
+    env.step(KinematicChain(base, [KinematicLink(TwoDKinematicTransform(),
+                                                 TwoDKinematicTransform(),
+                                                 TwoDKinematicTransform(name='1-1+', x=16, y=-7.5, theta=0),
+                                                 None)]))
+    env.step(KinematicChain(base, [KinematicLink(TwoDKinematicTransform(),
+                                                 TwoDKinematicTransform(),
+                                                 TwoDKinematicTransform(name='1-1+', x=17, y=-7.5, theta=0),
 
+                                                 None)]))
+    print env.world_def.lock_joint.translation
+    import time
+    time.sleep(3)
+    env.step(KinematicChain(base, [KinematicLink(TwoDKinematicTransform(),
+                                                 TwoDKinematicTransform(),
+                                                 TwoDKinematicTransform(name='1-1+', x=5, y=0, theta=0),
+                                                 None)]))
+    env.render()
 

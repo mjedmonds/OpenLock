@@ -9,34 +9,40 @@ DEBUG = True
 
 
 # TODO: move elsewhere, or get rid of dict config and just pass in list of links?
-def generate_four_arm(t1, t2, t3, t4, length=5, width=1, density=1):
+def generate_four_arm(t1, t2, t3, t4, t5, length=5.0, width=1, density=1):
 
     i_xx = 0 #(density * (length ** 3) * width) / 12
     i_yy = 0 #(density * (width ** 3) * length) / 12
-    i_zz = (density * width * length / 12.0) * (width ** 2 + length ** 2)
-    m = length * width * density
-
-    inertia_matrix = np.diag([m, m, m, i_xx, i_yy, i_zz])
+    # i_zz = (density * width * length / 12.0) * (width ** 2 + length ** 2)
+    # m = length * width * density
+    #
+    # inertia_matrix = np.diag([m, m, m, i_xx, i_yy, i_zz])
 
     return [KinematicLink(TwoDKinematicTransform(name='0+1-' ,theta=t1, screw=[0, 0, 0, 0, 0, 1]),
                           TwoDKinematicTransform(name='1_cog', x=length / 2),
                           TwoDKinematicTransform(name='1-1+', x=length),
-                          inertia_matrix),
+                          None),
 
-            KinematicLink(TwoDKinematicTransform(name='0+2-', theta=t2, screw=[0, 0, 0, 0, 0, 1]),
+            KinematicLink(TwoDKinematicTransform(name='1+2-', theta=t2, screw=[0, 0, 0, 0, 0, 1]),
                           TwoDKinematicTransform(name='2_cog', x=length / 2),
                           TwoDKinematicTransform(name='2-2+', x=length),
-                          inertia_matrix),
+                          None),
 
-            KinematicLink(TwoDKinematicTransform(name='0+3-', theta=t3, screw=[0, 0, 0, 0, 0, 1]),
+            KinematicLink(TwoDKinematicTransform(name='2+3-', theta=t3, screw=[0, 0, 0, 0, 0, 1]),
                           TwoDKinematicTransform(name='3_cog', x=length / 2),
                           TwoDKinematicTransform(name='3-3+', x=length),
-                          inertia_matrix),
+                          None),
 
-            KinematicLink(TwoDKinematicTransform(name='0+4-', theta=t4, screw=[0, 0, 0, 0, 0, 1]),
+            KinematicLink(TwoDKinematicTransform(name='3+4-', theta=t4, screw=[0, 0, 0, 0, 0, 1]),
                           TwoDKinematicTransform(name='4_cog', x=length / 2),
                           TwoDKinematicTransform(name='4-4+', x=length),
-                          inertia_matrix)]
+                          None),
+
+            KinematicLink(TwoDKinematicTransform(name='4+5-', theta=t5, screw=[0, 0, 0, 0, 0, 1]),
+                          TwoDKinematicTransform(name='5_cog', x=length / 2),
+                          TwoDKinematicTransform(name='5-5+', x=length),
+                          None)
+            ]
 
 
 def get_adjoint(transform):
@@ -138,7 +144,7 @@ class KinematicChain(object):
     def _check_rep(self):
         if DEBUG:
             # a chain always has at least 1 virutal link and 1 real links
-            assert len(self.chain) >= 2
+            assert len(self.chain) >= 1
 
     def update_chain(self, new_config):
         assert len(new_config) == len(self.chain) + 1
@@ -269,7 +275,7 @@ class KinematicLink(object):
 
     def _check_rep(self):
         assert self.minus.transform.shape == self.cog.transform.shape == self.plus.transform.shape == (4, 4)
-        assert self.inertia_matrix.shape == (6, 6)
+        # assert self.inertia_matrix.shape == (6, 6)
 
 
 class TwoDKinematicTransform(object):
@@ -324,7 +330,7 @@ def main():
     current_chain = KinematicChain(base, generate_four_arm(0, 0, 0, 0))
 
 
-    targ = KinematicChain(base, generate_four_arm(np.pi / 2, 0, 0, np.pi/2))
+    targ = KinematicChain(base, generate_four_arm(np.pi/4, -np.pi/4, 0, 0))
     poses = discretize_path(current_chain, targ, delta_step)
 
     # initialize with target and current the same
