@@ -1,11 +1,15 @@
 import Box2D as b2
+from Box2D import b2Color, b2_kinematicBody, b2_dynamicBody, b2_pi, b2CircleShape, b2Mul, b2PolygonShape, b2EdgeShape, \
+    b2_staticBody
 import gym
 import numpy as np
 from gym import spaces
-from gym.envs.classic_control import rendering
+from gym_lock.box2d_renderer import Box2DRenderer
+from gym_lock.envs.pyglet_framework import PygletFramework
+from gym_lock.envs.settings import fwSettings
 from gym.utils import seeding
 from matplotlib import pyplot as plt
-from gym_lock.common import FPS
+from gym_lock.common import FPS, Color
 from gym_lock.envs.world_defs.arm_lock_def import ArmLockDef
 from gym_lock.kine import KinematicChain, discretize_path, InverseKinematics, generate_four_arm, TwoDKinematicTransform
 
@@ -30,8 +34,8 @@ class ArmLockEnv(gym.Env):
         self.observation_space = spaces.Box(-np.inf, np.inf, [4])  # [x, y, vx, vy]
         self.reward_range = (-np.inf, np.inf)
         self._seed()
-        self.viewer = None
         self.clock = 0
+
 
         # inverse kinematics params
         self.alpha = 0.01  # for invk transpose alg
@@ -48,6 +52,10 @@ class ArmLockEnv(gym.Env):
 
         # setup Box2D world
         self.world_def = ArmLockDef(self.chain, 35)
+
+        # setup rendering
+        self.viewer = None
+
 
     def update_current_config(self):
         cur_theta = [c.theta for c in self.world_def.get_rel_config()[1:]]
@@ -120,8 +128,6 @@ class ArmLockEnv(gym.Env):
                     theta_err = sum([e ** 2 for e in self.world_def.pos_controller.error])
                     vel_err = sum([e ** 2 for e in self.world_def.vel_controller.error])
                     while (theta_err > 0.001 or vel_err > 0.001):
-                        if b % 10 == 0 and b > 250:
-                            self._render()
                         if b > 2000:
                             # print self.world_def.lock_joint.translation
                             return np.zeros(4), 0, False, dict()
@@ -142,12 +148,9 @@ class ArmLockEnv(gym.Env):
                     # update inverse kine
                     self.invkine.set_current_config(self.chain)
                     err = self.invkine.get_error()
-                    if a > 50:
-                        print d_theta
-                        self._render()
 
-                print 'waypoint converged in {} iterations'.format(a)
                 self._render()
+                print 'waypoint converged in {} iterations'.format(a)
 
                 # converged on that waypoint
             # if len(all_dtheta) > 0:
@@ -160,77 +163,6 @@ class ArmLockEnv(gym.Env):
         else:
             self.world_def.step(1.0 / FPS, 10, 10)
             return np.zeros(4), 0, False, dict()
-
-    # def _step(self, action):
-    #     """Run one timestep of the environment's dynamics. When end of
-    #     episode is reached, you are responsible for calling `reset()`
-    #     to reset this environment's state.
-    #
-    #     Accepts an action and returns a tuple (observation, reward, done, info).
-    #
-    #     Args:
-    #             action (object): an action provided by the environment
-    #
-    #     Returns:
-    #             observation (object): agent's observation of the current environment
-    #             reward (float) : amount of reward returned after previous action
-    #             done (boolean): whether the episode has ended, in which case further step() calls will return undefined results
-    #             info (dict): contains auxiliary diagnostic information (helpful for debugging, and sometimes learning)
-    #     """
-    #     # action = virtual KinematicLink
-    #
-    #     if action:
-    #
-    #         # set target
-    #         self.target = action
-    #
-    #         # update current configuration
-    #         cur_theta = [c.theta for c in self.world_def.get_rel_config()[1:]] # ignore virtual base link
-    #         new_conf = generate_four_arm(cur_theta[0], cur_theta[1], cur_theta[2], cur_theta[3])
-    #         self.chain = KinematicChain(new_conf)
-    #
-    #         # update invk model
-    #         self.invkine.set_current_config(self.chain)
-    #         self.invkine.set_target(self.target)
-    #
-    #         # print 'converging'
-    #         a = 0
-    #         err = self.invkine.get_error()
-    #         while (err > self.epsilon):
-    #             a = a + 1
-    #
-    #             print 'a: {} err: {}'.format(a, err)
-    #
-    #             # update current configuration
-    #             cur_theta = [c.theta for c in self.world_def.get_rel_config()[1:]]  # ignore virtual base link
-    #             new_conf = generate_four_arm(cur_theta[0], cur_theta[1], cur_theta[2], cur_theta[3])
-    #             self.chain = KinematicChain(new_conf)
-    #
-    #             # update inverse kine
-    #             self.invkine.set_current_config(self.chain)
-    #
-    #             # get delta theta
-    #             d_theta = self.invkine.get_delta_theta_dls(lam=1, clamp_theta=0.05, clamp_err=False)
-    #             print d_theta
-    #             # d_theta = self.invkine.get_delta_theta_trans()
-    #
-    #             # update controllers
-    #             self.world_def.set_controllers(d_theta)
-    #
-    #             # step
-    #             for i in range(0, 5):
-    #                 self.world_def.step(1.0 / FPS, 10, 10)
-    #
-    #             # update error
-    #             err = self.invkine.get_error()
-    #             super(ArmLockEnv, self).render()
-    #
-    #
-    #             # print 'converged in {} iterations'.format(a)
-    #         # converged on that waypoint
-    #
-    #     self.world_def.step(1.0 / FPS, 10, 10)
-    #     return np.zeros(4), 0, False, dict()
 
     def _reset(self):
         """Resets the state of the environment and returns an initial observation.
@@ -285,23 +217,11 @@ class ArmLockEnv(gym.Env):
             return
 
         if self.viewer is None:
-            self.viewer = rendering.Viewer(VIEWPORT_W, VIEWPORT_H)
-            self.viewer.set_bounds(-VIEWPORT_W / SCALE, VIEWPORT_W / SCALE, -VIEWPORT_H / SCALE, VIEWPORT_H / SCALE)
+            self.viewer = Box2DRenderer()
 
-        for body in self.world_def.world:
-            for fixture in body.fixtures:
-                t = body.transform
-                if isinstance(fixture.shape, b2.b2EdgeShape):
-                    self.viewer.draw_line(fixture.shape.vertices[0], fixture.shape.vertices[1])
-                elif isinstance(fixture.shape, b2.b2CircleShape):
-                    # print fixture.body.transform
-                    trans = rendering.Transform(translation=t * fixture.shape.pos)
-                    self.viewer.draw_circle(fixture.shape.radius).add_attr(trans)
-                elif isinstance(fixture.shape, b2.b2PolygonShape):
-                    vertices = [fixture.body.transform * v for v in fixture.shape.vertices]
-                    self.viewer.draw_polygon(vertices, filled=False)
+        self.viewer.render_world(self.world_def.world, mode)
 
-        return self.viewer.render(return_rgb_array=mode == 'rgb_array')
+
 
     def _seed(self, seed=None):
         """Sets the seed for this env's random number generator(s).
@@ -320,6 +240,75 @@ class ArmLockEnv(gym.Env):
             """
         self.np_random, seed = seeding.np_random(seed)
         return [seed]
+
+    # ADDITIONS
+
+
+
+    def ManualDraw(self):
+        """
+        This implements code normally present in the C++ version, which calls
+        the callbacks that you see in this class (DrawSegment, DrawSolidCircle,
+        etc.).
+
+        This is implemented in Python as an example of how to do it, and also a
+        test.
+        """
+        colors = {
+            'active': b2Color(0.5, 0.5, 0.3),
+            'static': b2Color(0.5, 0.9, 0.5),
+            'kinematic': b2Color(0.5, 0.5, 0.9),
+            'asleep': b2Color(0.6, 0.6, 0.6),
+            'default': b2Color(0.9, 0.7, 0.7),
+        }
+
+        settings = fwSettings
+        world = self.world_def.world
+
+        # if self.test.selected_shapebody:
+        #     sel_shape, sel_body = self.test.selected_shapebody
+        # else:
+        #     sel_shape = None
+
+        if settings.drawShapes:
+            for body in world.bodies:
+                transform = body.transform
+                for fixture in body.fixtures:
+                    shape = fixture.shape
+
+                    if not body.active:
+                        color = colors['active']
+                    elif body.type == b2_staticBody:
+                        color = colors['static']
+                    elif body.type == b2_kinematicBody:
+                        color = colors['kinematic']
+                    elif not body.awake:
+                        color = colors['asleep']
+                    else:
+                        color = colors['default']
+
+                    self.DrawShape(fixture, transform,
+                                   color)
+
+        # if settings.drawJoints:
+        #     for joint in world.joints:
+        #         self.DrawJoint(joint)
+        #
+        # # if settings.drawPairs
+        # #   pass
+        #
+        # if settings.drawAABBs:
+        #     color = b2Color(0.9, 0.3, 0.9)
+        #     # cm = world.contactManager
+        #     for body in world.bodies:
+        #         if not body.active:
+        #             continue
+        #         transform = body.transform
+        #         for fixture in body.fixtures:
+        #             shape = fixture.shape
+        #             for childIndex in range(shape.childCount):
+        #                 self.DrawAABB(shape.getAABB(
+        #                     transform, childIndex), color)
 
 
 def main():

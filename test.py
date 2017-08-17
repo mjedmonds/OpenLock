@@ -1,6 +1,6 @@
 import gym
 import Box2D as b2
-from gym_lock.envs import PointMassLockEnv #import LockEnv
+from gym_lock.envs import ArmLockEnv
 import time
 env = gym.make('arm_lock-v0')
 env.reset()
@@ -35,7 +35,7 @@ while(True):
     # env.step(KinematicChain(base, generate_random_config()))
     env.step(KinematicChain(base, [KinematicLink(TwoDKinematicTransform(),
                                                  TwoDKinematicTransform(),
-                                                 TwoDKinematicTransform(name='1-1+', x=16, y=5, theta=0),
+                                                 TwoDKinematicTransform(name='1-1+', x=1, y=5, theta=0),
                                                  None)]))
     # exit()
     env.step(KinematicChain(base, [KinematicLink(TwoDKinematicTransform(),
@@ -55,12 +55,9 @@ while(True):
                                                  TwoDKinematicTransform(name='1-1+', x=17, y=-7.5, theta=0),
 
                                                  None)]))
-    print env.world_def.lock_joint.translation
-    import time
-    time.sleep(3)
+
     env.step(KinematicChain(base, [KinematicLink(TwoDKinematicTransform(),
                                                  TwoDKinematicTransform(),
                                                  TwoDKinematicTransform(name='1-1+', x=5, y=0, theta=0),
                                                  None)]))
-    env.render()
 

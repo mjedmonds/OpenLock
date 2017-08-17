@@ -3,6 +3,7 @@ from collections import namedtuple
 import numpy as np
 
 TwoDConfig = namedtuple('Config', 'x y theta')
+Color = namedtuple('Color', 'r g b')
 
 FPS = 100
 
