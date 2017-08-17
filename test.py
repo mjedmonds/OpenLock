@@ -28,36 +28,28 @@ def generate_random_config():
 
 done = False
 import time
+
+desired_config = None
+
 while(True):
     # if env.world_def.clock % 10 == 0:
     #     env.render()
 
     # env.step(KinematicChain(base, generate_random_config()))
-    env.step(KinematicChain(base, [KinematicLink(TwoDKinematicTransform(),
-                                                 TwoDKinematicTransform(),
-                                                 TwoDKinematicTransform(name='1-1+', x=1, y=5, theta=0),
-                                                 None)]))
-    # exit()
-    env.step(KinematicChain(base, [KinematicLink(TwoDKinematicTransform(),
-                                                 TwoDKinematicTransform(),
-                                                 TwoDKinematicTransform(name='1-1+', x=5, y=0, theta=0),
-                                                 None)]))
-    env.step(KinematicChain(base, [KinematicLink(TwoDKinematicTransform(),
-                                                 TwoDKinematicTransform(),
-                                                 TwoDKinematicTransform(name='1-1+', x=15, y=-7.5, theta=0),
-                                                 None)]))
-    env.step(KinematicChain(base, [KinematicLink(TwoDKinematicTransform(),
-                                                 TwoDKinematicTransform(),
-                                                 TwoDKinematicTransform(name='1-1+', x=16, y=-7.5, theta=0),
-                                                 None)]))
-    env.step(KinematicChain(base, [KinematicLink(TwoDKinematicTransform(),
-                                                 TwoDKinematicTransform(),
-                                                 TwoDKinematicTransform(name='1-1+', x=17, y=-7.5, theta=0),
+    if desired_config:
+        print desired_config
+        env.step(KinematicChain(base, [KinematicLink(TwoDKinematicTransform(),
+                                                     TwoDKinematicTransform(),
+                                                     TwoDKinematicTransform(name='1-1+',
+                                                                            x=desired_config.x,
+                                                                            y=desired_config.y,
+                                                                            theta=desired_config.theta),
+                                                     None)]))
+        desired_config = None
+        env.viewer.desired_config = None
 
-                                                 None)]))
-
-    env.step(KinematicChain(base, [KinematicLink(TwoDKinematicTransform(),
-                                                 TwoDKinematicTransform(),
-                                                 TwoDKinematicTransform(name='1-1+', x=5, y=0, theta=0),
-                                                 None)]))
+    else:
+        env.render()
+        if env.viewer.desired_config:
+            desired_config = env.viewer.desired_config
 

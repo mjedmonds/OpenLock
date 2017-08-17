@@ -43,7 +43,7 @@ def get_display(spec):
         raise error.Error('Invalid display specification: {}. (Must be a string like :0 or None.)'.format(spec))
 
 class Viewer(object):
-    def __init__(self, width, height, display=None):
+    def __init__(self, width, height, display=None, pre_render_callbacks=[]):
         display = get_display(display)
 
         self.width = width
@@ -53,6 +53,7 @@ class Viewer(object):
         self.geoms = []
         self.onetime_geoms = []
         self.transform = Transform()
+        self.pre_render_callbacks = pre_render_callbacks
 
         glEnable(GL_BLEND)
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
@@ -78,6 +79,10 @@ class Viewer(object):
         self.onetime_geoms.append(geom)
 
     def render(self, return_rgb_array=False):
+        # call pre-render callbacks
+        for callback in self.pre_render_callbacks:
+            callback()
+
         glClearColor(1,1,1,1)
         self.window.clear()
         self.window.switch_to()
@@ -87,6 +92,8 @@ class Viewer(object):
             geom.render()
         for geom in self.onetime_geoms:
             geom.render()
+
+
         self.transform.disable()
         arr = None
         if return_rgb_array:
@@ -101,6 +108,7 @@ class Viewer(object):
             # than the requested one.
             arr = arr.reshape(buffer.height, buffer.width, 4)
             arr = arr[::-1,:,0:3]
+
         self.window.flip()
         self.onetime_geoms = []
         return arr

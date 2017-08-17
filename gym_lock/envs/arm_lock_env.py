@@ -13,9 +13,9 @@ from gym_lock.common import FPS, Color
 from gym_lock.envs.world_defs.arm_lock_def import ArmLockDef
 from gym_lock.kine import KinematicChain, discretize_path, InverseKinematics, generate_four_arm, TwoDKinematicTransform
 
-VIEWPORT_W = 1200
+VIEWPORT_W = 800
 VIEWPORT_H = 800
-SCALE = 30.0  # affects how fast-paced the game is, forces should be adjusted as well
+SCALE = 15.0  # affects how fast-paced the game is, forces should be adjusted as well
 
 
 class ArmLockEnv(gym.Env):
@@ -51,7 +51,7 @@ class ArmLockEnv(gym.Env):
         self.invkine = InverseKinematics(self.chain, self.target)
 
         # setup Box2D world
-        self.world_def = ArmLockDef(self.chain, 35)
+        self.world_def = ArmLockDef(self.chain, 30)
 
         # setup rendering
         self.viewer = None
@@ -88,8 +88,8 @@ class ArmLockEnv(gym.Env):
 
             # generate discretized waypoints
             waypoints = discretize_path(self.chain, action, self.step_delta)
-            print action
-            print len(waypoints)
+            # print action
+            # print len(waypoints)
 
             # we're already at the config
             if waypoints is None:
@@ -104,7 +104,7 @@ class ArmLockEnv(gym.Env):
                 self.invkine.set_current_config(self.chain)
                 self.invkine.set_target(waypoints[i])
 
-                print 'converging'
+                # print 'converging'
                 a = 0
                 err = self.invkine.get_error()
                 while (err > 1):
@@ -122,7 +122,7 @@ class ArmLockEnv(gym.Env):
                         # print self.world_def.pos_controller.error
 
                     # wait for PID to converge and stop
-                    print 'converging on theta'
+                    # print 'converging on theta'
                     b = 0
                     # self.world_def.step(1.0 / FPS, 10, 10)
                     theta_err = sum([e ** 2 for e in self.world_def.pos_controller.error])
@@ -139,7 +139,7 @@ class ArmLockEnv(gym.Env):
                         # joint_speed = sum([joint.speed ** 2 for joint in self.world_def.arm_joints])
                         # if b % 10 == 0:
                         #     self._render()
-                    print 'converged on theta in {} iterations'.format(b)
+                    # print 'converged on theta in {} iterations'.format(b)
 
                     # print 'PID converged in {} iterations'.format(b)
 
@@ -150,7 +150,7 @@ class ArmLockEnv(gym.Env):
                     err = self.invkine.get_error()
 
                 self._render()
-                print 'waypoint converged in {} iterations'.format(a)
+                # print 'waypoint converged in {} iterations'.format(a)
 
                 # converged on that waypoint
             # if len(all_dtheta) > 0:
