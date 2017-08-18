@@ -4,6 +4,7 @@ from Box2D import b2CircleShape, b2EdgeShape, b2PolygonShape, b2_staticBody, b2_
     b2PulleyJoint, b2MouseJoint, b2RevoluteJoint, b2PrismaticJoint
 import numpy as np
 import Box2D as b2
+from pyglet.window import key
 COLORS = {
     'active': Color(0.5, 0.5, 0.3),
     'static': Color(0.5, 0.9, 0.5),
@@ -14,7 +15,7 @@ COLORS = {
 
 VIEWPORT_W = 800
 VIEWPORT_H = 800
-SCALE = 20.0  # affects how fast-paced the game is, forces should be adjusted as well
+SCALE = 25.0  # affects how fast-paced the game is, forces should be adjusted as well
 
 def screen_to_world_coord(xy):
     x_world = (xy[0] - VIEWPORT_W / 2) / (SCALE / 2.0)
@@ -23,11 +24,18 @@ def screen_to_world_coord(xy):
 
 class Box2DRenderer():
 
-    def __init__(self):
+    def __init__(self, enter_key_callback):
         self.viewer = rendering.Viewer(VIEWPORT_W, VIEWPORT_H, pre_render_callbacks=[self.__draw_last_arrow])
         self.viewer.set_bounds(-VIEWPORT_W / SCALE, VIEWPORT_W / SCALE, -VIEWPORT_H / SCALE, VIEWPORT_H / SCALE)
-        self.viewer.window.push_handlers(self.on_mouse_drag, self.on_mouse_press, self.on_mouse_release)
+        self.viewer.window.push_handlers(self.on_mouse_drag,
+                                         self.on_mouse_press,
+                                         self.on_mouse_release,
+                                         self.on_key_press)
+
+        self.enter_key_callback = enter_key_callback
+
         self.cur_arrow_end = self.arrow_start = self.arrow_end = self.desired_config = None
+
     def close(self):
         self.viewer.close()
 
@@ -46,6 +54,10 @@ class Box2DRenderer():
 
     def on_mouse_drag(self, x, y, dx, dy, buttons, modifiers):
         self.cur_arrow_end = (x, y)
+
+    def on_key_press(self, symbol, modifiers):
+        if symbol == key.ENTER or symbol == key.RETURN:
+            self.enter_key_callback()
 
     def __draw_last_arrow(self):
         if self.arrow_start and self.cur_arrow_end:

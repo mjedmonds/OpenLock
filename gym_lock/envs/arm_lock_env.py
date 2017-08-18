@@ -16,7 +16,7 @@ from gym_lock.kine import KinematicChain, discretize_path, InverseKinematics, ge
 VIEWPORT_W = 800
 VIEWPORT_H = 800
 SCALE = 15.0  # affects how fast-paced the game is, forces should be adjusted as well
-
+RENDER_DIV = 100
 
 class ArmLockEnv(gym.Env):
     # Set this in SOME subclasses
@@ -54,8 +54,8 @@ class ArmLockEnv(gym.Env):
         self.world_def = ArmLockDef(self.chain, 30)
 
         # setup rendering
-        self.viewer = None
-
+        # self.viewer = None
+        self.viewer = Box2DRenderer(self.world_def.end_effector_grasp)
 
     def update_current_config(self):
         cur_theta = [c.theta for c in self.world_def.get_rel_config()[1:]]
@@ -81,8 +81,6 @@ class ArmLockEnv(gym.Env):
             targ_x, targ_y, targ_theta = action.get_abs_config()[-1]
             self.world_def.draw_target_arrow(targ_x, targ_y, targ_theta)
 
-            all_dtheta = []
-
             # update current config
             self.update_current_config()
 
@@ -97,60 +95,69 @@ class ArmLockEnv(gym.Env):
 
             for i in range(1, len(waypoints)):  # waypoint 0 is current config
 
-                # update current configuration
+                # update kinematics model to reflect current world config
                 self.update_current_config()
 
-                # update invk
+                # update inverse kinematics
                 self.invkine.set_current_config(self.chain)
                 self.invkine.set_target(waypoints[i])
 
-                # print 'converging'
+
+                # find inverse kinematics solution
+                print 'converging'
                 a = 0
                 err = self.invkine.get_error()
-                while (err > 1):
+                new_theta = None
+                while (err > 0.01):
                     a = a + 1
 
+                    if a > 5000:
+                        return np.zeros(4), 0, True, dict()
+
                     # get delta theta
-                    d_theta = self.invkine.get_delta_theta_dls(lam=0.5)
-                    all_dtheta.append(d_theta)
+                    d_theta = self.invkine.get_delta_theta_dls(lam=0.75)
 
-                    # update controllers
-                    self.world_def.set_controllers(d_theta)
+                    # current theta along convergence path
+                    cur_theta = [c.theta for c in self.invkine.kinematic_chain.get_rel_config()[1:]]  # ignore virtual base link
 
-                    # for i in range(0, 500):
-                    #     self.world_def.step(1.0 / FPS, 10, 10)
-                        # print self.world_def.pos_controller.error
+                    # new theta along convergence path
+                    new_theta = [cur + delta for cur, delta in zip(cur_theta, d_theta)]
 
-                    # wait for PID to converge and stop
-                    # print 'converging on theta'
+                    # update inverse kinematics model to reflect step along convergence path
+                    self.invkine.set_current_config(KinematicChain(self.base, generate_four_arm(new_theta[0],
+                                                                                                new_theta[1],
+                                                                                                new_theta[2],
+                                                                                                new_theta[3],
+                                                                                                new_theta[4])))
+
+                    err = self.invkine.get_error()
+                print 'waypoint converged in {} iterations'.format(a)
+                self.chain = self.invkine.kinematic_chain
+
+                # theta found, update controllers and wait until controllers converge and stop
+                if new_theta:
+                    self.world_def.set_controllers(new_theta)
+                    print 'converging on theta'
                     b = 0
                     # self.world_def.step(1.0 / FPS, 10, 10)
                     theta_err = sum([e ** 2 for e in self.world_def.pos_controller.error])
                     vel_err = sum([e ** 2 for e in self.world_def.vel_controller.error])
-                    while (theta_err > 0.001 or vel_err > 0.001):
+                    while (theta_err > 0.001 or vel_err > 0.0001):
                         if b > 2000:
                             # print self.world_def.lock_joint.translation
                             return np.zeros(4), 0, False, dict()
 
                         b += 1
                         self.world_def.step(1.0 / FPS, 10, 10)
+                        if self.world_def.clock % 10 == 0:
+                            self._render()
                         theta_err = sum([e ** 2 for e in self.world_def.pos_controller.error])
                         vel_err = sum([e ** 2 for e in self.world_def.vel_controller.error])
                         # joint_speed = sum([joint.speed ** 2 for joint in self.world_def.arm_joints])
                         # if b % 10 == 0:
                         #     self._render()
-                    # print 'converged on theta in {} iterations'.format(b)
+                    print 'converged on theta in {} iterations'.format(b)
 
-                    # print 'PID converged in {} iterations'.format(b)
-
-                    # update current config
-                    self.update_current_config()
-                    # update inverse kine
-                    self.invkine.set_current_config(self.chain)
-                    err = self.invkine.get_error()
-
-                self._render()
-                # print 'waypoint converged in {} iterations'.format(a)
 
                 # converged on that waypoint
             # if len(all_dtheta) > 0:
@@ -162,6 +169,8 @@ class ArmLockEnv(gym.Env):
             return np.zeros(4), 0, True, dict()
         else:
             self.world_def.step(1.0 / FPS, 10, 10)
+            if self.world_def.clock % RENDER_DIV == 0:
+                self._render()
             return np.zeros(4), 0, False, dict()
 
     def _reset(self):
@@ -216,8 +225,8 @@ class ArmLockEnv(gym.Env):
                 self.viewer = None
             return
 
-        if self.viewer is None:
-            self.viewer = Box2DRenderer()
+        # if self.viewer is None:
+            self.viewer = Box2DRenderer(self.world_def.end_effector_grasp)
 
         self.viewer.render_world(self.world_def.world, mode)
 

@@ -37,7 +37,6 @@ while(True):
 
     # env.step(KinematicChain(base, generate_random_config()))
     if desired_config:
-        print desired_config
         env.step(KinematicChain(base, [KinematicLink(TwoDKinematicTransform(),
                                                      TwoDKinematicTransform(),
                                                      TwoDKinematicTransform(name='1-1+',
@@ -49,7 +48,7 @@ while(True):
         env.viewer.desired_config = None
 
     else:
-        env.render()
+        env.step(False)
         if env.viewer.desired_config:
             desired_config = env.viewer.desired_config
 

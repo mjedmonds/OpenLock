@@ -47,6 +47,7 @@ class ArmLockDef(object):
         self.num_steps = 0
         self.start = np.array([0,0,0,0])
         self.target_arrow = None
+        self.grasp = []
 
 
         self.x0 = chain.get_abs_config()
@@ -81,6 +82,13 @@ class ArmLockDef(object):
             friction=1.0,
             categoryBits=0x0001,
             maskBits=0x1110)
+        # define end effector properties
+        end_effector_fixture = b2.b2FixtureDef(  # all links have same properties
+            density=0.1,
+            friction=1.0,
+            categoryBits=0x0001,
+            maskBits=0x1110,
+            shape=b2.b2CircleShape(radius=0.5))
 
         # create base
         self.arm_bodies.append(self.world.CreateBody(
@@ -114,6 +122,7 @@ class ArmLockDef(object):
                 angularDamping=1)
 
             self.arm_bodies.append(arm_body)
+        self.arm_bodies[-1].CreateFixture(end_effector_fixture)
 
         # create arm joints
         self.arm_joints = []
@@ -132,6 +141,28 @@ class ArmLockDef(object):
 
         self.__init_door_lock()
         self.__init_cascade_controller()
+
+        # TEST
+        ball_fixture = b2.b2FixtureDef(  # all links have same properties
+            density=0.1,
+            friction=1.0,
+            shape=b2.b2CircleShape(radius=1.5),
+            categoryBits=0x0100,
+            maskBits=0x1011,
+        )
+
+        self.world.CreateDynamicBody(
+            position=(-10, 0),
+            fixtures=ball_fixture,
+            linearDamping=5.0
+        )
+        self.world.CreateDynamicBody(
+            position=(0, -10),
+            fixtures=ball_fixture,
+            linearDamping=5.0
+
+        )
+
 
 
     def draw_target_arrow(self, x, y, theta):
@@ -159,7 +190,9 @@ class ArmLockDef(object):
         self.door = self.world.CreateDynamicBody(
             position = (15, 10),
             angle = -np.pi/2,
-            fixtures = door_fixture)
+            fixtures = door_fixture,
+            angularDamping = 0.5,
+            linearDamping = 0.5)
 
         self.door_hinge = self.world.CreateRevoluteJoint(
             bodyA=self.door,  # end of link A
@@ -168,12 +201,14 @@ class ArmLockDef(object):
             localAnchorB=(15, 10),
             enableMotor=True,
             motorSpeed=0,
-            enableLimit=False)
-        self.door_lock = self.world.CreateWeldJoint(
-            bodyA=self.door,  # end of link A
-            bodyB=self.ground,  # beginning of link B
-            localAnchorB=(15, 5),
-        )
+            enableLimit=False,
+            maxMotorTorque=20)
+        self.door_lock = None
+        # self.door_lock = self.world.CreateWeldJoint(
+        #     bodyA=self.door,  # end of link A
+        #     bodyB=self.ground,  # beginning of link B
+        #     localAnchorB=(15, 5),
+        # )
 
 
         lock_width = 0.5
@@ -203,6 +238,10 @@ class ArmLockDef(object):
         )
 
 
+        # test
+
+
+
     def __init_cascade_controller(self):
         pts = [c.theta for c in self.chain.get_rel_config()[1:]]
         self.pos_controller = PIDController([2] * len(self.arm_joints),
@@ -213,22 +252,88 @@ class ArmLockDef(object):
 
         # initialize with zero velocity
         pts = [0, 0, 0, 0]
-        self.vel_controller = PIDController([1500] * len(self.arm_joints),
+        self.vel_controller = PIDController([5000] * len(self.arm_joints),
                                             [0.0] * len(self.arm_joints),
                                             [0] * len(self.arm_joints),
                                             pts,
-                                            max_out=100)
+                                            max_out=500)
+
+        # initialize with zero acceleration
+        pts = [0, 0, 0, 0]
+        self.vel_controller = PIDController([5000] * len(self.arm_joints),
+                                            [0.0] * len(self.arm_joints),
+                                            [0] * len(self.arm_joints),
+                                            pts,
+                                            max_out=500)
+
+
+    def end_effector_grasp(self):
+        if len(self.grasp) > 0:
+            for connection in self.grasp:
+                self.world.DestroyJoint(connection)
+            self.grasp = []
+        else:
+            print '--------------------'
+
+            for contact_edge in self.arm_bodies[-1].contacts:
+
+                print 'ours'
+                print contact_edge
+                print contact_edge.contact
+                for other_contact in contact_edge.other.contacts:
+                    print 'theirs'
+                    print other_contact
+                    print other_contact.contact
+
+                # pointA, pointB, distance
+                fix_A = contact_edge.contact.fixtureA
+                fix_B = contact_edge.contact.fixtureB
+                dist_result = b2.b2Distance(shapeA=fix_A.shape,
+                                            shapeB=fix_B.shape,
+                                            transformA=fix_A.body.transform,
+                                            transformB=fix_B.body.transform)
+
+                point_A = fix_A.body.GetLocalPoint(dist_result.pointA)
+                point_B = fix_B.body.GetLocalPoint(dist_result.pointB)
+
+                self.grasp.append(self.world.CreateDistanceJoint(bodyA=fix_A.body,
+                                                                 bodyB=fix_B.body,
+                                                                 localAnchorA = point_A,
+                                                                 localAnchorB = point_B,
+                                                                 frequencyHz=0.5,
+                                                                 dampingRatio=0.8,
+                                                                 collideConnected=True
+                                                              ))
+                # print world_contact_point
+                # print contact_edge.contact.worldManifold.points
+                # print contact_edge
+                # print contact_edge.contact
+                # self.grasp.append(self.world.CreateRevoluteJoint(bodyA=self.arm_bodies[-1],
+                #                                                  bodyB=contact_edge.other,
+                #                                                  anchor=world_contact_point,
+                #                                                  collideConnected=False
+                #                                                  ))
+
+            print '------end--------'
 
     def update_cascade_controller(self):
         # TODO: formalize clockrate
         if self.clock % 10 == 0:
             theta = [c.theta for c in self.get_rel_config()[1:]]
             vel_setpoints = self.pos_controller.update(theta)
-            # print vel_setpoints
             self.vel_controller.set_setpoint(vel_setpoints)
 
         joint_speeds = [joint.speed for joint in self.arm_joints]
         torques = self.vel_controller.update(joint_speeds)
+        if self.clock % 100 == 0:
+            print self.clock
+            theta = [c.theta for c in self.get_rel_config()[1:]]
+            print self.pos_controller.setpoint
+            print self.vel_controller.setpoint
+            print self.pos_controller.error
+            print self.vel_controller.error
+            print torques
+
 
         return torques
 
@@ -238,9 +343,8 @@ class ArmLockDef(object):
             self.door_lock = None
             # self.door_hinge.enableLimit = False
 
-    def set_controllers(self, delta_setpoints):
-        new = [wrapToMinusPiToPi(c + n) \
-               for c, n in zip(self.pos_controller.setpoint, delta_setpoints)]
+    def set_controllers(self, setpoints):
+        new = [wrapToMinusPiToPi(c) for c in setpoints]
         self.pos_controller.set_setpoint(new)
         theta = [c.theta for c in self.get_rel_config()[1:]]
         vel_setpoints = self.pos_controller.update(theta)
