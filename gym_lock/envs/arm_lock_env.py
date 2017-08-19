@@ -40,7 +40,7 @@ class ArmLockEnv(gym.Env):
 
         # initialize inverse kinematics module with chain==target
         initial_config = generate_four_arm(np.pi, np.pi/2, np.pi/2, 0, np.pi/2)
-        initial_config = generate_four_arm(0,0,0,0,0)
+        # initial_config = generate_four_arm(0,0,0,0,0)
 
         self.base = TwoDKinematicTransform()
         self.chain = KinematicChain(self.base, initial_config)
@@ -139,8 +139,8 @@ class ArmLockEnv(gym.Env):
                     # self.world_def.step(1.0 / FPS, 10, 10)
                     theta_err = sum([e ** 2 for e in self.world_def.pos_controller.error])
                     vel_err = sum([e ** 2 for e in self.world_def.vel_controller.error])
-                    while (theta_err > 0.001 or vel_err > 0.0001):
-                        if b > 2000:
+                    while (theta_err > 0.1 or vel_err > 0.1):
+                        if b > 500:
                             # print self.world_def.lock_joint.translation
                             return np.zeros(4), 0, False, dict()
 

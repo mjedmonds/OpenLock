@@ -32,10 +32,6 @@ import time
 desired_config = None
 
 while(True):
-    # if env.world_def.clock % 10 == 0:
-    #     env.render()
-
-    # env.step(KinematicChain(base, generate_random_config()))
     if desired_config:
         env.step(KinematicChain(base, [KinematicLink(TwoDKinematicTransform(),
                                                      TwoDKinematicTransform(),
@@ -51,4 +47,4 @@ while(True):
         env.step(False)
         if env.viewer.desired_config:
             desired_config = env.viewer.desired_config
-
+    # env.step(False)
