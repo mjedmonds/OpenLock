@@ -1,4 +1,4 @@
-import Box2D as b2
+from Box2D import *
 import numpy as np
 
 from gym_lock.common import TwoDConfig, POS_PID_CLK_DIV
@@ -12,10 +12,10 @@ FPS = 30
 # TODO: cleanup initialization/reset method
 # NOTE: action spaces are different..
 
-# class stateMachineListener(b2.b2ContactListener):
+# class stateMachineListener(b2ContactListener):
 #
 #     def __init__(self):
-#         b2.b2ContactListener.__init__(self)
+#         b2ContactListener.__init__(self)
 #         print "creatded"
 
     # def BeginContact(self, contact):
@@ -35,12 +35,31 @@ FPS = 30
     #     exit()
     #     print impulse
 
+class ArmLockContactListener(b2ContactListener):
+    
+    def __init__(self):
+        b2ContactListener.__init__(self)
+    def BeginContact(self, contact):
+        pass
+    def EndContact(self, contact):
+        pass
+    def PreSolve(self, contact, oldManifold):
+        print contact
+    def PostSolve(self, contact, impulse):
+        print contact
+        print impulse
+        exit()
+    
+
 class ArmLockDef(object):
     def __init__(self, chain, timestep, world_size):
         super(ArmLockDef, self).__init__()
 
-        self.world = b2.b2World(gravity=(0, -10),
-                                doSleep=False)
+        self.world = b2World(gravity=(0, -10),
+                             doSleep=False,
+                             contactListener=ArmLockContactListener())
+
+
 
         self.clock = 0
         self.timestep=timestep
@@ -69,26 +88,26 @@ class ArmLockDef(object):
 
         # define all fixtures
         # define base properties
-        base_fixture = b2.b2FixtureDef(
-            shape=b2.b2PolygonShape(box=(1, 1)),
+        base_fixture = b2FixtureDef(
+            shape=b2PolygonShape(box=(1, 1)),
             density=100.0,
             friction=1.0,
             categoryBits=0x0001,
             maskBits=0x1110)
 
         # define link properties
-        link_fixture = b2.b2FixtureDef(  # all links have same properties
+        link_fixture = b2FixtureDef(  # all links have same properties
             density=1.0,
             friction=1.0,
             categoryBits=0x0001,
             maskBits=0x1110)
         # define end effector properties
-        end_effector_fixture = b2.b2FixtureDef(  # all links have same properties
+        end_effector_fixture = b2FixtureDef(  # all links have same properties
             density=0.1,
             friction=1.0,
             categoryBits=0x0001,
             maskBits=0x1110,
-            shape=b2.b2CircleShape(radius=0.5))
+            shape=b2CircleShape(radius=0.5))
 
         # create base
         self.arm_bodies.append(self.world.CreateBody(
@@ -109,7 +128,7 @@ class ArmLockDef(object):
                                              np.array([self.x0[i - 1].x, self.x0[i - 1].y])))
             self.arm_lengths.append(length)
 
-            link_fixture.shape = b2.b2PolygonShape(vertices=[(0, -width / 2),
+            link_fixture.shape = b2PolygonShape(vertices=[(0, -width / 2),
                                                              (-length, -width / 2),
                                                              (-length, width / 2),
                                                              (0, width / 2)
@@ -143,10 +162,10 @@ class ArmLockDef(object):
         self.__init_cascade_controller()
 
         # TEST
-        ball_fixture = b2.b2FixtureDef(  # all links have same properties
+        ball_fixture = b2FixtureDef(  # all links have same properties
             density=0.1,
             friction=1.0,
-            shape=b2.b2CircleShape(radius=1.5),
+            shape=b2CircleShape(radius=1.5),
             categoryBits=0x0100,
             maskBits=0x1011,
         )
@@ -163,6 +182,9 @@ class ArmLockDef(object):
 
         )
 
+        for body in self.world.bodies:
+            body.bullet = True
+
 
 
     def draw_target_arrow(self, x, y, theta):
@@ -171,15 +193,15 @@ class ArmLockDef(object):
         self.target_arrow = self.world.CreateBody(position=(x, y),
                                      angle=theta,
                                      active=False,
-                                     shapes=[b2.b2PolygonShape(vertices=[(0, 0.25), (0, -0.25), (1, 0) ])])
+                                     shapes=[b2PolygonShape(vertices=[(0, 0.25), (0, -0.25), (1, 0) ])])
 
     def __init_door_lock(self):
 
         # create door
         door_width = 0.5
         door_length = 10
-        door_fixture = b2.b2FixtureDef(
-            shape=b2.b2PolygonShape(vertices=[(0,-door_width),
+        door_fixture = b2FixtureDef(
+            shape=b2PolygonShape(vertices=[(0,-door_width),
                                              (0, door_width),
                                              (door_length, door_width),
                                              (door_length, -door_width)]),
@@ -213,8 +235,8 @@ class ArmLockDef(object):
 
         lock_width = 0.5
         lock_length = 5
-        lock_fixture = b2.b2FixtureDef(
-            shape=b2.b2PolygonShape(vertices=[(0,-lock_width),
+        lock_fixture = b2FixtureDef(
+            shape=b2PolygonShape(vertices=[(0,-lock_width),
                                                     (0, lock_width),
                                                     (lock_length, lock_width),
                                                     (lock_length, -lock_width)]),
@@ -274,18 +296,18 @@ class ArmLockDef(object):
 
             for contact_edge in self.arm_bodies[-1].contacts:
 
-                print 'ours'
-                print contact_edge
-                print contact_edge.contact
-                for other_contact in contact_edge.other.contacts:
-                    print 'theirs'
-                    print other_contact
-                    print other_contact.contact
+                # print 'ours'
+                # print contact_edge
+                # print contact_edge.contact
+                # for other_contact in contact_edge.other.contacts:
+                #     print 'theirs'
+                #     print other_contact
+                #     print other_contact.contact
 
                 # pointA, pointB, distance
                 fix_A = contact_edge.contact.fixtureA
                 fix_B = contact_edge.contact.fixtureB
-                dist_result = b2.b2Distance(shapeA=fix_A.shape,
+                dist_result = b2Distance(shapeA=fix_A.shape,
                                             shapeB=fix_B.shape,
                                             transformA=fix_A.body.transform,
                                             transformB=fix_B.body.transform)
@@ -376,7 +398,7 @@ class ArmLockDef(object):
         position = self.arm_bodies[idx].position
         # print position
 
-        yaxis = b2.b2Vec2([-np.sin(angle), np.cos(angle)])
+        yaxis = b2Vec2([-np.sin(angle), np.cos(angle)])
         # print yaxis
         force_vector = yaxis * force
 
