@@ -5,7 +5,12 @@ import numpy as np
 TwoDConfig = namedtuple('Config', 'x y theta')
 Color = namedtuple('Color', 'r g b')
 
-FPS = 100
+FPS = 500
+RENDER_CLK_DIV = 10
+POS_PID_CLK_DIV = 10
+VIEWPORT_W = 800
+VIEWPORT_H = 800
+SCALE = 15.0
 
 # map [-inf, inf] -> [-pi, pi]
 # note that pi -> -pi

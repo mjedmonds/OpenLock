@@ -4,7 +4,7 @@ import numpy as np
 from common import wrapToMinusPiToPi
 
 class PIDController(object):
-    def __init__(self, kp, ki, kd, setpoint, dt=1, max_out=None, max_int=500):
+    def __init__(self, kp, ki, kd, setpoint, dt, max_out=None, max_int=500, err_wrap_func=None):
         self.kp = kp
         self.ki = ki
         self.kd = kd
@@ -13,7 +13,7 @@ class PIDController(object):
         self.max_out = max_out
         self.steps = 0
         self.error = 0
-
+        self.err_wrap_func = err_wrap_func
         self.i_term = 0
 
 
@@ -21,7 +21,11 @@ class PIDController(object):
             self.differential = self.previous_value = [0] * len(setpoint)
 
     def update(self, current_value):
-        self.error = [wrapToMinusPiToPi(s - c) for s, c in zip(self.setpoint, current_value)]
+        if self.err_wrap_func:
+            self.error = [self.err_wrap_func(s - c) for s, c in zip(self.setpoint, current_value)]
+        else:
+            self.error = [s - c for s, c in zip(self.setpoint, current_value)]
+
         self.integral = [(i + e) * self.dt for i, e in zip(self.integral, self.error)]
         self.differential = [(e - p) / self.dt for e, p in zip(self.error, self.previous_error)]
 

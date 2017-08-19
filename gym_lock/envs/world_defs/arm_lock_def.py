@@ -1,7 +1,7 @@
 import Box2D as b2
 import numpy as np
 
-from gym_lock.common import TwoDConfig
+from gym_lock.common import TwoDConfig, POS_PID_CLK_DIV
 from gym_lock.pid_central import PIDController
 from gym_lock.common import wrapToMinusPiToPi
 
@@ -36,19 +36,19 @@ FPS = 30
     #     print impulse
 
 class ArmLockDef(object):
-    def __init__(self, chain, world_size):
+    def __init__(self, chain, timestep, world_size):
         super(ArmLockDef, self).__init__()
 
-        self.world = b2.b2World(gravity=(0, 0),
+        self.world = b2.b2World(gravity=(0, -10),
                                 doSleep=False)
 
         self.clock = 0
+        self.timestep=timestep
 
         self.num_steps = 0
         self.start = np.array([0,0,0,0])
         self.target_arrow = None
         self.grasp = []
-
 
         self.x0 = chain.get_abs_config()
         self.chain = chain
@@ -139,29 +139,29 @@ class ArmLockDef(object):
                 enableLimit=False))
 
 
-        self.__init_door_lock()
+        # self.__init_door_lock()
         self.__init_cascade_controller()
 
-        # TEST
-        ball_fixture = b2.b2FixtureDef(  # all links have same properties
-            density=0.1,
-            friction=1.0,
-            shape=b2.b2CircleShape(radius=1.5),
-            categoryBits=0x0100,
-            maskBits=0x1011,
-        )
-
-        self.world.CreateDynamicBody(
-            position=(-10, 0),
-            fixtures=ball_fixture,
-            linearDamping=5.0
-        )
-        self.world.CreateDynamicBody(
-            position=(0, -10),
-            fixtures=ball_fixture,
-            linearDamping=5.0
-
-        )
+        # # TEST
+        # ball_fixture = b2.b2FixtureDef(  # all links have same properties
+        #     density=0.1,
+        #     friction=1.0,
+        #     shape=b2.b2CircleShape(radius=1.5),
+        #     categoryBits=0x0100,
+        #     maskBits=0x1011,
+        # )
+        #
+        # self.world.CreateDynamicBody(
+        #     position=(-10, 0),
+        #     fixtures=ball_fixture,
+        #     linearDamping=5.0
+        # )
+        # self.world.CreateDynamicBody(
+        #     position=(0, -10),
+        #     fixtures=ball_fixture,
+        #     linearDamping=5.0
+        #
+        # )
 
 
 
@@ -244,27 +244,24 @@ class ArmLockDef(object):
 
     def __init_cascade_controller(self):
         pts = [c.theta for c in self.chain.get_rel_config()[1:]]
-        self.pos_controller = PIDController([2] * len(self.arm_joints),
-                                        [0] * len(self.arm_joints),
-                                        [0.0] * len(self.arm_joints),
+        pts = [np.pi, -np.pi/2, np.pi/2, -np.pi/2, np.pi/2]
+        self.pos_controller = PIDController([3] * len(self.arm_joints),
+                                        [0.25] * len(self.arm_joints),
+                                        [1] * len(self.arm_joints),
                                         pts,
-                                        max_out=0.25)
+                                        self.timestep,
+                                        max_out=1.5,
+                                        err_wrap_func=wrapToMinusPiToPi)
 
         # initialize with zero velocity
         pts = [0, 0, 0, 0]
-        self.vel_controller = PIDController([5000] * len(self.arm_joints),
-                                            [0.0] * len(self.arm_joints),
-                                            [0] * len(self.arm_joints),
+        self.vel_controller = PIDController([35000] * len(self.arm_joints),
+                                            [3000] * len(self.arm_joints),
+                                            [150] * len(self.arm_joints),
                                             pts,
-                                            max_out=500)
+                                            self.timestep,
+                                            max_out=2500)
 
-        # initialize with zero acceleration
-        pts = [0, 0, 0, 0]
-        self.vel_controller = PIDController([5000] * len(self.arm_joints),
-                                            [0.0] * len(self.arm_joints),
-                                            [0] * len(self.arm_joints),
-                                            pts,
-                                            max_out=500)
 
 
     def end_effector_grasp(self):
@@ -318,7 +315,11 @@ class ArmLockDef(object):
 
     def update_cascade_controller(self):
         # TODO: formalize clockrate
-        if self.clock % 10 == 0:
+        theta = [c.theta for c in self.get_rel_config()[1:]]
+
+        vel_setpoints = self.pos_controller.update(theta)
+
+        if self.clock % POS_PID_CLK_DIV == 0:
             theta = [c.theta for c in self.get_rel_config()[1:]]
             vel_setpoints = self.pos_controller.update(theta)
             self.vel_controller.set_setpoint(vel_setpoints)
@@ -327,11 +328,7 @@ class ArmLockDef(object):
         torques = self.vel_controller.update(joint_speeds)
         if self.clock % 100 == 0:
             print self.clock
-            theta = [c.theta for c in self.get_rel_config()[1:]]
-            print self.pos_controller.setpoint
-            print self.vel_controller.setpoint
-            print self.pos_controller.error
-            print self.vel_controller.error
+            print vel_setpoints
             print torques
 
 
@@ -397,7 +394,7 @@ class ArmLockDef(object):
     def step(self, timestep, vel_iterations, pos_iterations):
         self.clock += 1
 
-        self.update_state_machine()
+        # self.update_state_machine()
 
         # update torques
         new_torque = self.update_cascade_controller()

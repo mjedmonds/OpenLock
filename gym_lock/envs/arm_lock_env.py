@@ -9,14 +9,9 @@ from gym_lock.envs.pyglet_framework import PygletFramework
 from gym_lock.envs.settings import fwSettings
 from gym.utils import seeding
 from matplotlib import pyplot as plt
-from gym_lock.common import FPS, Color
+from gym_lock.common import FPS, Color, VIEWPORT_H, VIEWPORT_W, SCALE, POS_PID_CLK_DIV, RENDER_CLK_DIV
 from gym_lock.envs.world_defs.arm_lock_def import ArmLockDef
 from gym_lock.kine import KinematicChain, discretize_path, InverseKinematics, generate_four_arm, TwoDKinematicTransform
-
-VIEWPORT_W = 800
-VIEWPORT_H = 800
-SCALE = 15.0  # affects how fast-paced the game is, forces should be adjusted as well
-RENDER_DIV = 100
 
 class ArmLockEnv(gym.Env):
     # Set this in SOME subclasses
@@ -45,13 +40,15 @@ class ArmLockEnv(gym.Env):
 
         # initialize inverse kinematics module with chain==target
         initial_config = generate_four_arm(np.pi, np.pi/2, np.pi/2, 0, np.pi/2)
+        initial_config = generate_four_arm(0,0,0,0,0)
+
         self.base = TwoDKinematicTransform()
         self.chain = KinematicChain(self.base, initial_config)
         self.target = KinematicChain(self.base, initial_config)
         self.invkine = InverseKinematics(self.chain, self.target)
 
         # setup Box2D world
-        self.world_def = ArmLockDef(self.chain, 30)
+        self.world_def = ArmLockDef(self.chain, 1.0 / FPS, 30)
 
         # setup rendering
         # self.viewer = None
@@ -169,7 +166,7 @@ class ArmLockEnv(gym.Env):
             return np.zeros(4), 0, True, dict()
         else:
             self.world_def.step(1.0 / FPS, 10, 10)
-            if self.world_def.clock % RENDER_DIV == 0:
+            if self.world_def.clock % RENDER_CLK_DIV == 0:
                 self._render()
             return np.zeros(4), 0, False, dict()
 
