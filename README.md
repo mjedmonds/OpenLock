@@ -7,13 +7,11 @@ To install:
 2. Make sure you meet all the pre-requisites specified in the `setup.py` file.
    Specifically, make sure you install pybox2d from source (https://github.com/pybox2d/pybox2d/blob/master/INSTALL.md)
 
-2. Inside the gym-lock folder: 
-...`python setup.py install`
+2. Inside the gym-lock folder: `python setup.py install`
 
 To run:
 
-1. Inside the gym-lock folder: 
-...`python ./test.py`
+1. Inside the gym-lock folder: `python ./test.py`
 
 2. Click around! Every click specifies a (x, y, theta) configuration of the end effector.
    After you click, the an arrow will appear specifying the current target. Sit back for a second
