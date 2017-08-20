@@ -19,11 +19,9 @@ class PIDController(object):
         self.previous_value = 0
 
     def update(self, current_value):
-
         self.error = wrapToMinusPiToPi(self.setpoint - current_value)
         self.integral = self.integral + self.error * self.dt
         self.differential = (self.error - self.previous_error) / self.dt
-
 
         p_term = self.kp * self.error
         i_term = self.ki * self.integral

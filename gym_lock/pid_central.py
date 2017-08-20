@@ -1,7 +1,5 @@
 # TODO prepend terms _
-import numpy as np
 
-from common import wrapToMinusPiToPi
 
 class PIDController(object):
     def __init__(self, kp, ki, kd, setpoint, dt, max_out=None, max_int=500, err_wrap_func=None):
@@ -15,7 +13,6 @@ class PIDController(object):
         self.error = 0
         self.err_wrap_func = err_wrap_func
         self.i_term = 0
-
 
         self.previous_error = self.error = self.integral = \
             self.differential = self.previous_value = [0] * len(setpoint)
@@ -45,7 +42,6 @@ class PIDController(object):
             out = [max(-self.max_out, min(o, self.max_out)) for o in out]
 
         return out
-
 
     def set_setpoint(self, setpoint):
         self.previous_error = self.error = self.integral = \

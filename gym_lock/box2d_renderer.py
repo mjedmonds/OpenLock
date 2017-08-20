@@ -1,10 +1,11 @@
-from gym_lock import rendering
-from gym_lock.common import Color, TwoDConfig
+import numpy as np
 from Box2D import b2CircleShape, b2EdgeShape, b2PolygonShape, b2_staticBody, b2_kinematicBody, b2DistanceJoint, \
     b2PulleyJoint, b2MouseJoint, b2RevoluteJoint, b2PrismaticJoint
-import numpy as np
-import Box2D as b2
 from pyglet.window import key
+
+from gym_lock import rendering
+from gym_lock.common import Color, TwoDConfig
+
 COLORS = {
     'active': Color(0.5, 0.5, 0.3),
     'static': Color(0.5, 0.9, 0.5),
@@ -17,13 +18,14 @@ VIEWPORT_W = 800
 VIEWPORT_H = 800
 SCALE = 25.0  # affects how fast-paced the game is, forces should be adjusted as well
 
+
 def screen_to_world_coord(xy):
     x_world = (xy[0] - VIEWPORT_W / 2) / (SCALE / 2.0)
     y_world = (xy[1] - VIEWPORT_H / 2) / (SCALE / 2.0)
     return (x_world, y_world)
 
-class Box2DRenderer():
 
+class Box2DRenderer():
     def __init__(self, enter_key_callback):
         self.viewer = rendering.Viewer(VIEWPORT_W, VIEWPORT_H, pre_render_callbacks=[self.__draw_last_arrow])
         self.viewer.set_bounds(-VIEWPORT_W / SCALE, VIEWPORT_W / SCALE, -VIEWPORT_H / SCALE, VIEWPORT_H / SCALE)
@@ -64,7 +66,6 @@ class Box2DRenderer():
             self.viewer.draw_line(screen_to_world_coord(self.arrow_start), screen_to_world_coord(self.cur_arrow_end))
         self.viewer.draw_line((50, 50), (53, 53))
 
-
     def render_world(self, world, mode='human'):
 
         # draw bodies
@@ -100,7 +101,7 @@ class Box2DRenderer():
         for joint in world.joints:
             self.__draw_joint(joint)
 
-        return self.viewer.render(return_rgb_array= mode == 'rgb_array')
+        return self.viewer.render(return_rgb_array=mode == 'rgb_array')
 
     def __draw_joint(self, joint):
         """
@@ -128,6 +129,7 @@ class Box2DRenderer():
             # TODO: implement this
             pass
         else:
-            self.viewer.draw_line(x1, p1, color=color)
-            self.viewer.draw_line(p1, p2, color=color)
-            self.viewer.draw_line(x2, p2, color=color)
+            pass
+            # self.viewer.draw_line(x1, p1, color=color)
+            # self.viewer.draw_line(p1, p2, color=color)
+            # self.viewer.draw_line(x2, p2, color=color)

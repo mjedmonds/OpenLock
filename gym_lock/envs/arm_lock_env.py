@@ -1,63 +1,70 @@
-import Box2D as b2
-from Box2D import b2Color, b2_kinematicBody, b2_dynamicBody, b2_pi, b2CircleShape, b2Mul, b2PolygonShape, b2EdgeShape, \
-    b2_staticBody
 import gym
-import numpy as np
+from Box2D import b2Color, b2_kinematicBody, b2_staticBody
 from gym import spaces
-from gym_lock.box2d_renderer import Box2DRenderer
-from gym_lock.envs.pyglet_framework import PygletFramework
-from gym_lock.envs.settings import fwSettings
 from gym.utils import seeding
-from matplotlib import pyplot as plt
-from gym_lock.common import FPS, Color, VIEWPORT_H, VIEWPORT_W, SCALE, POS_PID_CLK_DIV, RENDER_CLK_DIV
+
+from gym_lock.box2d_renderer import Box2DRenderer
+from gym_lock.common import *
 from gym_lock.envs.world_defs.arm_lock_def import ArmLockDef
-from gym_lock.kine import KinematicChain, discretize_path, InverseKinematics, generate_four_arm, TwoDKinematicTransform
+from gym_lock.kine import KinematicChain, discretize_path, InverseKinematics, generate_five_arm, \
+    TwoDKinematicTransform
+from gym_lock.settings import RENDER_SETTINGS, BOX2D_SETTINGS, ENV_SETTINGS
+
+
+# TODO: add ability to move base
+# TODO: more physically plausible units?
 
 class ArmLockEnv(gym.Env):
     # Set this in SOME subclasses
     metadata = {'render.modes': ['human']}  # TODO what does this do?
 
-    ## Override in SOME subclasses
-    # def _close(self):
-    #        pass
-
-    # Set these in ALL subclasses
-
     def __init__(self):
 
+        # TODO: properly define these
         self.action_space = spaces.Discrete(5)  # up, down, left, right
         self.observation_space = spaces.Box(-np.inf, np.inf, [4])  # [x, y, vx, vy]
         self.reward_range = (-np.inf, np.inf)
-        self._seed()
         self.clock = 0
-
-
-        # inverse kinematics params
-        self.alpha = 0.01  # for invk transpose alg
-        self.lam = 1  # for invk dls alg
-        self.epsilon = 0.01  # for convergence on path waypoint
-        self.step_delta = 0.1  # for path discretization
+        self._seed()
 
         # initialize inverse kinematics module with chain==target
-        initial_config = generate_four_arm(np.pi, np.pi/2, np.pi/2, 0, np.pi/2)
-        # initial_config = generate_four_arm(0,0,0,0,0)
-
-        self.base = TwoDKinematicTransform()
-        self.chain = KinematicChain(self.base, initial_config)
-        self.target = KinematicChain(self.base, initial_config)
-        self.invkine = InverseKinematics(self.chain, self.target)
+        theta0 = BOX2D_SETTINGS['INITIAL_THETA_VECTOR']
+        base0 = BOX2D_SETTINGS['INITIAL_BASE_CONFIG']
+        initial_config = generate_five_arm(theta0[0], theta0[1], theta0[2], theta0[3], theta0[4])
+        self.base = TwoDKinematicTransform(x=base0.x, y=base0.y, theta=base0.theta)
+        self.invkine = InverseKinematics(KinematicChain(self.base, initial_config),
+                                         KinematicChain(self.base, initial_config))
 
         # setup Box2D world
-        self.world_def = ArmLockDef(self.chain, 1.0 / FPS, 30)
+        self.world_def = ArmLockDef(self.invkine.kinematic_chain, 1.0 / BOX2D_SETTINGS['FPS'], 30)
 
-        # setup rendering
-        # self.viewer = None
-        self.viewer = Box2DRenderer(self.world_def.end_effector_grasp)
+        # setup renderer
+        self.viewer = Box2DRenderer(self.world_def.end_effector_grasp_callback)
 
-    def update_current_config(self):
-        cur_theta = [c.theta for c in self.world_def.get_rel_config()[1:]]
-        new_conf = generate_four_arm(cur_theta[0], cur_theta[1], cur_theta[2], cur_theta[3], cur_theta[4])
-        self.chain = KinematicChain(self.base, new_conf)
+    def __update_and_converge_controllers(self, new_theta):
+        self.world_def.set_controllers(new_theta)
+        b = 0
+        theta_err = sum([e ** 2 for e in self.world_def.pos_controller.error])
+        vel_err = sum([e ** 2 for e in self.world_def.vel_controller.error])
+        while (theta_err > ENV_SETTINGS['PID_POS_CONV_TOL'] \
+                       or vel_err > ENV_SETTINGS['PID_VEL_CONV_TOL']):
+
+            if b > ENV_SETTINGS['PID_CONV_MAX_STEPS']:
+                return False
+
+            b += 1
+            self.world_def.step(1.0 / BOX2D_SETTINGS['FPS'],
+                                BOX2D_SETTINGS['VEL_ITERS'],
+                                BOX2D_SETTINGS['POS_ITERS'])
+
+            # render at desired frame rate
+            if self.world_def.clock % RENDER_SETTINGS['RENDER_CLK_DIV'] == 0:
+                self._render()
+
+            # update error values
+            theta_err = sum([e ** 2 for e in self.world_def.pos_controller.error])
+            vel_err = sum([e ** 2 for e in self.world_def.vel_controller.error])
+        return True
 
     def _step(self, action):
         """Run one timestep of the environment's dynamics. When end of
@@ -65,110 +72,85 @@ class ArmLockEnv(gym.Env):
         to reset this environment's state.
         Accepts an action and returns a tuple (observation, reward, done, info).
         Args:
-                action (object): an action provided by the environment
+                action (TwoDConfig): desired end effector configuration
         Returns:
-                observation (object): agent's observation of the current environment
+                observation (dict): END_EFFECTOR_POS : current end effector position
+                                          LOCK_STATE : true if door is locked
                 reward (float) : amount of reward returned after previous action
                 done (boolean): whether the episode has ended, in which case further step() calls will return undefined results
-                info (dict): contains auxiliary diagnostic information (helpful for debugging, and sometimes learning)
+                info (dict): CONVERGED : whether algorithm succesfully coverged on action
         """
 
         if action:
 
-            targ_x, targ_y, targ_theta = action.get_abs_config()[-1]
+            # get configuatin of end effector
+            targ_x, targ_y, targ_theta = action
+
+            # draw arrow to show target location
             self.world_def.draw_target_arrow(targ_x, targ_y, targ_theta)
 
             # update current config
-            self.update_current_config()
+            self.invkine.kinematic_chain.update_chain(self.world_def.get_rel_config())
 
             # generate discretized waypoints
-            waypoints = discretize_path(self.chain, action, self.step_delta)
-            # print action
-            # print len(waypoints)
+            waypoints = discretize_path(self.invkine.kinematic_chain.get_total_delta_config(),
+                                        action,
+                                        ENV_SETTINGS['PATH_INTERP_STEP_DELTA'])
 
             # we're already at the config
             if waypoints is None:
-                return np.zeros(4), 0, True, dict()
+                # TODO: return something meaningful
+                return self.world_def.get_state(), 0, False, {'CONVERGED': True}
 
             for i in range(1, len(waypoints)):  # waypoint 0 is current config
 
                 # update kinematics model to reflect current world config
-                self.update_current_config()
+                self.invkine.kinematic_chain.update_chain(self.world_def.get_rel_config())
 
                 # update inverse kinematics
-                self.invkine.set_current_config(self.chain)
-                self.invkine.set_target(waypoints[i])
-
+                self.invkine.set_current_config(self.invkine.kinematic_chain)
+                self.invkine.target = waypoints[i]
 
                 # find inverse kinematics solution
-                print 'converging'
                 a = 0
                 err = self.invkine.get_error()
-                new_theta = None
-                while (err > 0.01):
+                new_config = None
+                while (err > ENV_SETTINGS['INVK_CONV_TOL']):
+                    if a > ENV_SETTINGS['INVK_CONV_MAX_STEPS']:
+                        return self.world_def.get_state(), 0, False, {'CONVERGED': False}
                     a = a + 1
 
-                    if a > 5000:
-                        return np.zeros(4), 0, True, dict()
-
                     # get delta theta
-                    d_theta = self.invkine.get_delta_theta_dls(lam=0.75)
+                    d_theta = self.invkine.get_delta_theta_dls(lam=ENV_SETTINGS['INVK_DLS_LAMBDA'])
 
                     # current theta along convergence path
-                    cur_theta = [c.theta for c in self.invkine.kinematic_chain.get_rel_config()[1:]]  # ignore virtual base link
+                    cur_config = self.invkine.kinematic_chain.get_rel_config()  # ignore virtual base link
 
                     # new theta along convergence path
-                    new_theta = [cur + delta for cur, delta in zip(cur_theta, d_theta)]
+
+                    # TODO: this is messy
+                    new_config = [cur_config[0]] + [TwoDConfig(cur.x, cur.y, cur.theta + delta) for cur, delta in
+                                                    zip(cur_config[1:], d_theta)]
 
                     # update inverse kinematics model to reflect step along convergence path
-                    self.invkine.set_current_config(KinematicChain(self.base, generate_four_arm(new_theta[0],
-                                                                                                new_theta[1],
-                                                                                                new_theta[2],
-                                                                                                new_theta[3],
-                                                                                                new_theta[4])))
+                    self.invkine.kinematic_chain.update_chain(new_config)
 
                     err = self.invkine.get_error()
-                print 'waypoint converged in {} iterations'.format(a)
-                self.chain = self.invkine.kinematic_chain
 
                 # theta found, update controllers and wait until controllers converge and stop
-                if new_theta:
-                    self.world_def.set_controllers(new_theta)
-                    print 'converging on theta'
-                    b = 0
-                    # self.world_def.step(1.0 / FPS, 10, 10)
-                    theta_err = sum([e ** 2 for e in self.world_def.pos_controller.error])
-                    vel_err = sum([e ** 2 for e in self.world_def.vel_controller.error])
-                    while (theta_err > 0.1 or vel_err > 0.1):
-                        if b > 500:
-                            # print self.world_def.lock_joint.translation
-                            return np.zeros(4), 0, False, dict()
+                if new_config:
+                    if not self.__update_and_converge_controllers([c.theta for c in new_config[1:]]):
+                        return self.world_def.get_state(), 0, False, {'CONVERGED': False}
 
-                        b += 1
-                        self.world_def.step(1.0 / FPS, 10, 10)
-                        if self.world_def.clock % 10 == 0:
-                            self._render()
-                        theta_err = sum([e ** 2 for e in self.world_def.pos_controller.error])
-                        vel_err = sum([e ** 2 for e in self.world_def.vel_controller.error])
-                        # joint_speed = sum([joint.speed ** 2 for joint in self.world_def.arm_joints])
-                        # if b % 10 == 0:
-                        #     self._render()
-                    print 'converged on theta in {} iterations'.format(b)
+            return self.world_def.get_state(), 0, False, {'CONVERGED': True}
 
-
-                # converged on that waypoint
-            # if len(all_dtheta) > 0:
-            #     print d_theta
-            #     for i in range(0, len(all_dtheta[0])):
-            #         plt.plot(all_dtheta[:][i])
-            # plt.show()
-
-            return np.zeros(4), 0, True, dict()
         else:
-            self.world_def.step(1.0 / FPS, 10, 10)
-            if self.world_def.clock % RENDER_CLK_DIV == 0:
+            self.world_def.step(1.0 / BOX2D_SETTINGS['FPS'],
+                                BOX2D_SETTINGS['VEL_ITERS'],
+                                BOX2D_SETTINGS['POS_ITERS'])
+            if self.world_def.clock % RENDER_SETTINGS['RENDER_CLK_DIV'] == 0:
                 self._render()
-            return np.zeros(4), 0, False, dict()
+            return self.world_def.get_state(), 0, False, {}
 
     def _reset(self):
         """Resets the state of the environment and returns an initial observation.
@@ -176,7 +158,17 @@ class ArmLockEnv(gym.Env):
         Returns: observation (object): the initial observation of the
                 space.
         """
-        pass
+        # initialize inverse kinematics module with chain==target
+        # theta0 = BOX2D_SETTINGS['INITIAL_THETA_VECTOR']
+        # base0 = BOX2D_SETTINGS['INITIAL_BASE_CONFIG']
+        # initial_config = generate_five_arm(theta0[0], theta0[1], theta0[2], theta0[3], theta0[4])
+        # self.base = TwoDKinematicTransform(x=base0.x, y=base0.y, theta=base0.theta)
+        # self.invkine = InverseKinematics(KinematicChain(self.base, initial_config),
+        #                                  KinematicChain(self.base, initial_config))
+        #
+        # # setup Box2D world
+        # self.world_def = ArmLockDef(self.invkine.kinematic_chain, 1.0 / BOX2D_SETTINGS['FPS'], 30)
+        # return self.world_def.get_state()
 
     def _render(self, mode='human', close=False):
         """Renders the environment.
@@ -222,12 +214,10 @@ class ArmLockEnv(gym.Env):
                 self.viewer = None
             return
 
-        # if self.viewer is None:
-            self.viewer = Box2DRenderer(self.world_def.end_effector_grasp)
+            # if self.viewer is None:
+            self.viewer = Box2DRenderer(self.world_def.end_effector_grasp_callback)
 
         self.viewer.render_world(self.world_def.world, mode)
-
-
 
     def _seed(self, seed=None):
         """Sets the seed for this env's random number generator(s).
@@ -296,25 +286,25 @@ class ArmLockEnv(gym.Env):
                     self.DrawShape(fixture, transform,
                                    color)
 
-        # if settings.drawJoints:
-        #     for joint in world.joints:
-        #         self.DrawJoint(joint)
-        #
-        # # if settings.drawPairs
-        # #   pass
-        #
-        # if settings.drawAABBs:
-        #     color = b2Color(0.9, 0.3, 0.9)
-        #     # cm = world.contactManager
-        #     for body in world.bodies:
-        #         if not body.active:
-        #             continue
-        #         transform = body.transform
-        #         for fixture in body.fixtures:
-        #             shape = fixture.shape
-        #             for childIndex in range(shape.childCount):
-        #                 self.DrawAABB(shape.getAABB(
-        #                     transform, childIndex), color)
+                    # if settings.drawJoints:
+                    #     for joint in world.joints:
+                    #         self.DrawJoint(joint)
+                    #
+                    # # if settings.drawPairs
+                    # #   pass
+                    #
+                    # if settings.drawAABBs:
+                    #     color = b2Color(0.9, 0.3, 0.9)
+                    #     # cm = world.contactManager
+                    #     for body in world.bodies:
+                    #         if not body.active:
+                    #             continue
+                    #         transform = body.transform
+                    #         for fixture in body.fixtures:
+                    #             shape = fixture.shape
+                    #             for childIndex in range(shape.childCount):
+                    #                 self.DrawAABB(shape.getAABB(
+                    #                     transform, childIndex), color)
 
 
 def main():
