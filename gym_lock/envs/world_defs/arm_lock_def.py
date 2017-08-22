@@ -99,6 +99,12 @@ class ArmLockContactListener(b2ContactListener):
             self.__norm_force_vector = norm_force_vector
             self.__tan_force_vector = tan_force_vector
 
+            #
+            # self.__total_norm_force_vector += norm_force_vector
+            # self.__total_tan_force_vector += tan_force_vector
+            #
+            # self.__iterations += 1
+
 
 class ArmLockDef(object):
     def __init__(self, chain, timestep, world_size):
