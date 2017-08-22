@@ -1,5 +1,7 @@
 import numpy as np
 from Box2D import *
+from Box2D import _Box2D
+from types import MethodType
 
 
 
@@ -13,6 +15,15 @@ from gym_lock.settings import BOX2D_SETTINGS
 # TODO: cleanup initialization/reset method
 
 # TODO: add state machine here
+
+# monkey patchery
+# b2WorldManifold.my_normal = property(Box2D._Box2D.b2WorldManifold_normal_get, None)
+def my_normal(self):
+    print 'my_normal'
+    return getattr(self, 'normal')
+
+b2WorldManifold.my_normal = MethodType(my_normal, None, b2WorldManifold)
+
 class ArmLockContactListener(b2ContactListener):
     def __init__(self, end_effector_fixture, timestep):
         b2ContactListener.__init__(self)
@@ -90,6 +101,13 @@ class ArmLockContactListener(b2ContactListener):
 
             self.__norm_force_vector = norm_force_vector
             self.__tan_force_vector = tan_force_vector
+
+            #
+            # self.__total_norm_force_vector += norm_force_vector
+            # self.__total_tan_force_vector += tan_force_vector
+            #
+            # self.__iterations += 1
+
 
 class ArmLockDef(object):
     def __init__(self, chain, timestep, world_size):
