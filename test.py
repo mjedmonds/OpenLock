@@ -11,4 +11,5 @@ while (True):
         # TODO: abstraction
         env.viewer.desired_config = None
     else:
-        env.step(False)
+        obs, rew, done, info = env.step(False)
+    print obs['END_EFFECTOR_FORCE']

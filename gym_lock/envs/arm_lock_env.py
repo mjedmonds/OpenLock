@@ -67,7 +67,7 @@ class ArmLockEnv(gym.Env):
         return True
 
     def _step(self, action):
-        """Run one timestep of the environment's dynamics. When end of
+        """Run one __timestep of the environment's dynamics. When end of
         episode is reached, you are responsible for calling `reset()`
         to reset this environment's state.
         Accepts an action and returns a tuple (observation, reward, done, info).
