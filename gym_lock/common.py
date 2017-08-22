@@ -3,6 +3,8 @@ from collections import namedtuple
 import numpy as np
 
 TwoDConfig = namedtuple('Config', 'x y theta')
+TwoDForce = namedtuple('Force', 'norm tan')
+
 Color = namedtuple('Color', 'r g b')
 
 

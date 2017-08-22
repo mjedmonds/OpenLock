@@ -1,7 +1,9 @@
 import numpy as np
 from Box2D import *
 
-from gym_lock.common import TwoDConfig
+
+
+from gym_lock.common import TwoDConfig, TwoDForce
 from gym_lock.common import wrapToMinusPiToPi
 from gym_lock.pid_central import PIDController
 from gym_lock.settings import BOX2D_SETTINGS
@@ -12,21 +14,82 @@ from gym_lock.settings import BOX2D_SETTINGS
 
 # TODO: add state machine here
 class ArmLockContactListener(b2ContactListener):
-    def __init__(self):
+    def __init__(self, end_effector_fixture, timestep):
         b2ContactListener.__init__(self)
+        self.__end_effector_fixture = end_effector_fixture
+        self.__timestep = timestep
+
+        self.__contacting = False
+        self.__tan_force_vector = self.__norm_force_vector = None
+
+        # self.__total_norm_force_vector = self.__total_tan_force_vector = b2Vec2(0, 0)
+        # self.__iterations = 0
+
+    @property
+    def norm_force(self):
+        return self.__norm_force_vector
+
+    @property
+    def tan_force(self):
+        return self.__tan_force_vector
+
+    def __filter_contact(self, contact):
+        if self.__end_effector_fixture == contact.fixtureA:
+            return 'A'
+        elif self.__end_effector_fixture == contact.fixtureB:
+            return 'B'
+        else:
+            return False
 
     def BeginContact(self, contact):
-        pass
+        if self.__filter_contact(contact):
+            self.__contacting = True
+            # self.__total_tan_force_vector = self.__total_norm_force_vector = b2Vec2(0, 0)
+            # self.__iterations = 0
 
     def EndContact(self, contact):
-        pass
+        if self.__filter_contact(contact):
+            self.__contacting = False
+            self.__norm_force_vector = self.__tan_force_vector = None
 
     def PreSolve(self, contact, oldManifold):
         pass
 
     def PostSolve(self, contact, impulse):
-        pass
+        fixture_id = self.__filter_contact(contact)
+        if fixture_id:
+            manifold = contact.worldManifold
 
+            # Every contact.points list has two points: true contact point in world coordinates
+            # and (0,0), checking assumption that former is always head of list
+            assert contact.worldManifold.points[0] != (0,0)
+
+
+            # checking assumptions...cannot find documentation on how/why length of impulses
+            # would be greater than 1
+            assert len(impulse.normalImpulses) == len(impulse.tangentImpulses) == 1
+
+            norm_imp = impulse.normalImpulses[0]
+            tan_imp = impulse.tangentImpulses[0]
+
+
+            if fixture_id == 'A':
+                transform = contact.fixtureA.body.GetLocalPoint(contact.worldManifold.points[0])
+                norm_vector = -manifold.normal
+            else:
+                # print contact.worldManifold.normal
+                transform = contact.fixtureB.body.transform
+                norm_vector = manifold.normal
+
+            norm_vector = transform.R * norm_vector
+            norm_vector.Normalize()
+            tan_vector = b2Vec2(-norm_vector[1], norm_vector[0])
+
+            norm_force_vector = (norm_imp / self.__timestep) * norm_vector
+            tan_force_vector = (tan_imp / self.__timestep) * tan_vector
+
+            self.__norm_force_vector = norm_force_vector
+            self.__tan_force_vector = tan_force_vector
 
 class ArmLockDef(object):
     def __init__(self, chain, timestep, world_size):
@@ -36,8 +99,7 @@ class ArmLockDef(object):
         self.chain = chain
 
         self.world = b2World(gravity=(0, -10),
-                             doSleep=False,
-                             contactListener=ArmLockContactListener())
+                             doSleep=False)
 
         self.clock = 0
         self.target_arrow = None
@@ -57,8 +119,12 @@ class ArmLockDef(object):
         self.__init_door_lock()
         self.__init_cascade_controller()
 
-        for body in self.world.bodies:
-            body.bullet = True
+        self.contact_listener = ArmLockContactListener(self.end_effector_fixture, self.timestep)
+        self.world.contactListener = self.contact_listener
+
+
+        # for body in self.world.bodies:
+        #     body.bullet = True
 
     def __init_arm(self, x0):
         # create arm links
@@ -67,7 +133,7 @@ class ArmLockDef(object):
 
         # define all fixtures
         # define base properties
-        base_fixture = b2FixtureDef(
+        base_fixture_def = b2FixtureDef(
             shape=b2PolygonShape(box=(1, 1)),
             density=10.0,
             friction=1.0,
@@ -75,13 +141,13 @@ class ArmLockDef(object):
             maskBits=0x1110)
 
         # define link properties
-        link_fixture = b2FixtureDef(  # all links have same properties
+        link_fixture_def = b2FixtureDef(  # all links have same properties
             density=1.0,
             friction=1.0,
             categoryBits=0x0001,
             maskBits=0x1110)
         # define end effector properties
-        end_effector_fixture = b2FixtureDef(  # all links have same properties
+        end_effector_fixture_def = b2FixtureDef(  # all links have same properties
             density=0.1,
             friction=1.0,
             categoryBits=0x0001,
@@ -106,7 +172,7 @@ class ArmLockDef(object):
                                              np.array([x0[i - 1].x, x0[i - 1].y])))
             self.arm_lengths.append(length)
 
-            link_fixture.shape = b2PolygonShape(vertices=[(0, -BOX2D_SETTINGS['ARM_WIDTH'] / 2),
+            link_fixture_def.shape = b2PolygonShape(vertices=[(0, -BOX2D_SETTINGS['ARM_WIDTH'] / 2),
                                                           (-BOX2D_SETTINGS['ARM_LENGTH'],
                                                            -BOX2D_SETTINGS['ARM_WIDTH'] / 2),
                                                           (-BOX2D_SETTINGS['ARM_LENGTH'],
@@ -115,12 +181,12 @@ class ArmLockDef(object):
             arm_body = self.world.CreateDynamicBody(
                 position=(x0[i].x, x0[i].y),
                 angle=x0[i].theta,
-                fixtures=link_fixture,
+                fixtures=link_fixture_def,
                 linearDamping=0.5,
                 angularDamping=1)
 
             self.arm_bodies.append(arm_body)
-        self.arm_bodies[-1].CreateFixture(end_effector_fixture)
+        self.end_effector_fixture = self.arm_bodies[-1].CreateFixture(end_effector_fixture_def)
 
         # create arm joints
         self.arm_joints = []
@@ -230,7 +296,8 @@ class ArmLockDef(object):
     def get_state(self):
         return {
             'END_EFFECTOR_POS': self.get_abs_config()[-1],
-            'LOCK_STATE': self.door_lock != None
+            'LOCK_STATE': self.door_lock != None,
+            'END_EFFECTOR_FORCE' : TwoDForce(self.contact_listener.norm_force, self.contact_listener.tan_force)
         }
 
     def end_effector_grasp_callback(self):
