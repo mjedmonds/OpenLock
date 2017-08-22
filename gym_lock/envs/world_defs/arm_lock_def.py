@@ -1,5 +1,7 @@
 import numpy as np
 from Box2D import *
+from Box2D import _Box2D
+from types import MethodType
 
 
 
@@ -13,6 +15,15 @@ from gym_lock.settings import BOX2D_SETTINGS
 # TODO: cleanup initialization/reset method
 
 # TODO: add state machine here
+
+# monkey patchery
+# b2WorldManifold.my_normal = property(Box2D._Box2D.b2WorldManifold_normal_get, None)
+def my_normal(self):
+    print 'my_normal'
+    return getattr(self, 'normal')
+
+b2WorldManifold.my_normal = MethodType(my_normal, None, b2WorldManifold)
+
 class ArmLockContactListener(b2ContactListener):
     def __init__(self, end_effector_fixture, timestep):
         b2ContactListener.__init__(self)
@@ -60,10 +71,9 @@ class ArmLockContactListener(b2ContactListener):
         if fixture_id:
             manifold = contact.worldManifold
 
-            # Every contact.points list has two points: true contact point in world coordinates
+            # checking assumtion: Every contact.points list has two points: true contact point in world coordinates
             # and (0,0), checking assumption that former is always head of list
             assert contact.worldManifold.points[0] != (0,0)
-
 
             # checking assumptions...cannot find documentation on how/why length of impulses
             # would be greater than 1
@@ -72,12 +82,10 @@ class ArmLockContactListener(b2ContactListener):
             norm_imp = impulse.normalImpulses[0]
             tan_imp = impulse.tangentImpulses[0]
 
-
             if fixture_id == 'A':
                 transform = contact.fixtureA.body.GetLocalPoint(contact.worldManifold.points[0])
                 norm_vector = -manifold.normal
             else:
-                # print contact.worldManifold.normal
                 transform = contact.fixtureB.body.transform
                 norm_vector = manifold.normal
 
@@ -90,6 +98,7 @@ class ArmLockContactListener(b2ContactListener):
 
             self.__norm_force_vector = norm_force_vector
             self.__tan_force_vector = tan_force_vector
+
 
 class ArmLockDef(object):
     def __init__(self, chain, timestep, world_size):
