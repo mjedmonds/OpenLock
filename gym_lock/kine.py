@@ -325,6 +325,7 @@ class TwoDKinematicTransform(object):
 
 
 def main():
+    import gym_lock
     import matplotlib.pyplot as plt
 
     # params
