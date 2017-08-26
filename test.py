@@ -14,11 +14,11 @@ while (True):
     #     env.viewer.desired_config = None
     env.step(Action('push_perp', (env.world_def.lock, 2)))
     env.step(Action('move_end_frame', (-5, 0, 0)))
-    env.step(Action('rest', None))
-    env.step(Action('push_perp', (env.world_def.door, 2.5)))
-    env.step(Action('move_end_frame', (-5, 0, 0)))
-    env.step(Action('move_end_frame', (0, -5, 0)))
-    env.step(Action('move_end_frame', (0, 0, np.pi/2)))
+    # env.step(Action('rest', None))
+    # env.step(Action('push_perp', (env.world_def.door, 4)))
+    # env.step(Action('move_end_frame', (-10, 0, 0)))
+    env.step(Action('pull_perp', (env.world_def.lock, 2)))
+
 
 
     env.step(Action('rest', None))

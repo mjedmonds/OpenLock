@@ -39,7 +39,7 @@ class ArmLockEnv(gym.Env):
         self.world_def = ArmLockDef(self.invkine.kinematic_chain, 1.0 / BOX2D_SETTINGS['FPS'], 30)
 
         # setup renderer
-        self.viewer = Box2DRenderer(self._action_grasp_all)
+        self.viewer = Box2DRenderer(self._action_grasp)
 
     def __update_and_converge_controllers(self, new_theta):
         self.world_def.set_controllers(new_theta)
@@ -103,9 +103,6 @@ class ArmLockEnv(gym.Env):
             return self._action_move(action.params)
         elif action.name == 'move_end_frame':
             return self._action_move_end_frame(action.params)
-
-
-
 
     def _reset(self):
         """Resets the state of the environment and returns an initial observation.
@@ -346,7 +343,7 @@ class ArmLockEnv(gym.Env):
             normal = output.normal
             angle = np.arctan2(normal[1], normal[0])
 
-            end_effector_offset = end_eff_shape.radius * normal
+            end_effector_offset = end_eff_shape.radius / 2.0 * normal # TODO: is this the right offset?
 
             print end_effector_offset
             desired_config = TwoDConfig(hit_point[0] + end_effector_offset[0],
@@ -355,9 +352,39 @@ class ArmLockEnv(gym.Env):
             return self._action_go_to(desired_config)
 
     def _action_rest(self):
-        self.__update_and_converge_controllers(self.theta0)
-            # theta found, update controllers and wait until controllers converge and stop
-        if self.__update_and_converge_controllers(self.theta0):
+        # discretize path
+        cur_theta = [cur.theta for cur in self.world_def.get_rel_config()[1:]]
+
+        # calculate number of discretized steps
+        delta = [wrapToMinusPiToPi(t - c) for t, c in zip(self.theta0, cur_theta)]
+
+        num_steps = max([int(abs(d / ENV_SETTINGS['PATH_INTERP_STEP_DELTA'])) for d in delta])
+
+        if num_steps == 0:
+            # we're already within step_delta of our desired config in all dimensions
+            result = True
+        else:
+            result = False
+
+        print 'cur', cur_theta
+        print 'delta', delta
+        print 'rest', self.theta0
+
+        # generate discretized path
+        waypoints = []
+        for i in range(0, num_steps + 1):
+            waypoints.append([wrapToMinusPiToPi(cur + i * d / num_steps) \
+                              for cur, d in zip(cur_theta, delta)])
+
+        # sanity check: we actually reach the target config
+
+        # TODO: arbitrary double comparison
+        assert all([abs(wrapToMinusPiToPi(waypoints[-1][i] - self.theta0[i]))  < 0.01 for i in range(0, len(self.theta0))])
+
+        for waypoint in waypoints:
+            result = self.__update_and_converge_controllers(waypoint)
+
+        if result:
             return self.world_def.get_state(), 0, False, {'CONVERGED': True}
         else:
             return self.world_def.get_state(), 0, False, {'CONVERGED': False}
@@ -368,26 +395,35 @@ class ArmLockEnv(gym.Env):
         self._action_go_to_obj(object)
         # for i in range(0,500):
         #     self._step(False)
-        self._action_grasp_all()
+        self._action_grasp()
         
         cur_x, cur_y, cur_theta = self.world_def.get_abs_config()[-1]
         neg_normal = (-np.cos(cur_theta), -np.sin(cur_theta))
         new_config = TwoDConfig(cur_x + neg_normal[0] * distance,
                                 cur_y + neg_normal[1] * distance,
                                 cur_theta)
+
         self._action_go_to(new_config)
-        self._action_grasp_all()
+        self._action_grasp()
 
     def _action_push_perp(self, params):
         object, distance = params
 
         self._action_go_to_obj(object)
+
         # for i in range(0,500):
         #     self._step(False)
 
         self._action_move_end_frame(TwoDConfig(distance, 0, 0))
 
-    def _action_grasp_all(self):
+    def _action_grasp(self, targ_fixture=None):
+        # TODO: you can do better than this lol
+        for i in range(0, 100):
+            if self._action_grasp_attempt(targ_fixture):
+                return True
+        return False
+
+    def _action_grasp_attempt(self, targ_fixture=None):
         # NOTE: It's a little tricky to grab objects when you're EXACTLY
         # touching, instead, we compute the shortest distance between the two
         # shapes once the bounding boxes start to overlap. This let's us grab
@@ -397,7 +433,11 @@ class ArmLockEnv(gym.Env):
             print 'detatch!'
             # we are already holding something
             for connection in self.world_def.grasped_list:
-                self.world_def.world.DestroyJoint(connection)
+                if targ_fixture and not (connection.bodyA == targ_fixture.body or \
+                                        connection.bodyB == targ_fixture.body):
+                    continue
+                else:
+                    self.world_def.world.DestroyJoint(connection)
             self.world_def.grasped_list = []
         else:
             if len(self.world_def.arm_bodies[-1].contacts) > 0:
@@ -407,26 +447,33 @@ class ArmLockEnv(gym.Env):
                     fix_A = contact_edge.contact.fixtureA
                     fix_B = contact_edge.contact.fixtureB
 
-                    # find shortest distance between two shapes
-                    dist_result = b2Distance(shapeA=fix_A.shape,
-                                             shapeB=fix_B.shape,
-                                             transformA=fix_A.body.transform,
-                                             transformB=fix_B.body.transform)
+                    if targ_fixture and not (fix_A == targ_fixture or fix_B == targ_fixture):
+                        continue
+                    else:
+                        # indiscriminate grab or found target
 
-                    point_A = fix_A.body.GetLocalPoint(dist_result.pointA)
-                    point_B = fix_B.body.GetLocalPoint(dist_result.pointB)
+                        # find shortest distance between two shapes
+                        dist_result = b2Distance(shapeA=fix_A.shape,
+                                                 shapeB=fix_B.shape,
+                                                 transformA=fix_A.body.transform,
+                                                 transformB=fix_B.body.transform)
 
-                    # TODO experiment with other joints
-                    self.world_def.grasped_list.append(self.world_def.world.CreateDistanceJoint(bodyA=fix_A.body,
-                                                                            bodyB=fix_B.body,
-                                                                            localAnchorA=point_A,
-                                                                            localAnchorB=point_B,
-                                                                            frequencyHz=1,
-                                                                            dampingRatio=1,
-                                                                            collideConnected=True
-                                                                            ))
+                        point_A = fix_A.body.GetLocalPoint(dist_result.pointA)
+                        point_B = fix_B.body.GetLocalPoint(dist_result.pointB)
+
+                        # TODO experiment with other joints
+                        self.world_def.grasped_list.append(self.world_def.world.CreateDistanceJoint(bodyA=fix_A.body,
+                                                                                bodyB=fix_B.body,
+                                                                                localAnchorA=point_A,
+                                                                                localAnchorB=point_B,
+                                                                                frequencyHz=1,
+                                                                                dampingRatio=1,
+                                                                                collideConnected=True
+                                                                                ))
+                return True
             else:
                 print 'nothing to grab!'
+                return False
 
     def _action_move(self, params):
         delta_x, delta_y, delta_theta = params
