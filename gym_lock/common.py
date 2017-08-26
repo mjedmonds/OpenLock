@@ -4,6 +4,7 @@ import numpy as np
 
 TwoDConfig = namedtuple('Config', 'x y theta')
 TwoDForce = namedtuple('Force', 'norm tan')
+Action = namedtuple('action', 'name params') # params should be list-like or a single value
 
 Color = namedtuple('Color', 'r g b')
 

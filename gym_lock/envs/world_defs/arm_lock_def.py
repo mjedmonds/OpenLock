@@ -73,7 +73,7 @@ class ArmLockContactListener(b2ContactListener):
 
             # checking assumtion: Every contact.points list has two points: true contact point in world coordinates
             # and (0,0), checking assumption that former is always head of list
-            assert contact.worldManifold.points[0] != (0,0)
+            assert manifold.points[0] != (0,0)
 
             # checking assumptions...cannot find documentation on how/why length of impulses
             # would be greater than 1
@@ -83,7 +83,7 @@ class ArmLockContactListener(b2ContactListener):
             tan_imp = impulse.tangentImpulses[0]
 
             if fixture_id == 'A':
-                transform = contact.fixtureA.body.GetLocalPoint(contact.worldManifold.points[0])
+                transform = contact.fixtureA.body.GetLocalPoint(manifold.points[0])
                 norm_vector = -manifold.normal
             else:
                 transform = contact.fixtureB.body.transform
@@ -240,15 +240,16 @@ class ArmLockDef(object):
             categoryBits=0x0010,
             maskBits=0x1101)
 
-        self.door = self.world.CreateDynamicBody(
+        door_body = self.world.CreateDynamicBody(
             position=(15, 10),
             angle=-np.pi / 2,
-            fixtures=door_fixture,
             angularDamping=0.5,
             linearDamping=0.5)
 
+        self.door = door_body.CreateFixture(door_fixture)
+
         self.door_hinge = self.world.CreateRevoluteJoint(
-            bodyA=self.door,  # end of link A
+            bodyA=self.door.body,  # end of link A
             bodyB=self.ground,  # beginning of link B
             localAnchorA=(0, 0),
             localAnchorB=(15, 10),
@@ -258,7 +259,7 @@ class ArmLockDef(object):
             maxMotorTorque=20)
 
         self.door_lock = self.world.CreateWeldJoint(
-            bodyA=self.door,  # end of link A
+            bodyA=self.door.body,  # end of link A
             bodyB=self.ground,  # beginning of link B
             localAnchorB=(15, 5),
         )
@@ -275,13 +276,14 @@ class ArmLockDef(object):
             categoryBits=0x0010,
             maskBits=0x1101)
 
-        self.lock = self.world.CreateDynamicBody(
+        lock_body = self.world.CreateDynamicBody(
             position=(15, -5),
-            angle=-np.pi / 2,
-            fixtures=lock_fixture)
+            angle=-np.pi / 2)
+
+        self.lock = lock_body.CreateFixture(lock_fixture)
 
         self.lock_joint = self.world.CreatePrismaticJoint(
-            bodyA=self.lock,
+            bodyA=self.lock.body,
             bodyB=self.ground,
             anchor=(0, 0),
             axis=(1, 0),
@@ -314,47 +316,6 @@ class ArmLockDef(object):
             'LOCK_STATE': self.door_lock != None,
             'END_EFFECTOR_FORCE' : TwoDForce(self.contact_listener.norm_force, self.contact_listener.tan_force)
         }
-
-    def end_effector_grasp_callback(self):
-        # NOTE: It's a little tricky to grab objects when you're EXACTLY
-        # touching, instead, we compute the shortest distance between the two
-        # shapes once the bounding boxes start to overlap. This let's us grab
-        # objects which are close. See: http://www.iforce2d.net/b2dtut/collision-anatomy
-
-        if len(self.grasped_list) > 0:
-            print 'detatch!'
-            # we are already holding something
-            for connection in self.grasped_list:
-                self.world.DestroyJoint(connection)
-            self.grasped_list = []
-        else:
-            if len(self.arm_bodies[-1].contacts) > 0:
-                print 'grab!'
-                # grab all the things!
-                for contact_edge in self.arm_bodies[-1].contacts:
-                    fix_A = contact_edge.contact.fixtureA
-                    fix_B = contact_edge.contact.fixtureB
-
-                    # find shortest distance between two shapes
-                    dist_result = b2Distance(shapeA=fix_A.shape,
-                                             shapeB=fix_B.shape,
-                                             transformA=fix_A.body.transform,
-                                             transformB=fix_B.body.transform)
-
-                    point_A = fix_A.body.GetLocalPoint(dist_result.pointA)
-                    point_B = fix_B.body.GetLocalPoint(dist_result.pointB)
-
-                    # TODO experiment with other joints
-                    self.grasped_list.append(self.world.CreateDistanceJoint(bodyA=fix_A.body,
-                                                                            bodyB=fix_B.body,
-                                                                            localAnchorA=point_A,
-                                                                            localAnchorB=point_B,
-                                                                            frequencyHz=1,
-                                                                            dampingRatio=1,
-                                                                            collideConnected=True
-                                                                            ))
-            else:
-                print 'nothing to grab!'
 
     def update_cascade_controller(self):
         if self.clock % BOX2D_SETTINGS['POS_PID_CLK_DIV'] == 0:

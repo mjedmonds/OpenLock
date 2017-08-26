@@ -1,11 +1,11 @@
 import gym
-from Box2D import b2Color, b2_kinematicBody, b2_staticBody
+from Box2D import b2Color, b2_kinematicBody, b2_staticBody, b2RayCastInput, b2Transform, b2Shape, b2Distance
 from gym import spaces
 from gym.utils import seeding
 
 from gym_lock.box2d_renderer import Box2DRenderer
 from gym_lock.common import *
-from gym_lock.envs.world_defs.arm_lock_def import ArmLockDef
+from gym_lock.envs.world_defs.arm_lock_def import ArmLockDef, b2RayCastOutput
 from gym_lock.kine import KinematicChain, discretize_path, InverseKinematics, generate_five_arm, \
     TwoDKinematicTransform
 from gym_lock.settings import RENDER_SETTINGS, BOX2D_SETTINGS, ENV_SETTINGS
@@ -28,10 +28,10 @@ class ArmLockEnv(gym.Env):
         self._seed()
 
         # initialize inverse kinematics module with chain==target
-        theta0 = BOX2D_SETTINGS['INITIAL_THETA_VECTOR']
-        base0 = BOX2D_SETTINGS['INITIAL_BASE_CONFIG']
-        initial_config = generate_five_arm(theta0[0], theta0[1], theta0[2], theta0[3], theta0[4])
-        self.base = TwoDKinematicTransform(x=base0.x, y=base0.y, theta=base0.theta)
+        self.theta0 = BOX2D_SETTINGS['INITIAL_THETA_VECTOR']
+        self.base0 = BOX2D_SETTINGS['INITIAL_BASE_CONFIG']
+        initial_config = generate_five_arm(self.theta0[0], self.theta0[1], self.theta0[2], self.theta0[3], self.theta0[4])
+        self.base = TwoDKinematicTransform(x=self.base0.x, y=self.base0.y, theta=self.base0.theta)
         self.invkine = InverseKinematics(KinematicChain(self.base, initial_config),
                                          KinematicChain(self.base, initial_config))
 
@@ -39,7 +39,7 @@ class ArmLockEnv(gym.Env):
         self.world_def = ArmLockDef(self.invkine.kinematic_chain, 1.0 / BOX2D_SETTINGS['FPS'], 30)
 
         # setup renderer
-        self.viewer = Box2DRenderer(self.world_def.end_effector_grasp_callback)
+        self.viewer = Box2DRenderer(self._action_grasp_all)
 
     def __update_and_converge_controllers(self, new_theta):
         self.world_def.set_controllers(new_theta)
@@ -72,7 +72,7 @@ class ArmLockEnv(gym.Env):
         to reset this environment's state.
         Accepts an action and returns a tuple (observation, reward, done, info).
         Args:
-                action (TwoDConfig): desired end effector configuration
+                action (Action): desired Action
         Returns:
                 observation (dict): END_EFFECTOR_POS : current end effector position
                                           LOCK_STATE : true if door is locked
@@ -80,77 +80,32 @@ class ArmLockEnv(gym.Env):
                 done (boolean): whether the episode has ended, in which case further step() calls will return undefined results
                 info (dict): CONVERGED : whether algorithm succesfully coverged on action
         """
-
-        if action:
-
-            # get configuatin of end effector
-            targ_x, targ_y, targ_theta = action
-
-            # draw arrow to show target location
-            self.world_def.draw_target_arrow(targ_x, targ_y, targ_theta)
-
-            # update current config
-            self.invkine.kinematic_chain.update_chain(self.world_def.get_rel_config())
-
-            # generate discretized waypoints
-            waypoints = discretize_path(self.invkine.kinematic_chain.get_total_delta_config(),
-                                        action,
-                                        ENV_SETTINGS['PATH_INTERP_STEP_DELTA'])
-
-            # we're already at the config
-            if waypoints is None:
-                # TODO: return something meaningful
-                return self.world_def.get_state(), 0, False, {'CONVERGED': True}
-
-            for i in range(1, len(waypoints)):  # waypoint 0 is current config
-
-                # update kinematics model to reflect current world config
-                self.invkine.kinematic_chain.update_chain(self.world_def.get_rel_config())
-
-                # update inverse kinematics
-                self.invkine.set_current_config(self.invkine.kinematic_chain)
-                self.invkine.target = waypoints[i]
-
-                # find inverse kinematics solution
-                a = 0
-                err = self.invkine.get_error()
-                new_config = None
-                while (err > ENV_SETTINGS['INVK_CONV_TOL']):
-                    if a > ENV_SETTINGS['INVK_CONV_MAX_STEPS']:
-                        return self.world_def.get_state(), 0, False, {'CONVERGED': False}
-                    a = a + 1
-
-                    # get delta theta
-                    d_theta = self.invkine.get_delta_theta_dls(lam=ENV_SETTINGS['INVK_DLS_LAMBDA'])
-
-                    # current theta along convergence path
-                    cur_config = self.invkine.kinematic_chain.get_rel_config()  # ignore virtual base link
-
-                    # new theta along convergence path
-
-                    # TODO: this is messy
-                    new_config = [cur_config[0]] + [TwoDConfig(cur.x, cur.y, cur.theta + delta) for cur, delta in
-                                                    zip(cur_config[1:], d_theta)]
-
-                    # update inverse kinematics model to reflect step along convergence path
-                    self.invkine.kinematic_chain.update_chain(new_config)
-
-                    err = self.invkine.get_error()
-
-                # theta found, update controllers and wait until controllers converge and stop
-                if new_config:
-                    if not self.__update_and_converge_controllers([c.theta for c in new_config[1:]]):
-                        return self.world_def.get_state(), 0, False, {'CONVERGED': False}
-
-            return self.world_def.get_state(), 0, False, {'CONVERGED': True}
-
-        else:
+        if not action:
             self.world_def.step(1.0 / BOX2D_SETTINGS['FPS'],
                                 BOX2D_SETTINGS['VEL_ITERS'],
                                 BOX2D_SETTINGS['POS_ITERS'])
             if self.world_def.clock % RENDER_SETTINGS['RENDER_CLK_DIV'] == 0:
                 self._render()
             return self.world_def.get_state(), 0, False, {}
+
+        elif action.name == 'goto':
+            print action.params
+            return self._action_go_to(action.params)
+        elif action.name == 'goto_obj':
+            return self._action_go_to_obj(action.params)
+        elif action.name == 'rest':
+            return self._action_rest()
+        elif action.name == 'pull_perp':
+            return  self._action_pull_perp(action.params)
+        elif action.name == 'push_perp':
+            return self._action_push_perp(action.params)
+        elif action.name == 'move':
+            return self._action_move(action.params)
+        elif action.name == 'move_end_frame':
+            return self._action_move_end_frame(action.params)
+
+
+
 
     def _reset(self):
         """Resets the state of the environment and returns an initial observation.
@@ -215,7 +170,7 @@ class ArmLockEnv(gym.Env):
             return
 
             # if self.viewer is None:
-            self.viewer = Box2DRenderer(self.world_def.end_effector_grasp_callback)
+            self.viewer = Box2DRenderer(self.world_def.end_effector_grasp_all)
 
         self.viewer.render_world(self.world_def.world, mode)
 
@@ -237,11 +192,7 @@ class ArmLockEnv(gym.Env):
         self.np_random, seed = seeding.np_random(seed)
         return [seed]
 
-    # ADDITIONS
-
-
-
-    def ManualDraw(self):
+    def manual_draw(self):
         """
         This implements code normally present in the C++ version, which calls
         the callbacks that you see in this class (DrawSegment, DrawSolidCircle,
@@ -305,6 +256,203 @@ class ArmLockEnv(gym.Env):
                     #             for childIndex in range(shape.childCount):
                     #                 self.DrawAABB(shape.getAABB(
                     #                     transform, childIndex), color)
+
+    # TODO: return states
+    def _action_go_to(self, config):
+        # get configuatin of end effector
+        targ_x, targ_y, targ_theta = config
+
+        # draw arrow to show target location
+        self.world_def.draw_target_arrow(targ_x, targ_y, targ_theta)
+
+        # update current config
+        self.invkine.kinematic_chain.update_chain(self.world_def.get_rel_config())
+
+        # generate discretized waypoints
+        waypoints = discretize_path(self.invkine.kinematic_chain.get_total_delta_config(),
+                                    TwoDConfig(targ_x, targ_y, targ_theta),
+                                    ENV_SETTINGS['PATH_INTERP_STEP_DELTA'])
+
+        # we're already at the config
+        if waypoints is None:
+            return self.world_def.get_state(), 0, False, {'CONVERGED': True}
+
+        for i in range(1, len(waypoints)):  # waypoint 0 is current config
+
+            # update kinematics model to reflect current world config
+            self.invkine.kinematic_chain.update_chain(self.world_def.get_rel_config())
+
+            # update inverse kinematics
+            self.invkine.set_current_config(self.invkine.kinematic_chain)
+            self.invkine.target = waypoints[i]
+
+            # find inverse kinematics solution
+            a = 0
+            err = self.invkine.get_error()
+            new_config = None
+            while (err > ENV_SETTINGS['INVK_CONV_TOL']):
+                if a > ENV_SETTINGS['INVK_CONV_MAX_STEPS']:
+                    return self.world_def.get_state(), 0, False, {'CONVERGED': False}
+                a = a + 1
+
+                # get delta theta
+                d_theta = self.invkine.get_delta_theta_dls(lam=ENV_SETTINGS['INVK_DLS_LAMBDA'])
+
+                # current theta along convergence path
+                cur_config = self.invkine.kinematic_chain.get_rel_config()  # ignore virtual base link
+
+                # new theta along convergence path
+
+                # TODO: this is messy
+                new_config = [cur_config[0]] + [TwoDConfig(cur.x, cur.y, cur.theta + delta) for cur, delta in
+                                                zip(cur_config[1:], d_theta)]
+
+                # update inverse kinematics model to reflect step along convergence path
+                self.invkine.kinematic_chain.update_chain(new_config)
+
+                err = self.invkine.get_error()
+
+            # theta found, update controllers and wait until controllers converge and stop
+            if new_config:
+                if not self.__update_and_converge_controllers([c.theta for c in new_config[1:]]):
+                    return self.world_def.get_state(), 0, False, {'CONVERGED': False}
+
+        return self.world_def.get_state(), 0, False, {'CONVERGED': True}
+
+    def _action_go_to_obj(self, object):
+        """
+
+        Args:
+            object: reference to Box2D fixture that you want to go to
+
+        Returns:
+
+        """
+        # find face facing us by raycasting from end effector to center of fixture
+        end_eff = self.world_def.end_effector_fixture
+        end_eff_shape = end_eff.shape
+        end_eff_mass_data = end_eff.massData
+        obj_mass_data = object.massData
+
+        object_center = object.body.GetWorldPoint(obj_mass_data.center)
+        end_effector_center = end_eff.body.GetWorldPoint(end_eff_mass_data.center)
+
+        input = b2RayCastInput(p1=end_effector_center, p2=object_center, maxFraction=200)
+        output = b2RayCastOutput()
+
+        hit = object.RayCast(output, input, 0)
+        if hit:
+            hit_point = input.p1 + output.fraction * (input.p2 - input.p1)
+            normal = output.normal
+            angle = np.arctan2(normal[1], normal[0])
+
+            end_effector_offset = end_eff_shape.radius * normal
+
+            print end_effector_offset
+            desired_config = TwoDConfig(hit_point[0] + end_effector_offset[0],
+                                        hit_point[1] + end_effector_offset[1],
+                                        wrapToMinusPiToPi(np.pi - angle))
+            return self._action_go_to(desired_config)
+
+    def _action_rest(self):
+        self.__update_and_converge_controllers(self.theta0)
+            # theta found, update controllers and wait until controllers converge and stop
+        if self.__update_and_converge_controllers(self.theta0):
+            return self.world_def.get_state(), 0, False, {'CONVERGED': True}
+        else:
+            return self.world_def.get_state(), 0, False, {'CONVERGED': False}
+        
+    def _action_pull_perp(self, params):
+        object, distance = params
+        
+        self._action_go_to_obj(object)
+        # for i in range(0,500):
+        #     self._step(False)
+        self._action_grasp_all()
+        
+        cur_x, cur_y, cur_theta = self.world_def.get_abs_config()[-1]
+        neg_normal = (-np.cos(cur_theta), -np.sin(cur_theta))
+        new_config = TwoDConfig(cur_x + neg_normal[0] * distance,
+                                cur_y + neg_normal[1] * distance,
+                                cur_theta)
+        self._action_go_to(new_config)
+        self._action_grasp_all()
+
+    def _action_push_perp(self, params):
+        object, distance = params
+
+        self._action_go_to_obj(object)
+        # for i in range(0,500):
+        #     self._step(False)
+
+        self._action_move_end_frame(TwoDConfig(distance, 0, 0))
+
+    def _action_grasp_all(self):
+        # NOTE: It's a little tricky to grab objects when you're EXACTLY
+        # touching, instead, we compute the shortest distance between the two
+        # shapes once the bounding boxes start to overlap. This let's us grab
+        # objects which are close. See: http://www.iforce2d.net/b2dtut/collision-anatomy
+
+        if len(self.world_def.grasped_list) > 0:
+            print 'detatch!'
+            # we are already holding something
+            for connection in self.world_def.grasped_list:
+                self.world_def.world.DestroyJoint(connection)
+            self.world_def.grasped_list = []
+        else:
+            if len(self.world_def.arm_bodies[-1].contacts) > 0:
+                print 'grab!'
+                # grab all the things!
+                for contact_edge in self.world_def.arm_bodies[-1].contacts:
+                    fix_A = contact_edge.contact.fixtureA
+                    fix_B = contact_edge.contact.fixtureB
+
+                    # find shortest distance between two shapes
+                    dist_result = b2Distance(shapeA=fix_A.shape,
+                                             shapeB=fix_B.shape,
+                                             transformA=fix_A.body.transform,
+                                             transformB=fix_B.body.transform)
+
+                    point_A = fix_A.body.GetLocalPoint(dist_result.pointA)
+                    point_B = fix_B.body.GetLocalPoint(dist_result.pointB)
+
+                    # TODO experiment with other joints
+                    self.world_def.grasped_list.append(self.world_def.world.CreateDistanceJoint(bodyA=fix_A.body,
+                                                                            bodyB=fix_B.body,
+                                                                            localAnchorA=point_A,
+                                                                            localAnchorB=point_B,
+                                                                            frequencyHz=1,
+                                                                            dampingRatio=1,
+                                                                            collideConnected=True
+                                                                            ))
+            else:
+                print 'nothing to grab!'
+
+    def _action_move(self, params):
+        delta_x, delta_y, delta_theta = params
+
+        cur_x, cur_y, cur_theta = self.world_def.get_abs_config()[-1]
+
+        return self._action_go_to(TwoDConfig(cur_x + delta_x,
+                                             cur_y + delta_y,
+                                             cur_theta + delta_theta))
+
+    def _action_move_end_frame(self, params):
+        delta_x, delta_y, delta_theta = params
+
+        cur_x, cur_y, cur_theta = self.world_def.get_abs_config()[-1]
+
+        x_axis = (np.cos(cur_theta), np.sin(cur_theta))
+        y_axis = (-x_axis[1], x_axis[0])
+
+        new_config = TwoDConfig(cur_x + x_axis[0] * delta_x + y_axis[0] * delta_y,
+                                cur_y + x_axis[1] * delta_x + y_axis[1] * delta_y,
+                                cur_theta + delta_theta)
+
+        self._action_go_to(new_config)
+
+
+
 
 
 def main():
