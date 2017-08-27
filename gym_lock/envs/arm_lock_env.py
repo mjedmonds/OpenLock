@@ -89,7 +89,6 @@ class ArmLockEnv(gym.Env):
             return self.world_def.get_state(), 0, False, {}
 
         elif action.name == 'goto':
-            print action.params
             return self._action_go_to(action.params)
         elif action.name == 'goto_obj':
             return self._action_go_to_obj(action.params)
@@ -164,12 +163,14 @@ class ArmLockEnv(gym.Env):
             if self.viewer is not None:
                 self.viewer.close()
                 self.viewer = None
-            return
-
-            # if self.viewer is None:
+                return
+        
+        if self.viewer is None:
             self.viewer = Box2DRenderer(self.world_def.end_effector_grasp_all)
 
         self.viewer.render_world(self.world_def.world, mode)
+        #TODO returnvalue
+
 
     def _seed(self, seed=None):
         """Sets the seed for this env's random number generator(s).
@@ -270,9 +271,9 @@ class ArmLockEnv(gym.Env):
                                     TwoDConfig(targ_x, targ_y, targ_theta),
                                     ENV_SETTINGS['PATH_INTERP_STEP_DELTA'])
 
-        # we're already at the config
-        if waypoints is None:
-            return self.world_def.get_state(), 0, False, {'CONVERGED': True}
+        if len(waypoints) == 1:
+            # already at the target config
+            return True
 
         for i in range(1, len(waypoints)):  # waypoint 0 is current config
 
@@ -289,7 +290,7 @@ class ArmLockEnv(gym.Env):
             new_config = None
             while (err > ENV_SETTINGS['INVK_CONV_TOL']):
                 if a > ENV_SETTINGS['INVK_CONV_MAX_STEPS']:
-                    return self.world_def.get_state(), 0, False, {'CONVERGED': False}
+                    return False
                 a = a + 1
 
                 # get delta theta
@@ -312,9 +313,11 @@ class ArmLockEnv(gym.Env):
             # theta found, update controllers and wait until controllers converge and stop
             if new_config:
                 if not self.__update_and_converge_controllers([c.theta for c in new_config[1:]]):
-                    return self.world_def.get_state(), 0, False, {'CONVERGED': False}
+                    # could not converge
+                    return False
 
-        return self.world_def.get_state(), 0, False, {'CONVERGED': True}
+        # succesfully reached target config
+        return True
 
     def _action_go_to_obj(self, object):
         """
@@ -345,11 +348,13 @@ class ArmLockEnv(gym.Env):
 
             end_effector_offset = end_eff_shape.radius / 2.0 * normal # TODO: is this the right offset?
 
-            print end_effector_offset
             desired_config = TwoDConfig(hit_point[0] + end_effector_offset[0],
                                         hit_point[1] + end_effector_offset[1],
                                         wrapToMinusPiToPi(np.pi - angle))
             return self._action_go_to(desired_config)
+        else:
+            # path is blocked
+            return False
 
     def _action_rest(self):
         # discretize path
@@ -362,13 +367,9 @@ class ArmLockEnv(gym.Env):
 
         if num_steps == 0:
             # we're already within step_delta of our desired config in all dimensions
-            result = True
-        else:
-            result = False
+            return True
 
-        print 'cur', cur_theta
-        print 'delta', delta
-        print 'rest', self.theta0
+        #TODO: refactor
 
         # generate discretized path
         waypoints = []
@@ -382,20 +383,19 @@ class ArmLockEnv(gym.Env):
         assert all([abs(wrapToMinusPiToPi(waypoints[-1][i] - self.theta0[i]))  < 0.01 for i in range(0, len(self.theta0))])
 
         for waypoint in waypoints:
-            result = self.__update_and_converge_controllers(waypoint)
-
-        if result:
-            return self.world_def.get_state(), 0, False, {'CONVERGED': True}
-        else:
-            return self.world_def.get_state(), 0, False, {'CONVERGED': False}
+            if not self.__update_and_converge_controllers(waypoint):
+                return False
         
+        return True
+
     def _action_pull_perp(self, params):
         object, distance = params
         
-        self._action_go_to_obj(object)
-        # for i in range(0,500):
-        #     self._step(False)
-        self._action_grasp()
+        if not self._action_go_to_obj(object):
+            return False
+       
+        if not self._action_grasp():
+            return False
         
         cur_x, cur_y, cur_theta = self.world_def.get_abs_config()[-1]
         neg_normal = (-np.cos(cur_theta), -np.sin(cur_theta))
@@ -403,18 +403,24 @@ class ArmLockEnv(gym.Env):
                                 cur_y + neg_normal[1] * distance,
                                 cur_theta)
 
-        self._action_go_to(new_config)
-        self._action_grasp()
+        if not self._action_go_to(new_config):
+            return False
+
+        if not self._action_grasp():
+            return False
+
+        return True
 
     def _action_push_perp(self, params):
         object, distance = params
 
-        self._action_go_to_obj(object)
+        if not self._action_go_to_obj(object):
+            return False
 
-        # for i in range(0,500):
-        #     self._step(False)
+        if not self._action_move_end_frame(TwoDConfig(distance, 0, 0)):
+            return False
 
-        self._action_move_end_frame(TwoDConfig(distance, 0, 0))
+        return True
 
     def _action_grasp(self, targ_fixture=None):
         # TODO: you can do better than this lol
@@ -430,7 +436,6 @@ class ArmLockEnv(gym.Env):
         # objects which are close. See: http://www.iforce2d.net/b2dtut/collision-anatomy
 
         if len(self.world_def.grasped_list) > 0:
-            print 'detatch!'
             # we are already holding something
             for connection in self.world_def.grasped_list:
                 if targ_fixture and not (connection.bodyA == targ_fixture.body or \
@@ -439,9 +444,9 @@ class ArmLockEnv(gym.Env):
                 else:
                     self.world_def.world.DestroyJoint(connection)
             self.world_def.grasped_list = []
+            return True
         else:
             if len(self.world_def.arm_bodies[-1].contacts) > 0:
-                print 'grab!'
                 # grab all the things!
                 for contact_edge in self.world_def.arm_bodies[-1].contacts:
                     fix_A = contact_edge.contact.fixtureA
@@ -472,7 +477,6 @@ class ArmLockEnv(gym.Env):
                                                                                 ))
                 return True
             else:
-                print 'nothing to grab!'
                 return False
 
     def _action_move(self, params):
@@ -496,7 +500,7 @@ class ArmLockEnv(gym.Env):
                                 cur_y + x_axis[1] * delta_x + y_axis[1] * delta_y,
                                 cur_theta + delta_theta)
 
-        self._action_go_to(new_config)
+        return self._action_go_to(new_config)
 
 
 
