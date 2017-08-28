@@ -90,7 +90,10 @@ class ArmLockEnv(gym.Env):
                                 BOX2D_SETTINGS['POS_ITERS'])
             if self.world_def.clock % RENDER_SETTINGS['RENDER_CLK_DIV'] == 0:
                 self._render()
-            return self.world_def.get_state(), 0, False, {}
+
+            state = self.world_def.get_state()
+            state['SUCCESS'] = False
+            return state, 0, False, {}
         else:
             success = False
             if action.name == 'goto':
@@ -109,7 +112,10 @@ class ArmLockEnv(gym.Env):
                 success = self._action_move_end_frame(action.params)
             elif action.name == 'unlock':
                 success = self._action_unlock(action.params)
-            return self.world_def.get_state(), 0, False, {'success' : success}
+
+            state = self.world_def.get_state()
+            state['SUCCESS'] = success
+            return state, 0, False, {}
 
     def _reset(self):
         """Resets the state of the environment and returns an initial observation.
@@ -127,7 +133,7 @@ class ArmLockEnv(gym.Env):
         #
         # # setup Box2D world
         # self.world_def = ArmLockDef(self.invkine.kinematic_chain, 1.0 / BOX2D_SETTINGS['FPS'], 30)
-        # return self.world_def.get_state()
+        return self.world_def.get_state()
 
     def _render(self, mode='human', close=False):
         """Renders the environment.
@@ -291,6 +297,7 @@ class ArmLockEnv(gym.Env):
             err = self.invkine.get_error()
             new_config = None
             while (err > ENV_SETTINGS['INVK_CONV_TOL']):
+
                 if a > ENV_SETTINGS['INVK_CONV_MAX_STEPS']:
                     return False
                 a = a + 1
@@ -356,12 +363,21 @@ class ArmLockEnv(gym.Env):
             angle = np.arctan2(-normal[1], -normal[0])
 
 
-            end_effector_offset = end_eff_shape.radius / 1.1 * normal # TODO: is this the right offset?
+            end_effector_offset = end_eff_shape.radius * normal # TODO: is this the right offset?
 
             desired_config = TwoDConfig(hit_point[0] + end_effector_offset[0],
                                         hit_point[1] + end_effector_offset[1],
                                         wrapToMinusPiToPi(angle))
-            return self._action_go_to(desired_config)
+
+            self._action_go_to(desired_config)
+
+            # we way have gotten close to object, but lets move forward until we graze
+            # TODO: selective tolerance of INVK/PID controllers for rough/fine movement
+            i = 0
+            while (len(self.world_def.arm_bodies[-1].contacts) == 0 and i < 5):
+                i += 1
+                self._action_move_end_frame(TwoDConfig(0.5, 0, 0))
+            return True if len(self.world_def.arm_bodies[-1].contacts) > 0 else False
         else:
             # path is blocked
             return False
@@ -394,7 +410,6 @@ class ArmLockEnv(gym.Env):
 
         for waypoint in waypoints:
             if not self.__update_and_converge_controllers(waypoint):
-                print 'swag'
                 return False
         
         return True
@@ -406,6 +421,7 @@ class ArmLockEnv(gym.Env):
             return False
 
         if not self._action_grasp():
+            print 'no'
             return False
         
         cur_x, cur_y, cur_theta = self.world_def.get_abs_config()[-1]
