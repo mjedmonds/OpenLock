@@ -38,9 +38,16 @@ class ArmLockEnv(gym.Env):
         self.world_def = ArmLockDef(self.invkine.kinematic_chain, 1.0 / BOX2D_SETTINGS['FPS'], 30)
 
         self.action_space = []
+        self.action_map = dict()
         for obj, val in self.world_def.obj_map.items():
-            self.action_space.append('push_perp_{}'.format(obj))
-            self.action_space.append('pull_perp_{}'.format(obj))
+            push = 'push_perp_{}'.format(obj)
+            pull = 'pull_perp_{}'.format(obj)
+
+            self.action_space.append(pull)
+            self.action_space.append(push)
+
+            self.action_map[push] = Action('push_perp', (obj, 4))
+            self.action_map[pull] = Action('pull_perp', (obj, 4))
 
         # setup renderer
         self.viewer = Box2DRenderer(self._action_grasp)

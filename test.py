@@ -2,6 +2,7 @@ import gym
 import numpy as np
 from gym_lock.envs import ArmLockEnv
 from gym_lock.common import Action
+import time
 
 def create_state_entry(state, i):
     entry = [0] * len(col_label)
@@ -44,23 +45,55 @@ index_map = {name : idx for idx, name in enumerate(col_label)}
 results = [col_label]
 
 i = 0
-while (True):
-    # if env.viewer.desired_config:
-    #     # TODO: messy interface for stepping, add adapter or simplyify
-    #     # TODO: add ability to move base
-    #     obs, rew, done, info = env.step(Action('goto', env.viewer.desired_config))
-    #     # TODO: abstraction
-    #     env.viewer.desired_config = None
-    #     #print obs['FSM_STATE']
-    # else:
-    #     env.step(False)
 
-    # append initial observation
-    results.append(create_state_entry(env.reset(), i))
-    print env.reset()['OBJ_STATES']
-    print env.reset()['_FSM_STATE']
+# append initial observation
+results.append(create_state_entry(env.reset(), i))
 
-    for action in action_script:
+print 'Hello! Welcome to the game!'
+
+time.sleep(1)
+
+print 'This is a bomb:'
+
+print '  --  '
+print ' /  \ '
+print '|    |'
+print '|    |'
+print ' \\  /'
+print '  --  '
+
+time.sleep(1)
+print '''See that door on your right? It is the vertical vertical on your right, with the
+         red circle (the door hinge) and black circle (it's lock). That is your only escape.'''
+time.sleep(1)
+print    '''To open it, you must manipulate the three locks (the rectangles above, below, and
+         to your left). Their behavior is unknown! You'll know that you unlocked the door
+         when the black circle goes away'''
+time.sleep(1)
+print 'ready...'
+time.sleep(1)
+print 'set...'
+time.sleep(1)
+print 'go!'
+
+env.render()
+
+while(True):
+
+    # get action
+
+    user_input = raw_input('What would you like to do (type \'help\' for a list of actions?: ')
+
+    if user_input == 'help':
+        'You can do the following:'
+        for action in env.action_space + ['exit']:
+            print action
+    elif user_input == 'exit':
+        np.savetxt('results.csv', results, delimiter=',', fmt='%s')
+        exit()
+    elif user_input in env.action_map:
+
+        action = env.action_map[user_input]
 
         i += 1
 
@@ -91,15 +124,7 @@ while (True):
         # append post-observation entry to results list
         i += 1
         results.append(create_state_entry(obs, i))
+    else:
+        print 'whoops that is not a valid action!'
 
-    np.savetxt('results.csv', results, delimiter=',', fmt='%s')
-    exit()
 
-
-        # # fluent_statuses = [1 if obj == True for obj
-        # env.step(Action('move_end_frame', (-5, 0, 0)))
-        # env.step(Action('rest', None))
-
-    # env.step(Action('rest', None))
-    # for i in range(0, 100000):
-    #     env.step(False)
