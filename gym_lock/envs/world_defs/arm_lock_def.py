@@ -110,7 +110,6 @@ class ArmLockDef(object):
 
         self.clock = 0
         self.target_arrow = None
-        self.grasped_list = []
 
         x0 = chain.get_abs_config()
 
@@ -122,6 +121,9 @@ class ArmLockDef(object):
                                      (-world_size, world_size),
                                      (-world_size, -world_size)])
 
+        self.obj_map = dict()
+        self.grasped_list = []
+        self.fsm = MultiDoorLockFSM()
         self.__init_arm(x0)
         self._init_fsm_rep()
         self.__init_cascade_controller()
@@ -212,10 +214,17 @@ class ArmLockDef(object):
     def _init_fsm_rep(self):
         self.door, self.door_hinge, self.door_lock = self._create_door(TwoDConfig(15, 5, -np.pi/2))
 
-        self.lock1, self.lock_joint1 = self._create_lock(TwoDConfig(0, 15, 0))
-        self.lock2, self.lock_joint2 = self._create_lock(TwoDConfig(-15, 0, np.pi/2))
-        self.lock3, self.lock_joint3 = self._create_lock(TwoDConfig(0, -15, -0))
+        self.obj_map['door'] = (self.door, self.door_hinge, lambda door_hinge: abs(door_hinge.angle) > np.pi / 32)
 
+        self.locks, self.lock_joints, self.lock_tests = [], [], []
+        configs = [TwoDConfig(0, 15, 0), TwoDConfig(-15, 0, np.pi/2), TwoDConfig(0, -15, -0)]
+        for i in range(0, len(configs)):
+            lock, joint = self._create_lock(configs[i])
+            self.locks.append(lock)
+            self.lock_joints.append(joint)
+            test = lambda joint: joint.translation < -1
+            self.lock_tests.append(test)
+            self.obj_map['l{}'.format(i)] = (lock, joint, test)
 
     def _create_door(self, config, width=0.5, length=10, locked=True):
         # TODO: add relocking ability
@@ -235,8 +244,8 @@ class ArmLockDef(object):
         door_body = self.world.CreateDynamicBody(
             position=(x, y),
             angle=theta,
-            angularDamping=0.5,
-            linearDamping=0.5)
+            angularDamping=0.8,
+            linearDamping=0.8)
 
         door = door_body.CreateFixture(fixture_def)
 
@@ -248,7 +257,7 @@ class ArmLockDef(object):
             enableMotor=True,
             motorSpeed=0,
             enableLimit=False,
-            maxMotorTorque=20)
+            maxMotorTorque=500)
         
         door_lock = None
         if locked:
@@ -259,7 +268,7 @@ class ArmLockDef(object):
                 bodyB=self.ground,  # beginning of link B
                 localAnchorB=(x + delta_x, y + delta_y),
             )
-        
+
         return door, door_hinge, door_lock
             
     def _create_lock(self, config, width=0.5, length=5, lower_lim=-2, upper_lim=0):
@@ -278,7 +287,9 @@ class ArmLockDef(object):
 
         lock_body = self.world.CreateDynamicBody(
             position=(x, y),
-            angle=theta)
+            angle=theta,
+            angularDamping=0.8,
+            linearDamping=0.8)
 
         lock = lock_body.CreateFixture(fixture_def)
 
@@ -297,6 +308,24 @@ class ArmLockDef(object):
         )
 
         return lock, lock_joint
+
+    def _lock_door(self):
+        theta = self.door.body.angle
+        length = max([v[0] for v in self.door.shape.vertices])
+        x, y = self.door.body.position
+
+        delta_x = np.cos(theta) * length
+        delta_y = np.sin(theta) * length
+
+        self.door_lock = self.world.CreateWeldJoint(
+            bodyA=self.door.body,  # end of link A
+            bodyB=self.ground,  # beginning of link B
+            localAnchorB=(x + delta_x, y + delta_y),
+        )
+
+    def _unlock_door(self):
+        self.world.DestroyJoint(self.door_lock)
+        self.door_lock = None
 
     def __init_cascade_controller(self):
         pts = [c.theta for c in self.chain.get_rel_config()[1:]]
@@ -319,8 +348,10 @@ class ArmLockDef(object):
     def get_state(self):
         return {
             'END_EFFECTOR_POS': self.get_abs_config()[-1],
-            # 'LOCK_STATE': self.door_lock != None,
-            'END_EFFECTOR_FORCE' : TwoDForce(self.contact_listener.norm_force, self.contact_listener.tan_force)
+            'END_EFFECTOR_FORCE' : TwoDForce(self.contact_listener.norm_force, self.contact_listener.tan_force),
+            'AVAIL_ACTIONS' : self.fsm.actions,
+            'FSM_STATE': self.fsm.state,
+
         }
 
     def update_cascade_controller(self):
@@ -331,12 +362,37 @@ class ArmLockDef(object):
         joint_speeds = [joint.speed for joint in self.arm_joints]
         return self.vel_controller.update(joint_speeds)
 
-    # TODO: move to contact listener
     def update_state_machine(self):
-        pass
-        # if self.lock_joint.translation < -1.0 and self.door_lock:
-        #     self.world.DestroyJoint(self.door_lock)
-        #     self.door_lock = None
+
+        # execute state transitions
+
+        # check locks
+        for name, val in self.obj_map.items():
+            lock, joint, test = val
+
+            if test(joint):
+                # unlocked
+                action = 'unlock_{}'.format(name) if name != 'door' else 'open'
+                if action in self.fsm.actions:
+                    self.fsm.trigger(action)
+            else:
+                # unlock
+                action = 'lock_{}'.format(name) if name != 'door' else 'close'
+                if action in self.fsm.actions:
+                    self.fsm.trigger(action)
+
+        # check door
+
+        if not '+' in self.fsm.state.split('o')[0] and self.door_lock is not None:
+            # all locks open
+            self._unlock_door()
+        elif '+' in self.fsm.state.split('o')[0] and self.door_lock is None:
+            self._lock_door()
+
+        # if 'o+' in self.fsm.state and self.door_lock is not None:
+        #     self._unlock_door()
+        # elif 'o-' in self.fsm.state and self.door_lock is None:
+        #     self.world.CreateJoint()
 
     def set_controllers(self, setpoints):
         # make sure that angles are in [-pi, pi]
@@ -398,7 +454,9 @@ class ArmLockDef(object):
 
     def step(self, timestep, vel_iterations, pos_iterations):
         self.clock += 1
-        self.update_state_machine()
+
+        if self.clock % BOX2D_SETTINGS['STATE_MACHINE_CLK_DIV'] == 0:
+            self.update_state_machine()
 
         # update torques
         new_torque = self.update_cascade_controller()

@@ -6,20 +6,31 @@ from gym_lock.common import Action
 env = gym.make('arm_lock-v0')
 
 while (True):
-    if env.viewer.desired_config:
-        # TODO: messy interface for stepping, add adapter or simplyify
-        # TODO: add ability to move base
-        obs, rew, done, info = env.step(Action('goto', env.viewer.desired_config))
-        # TODO: abstraction
-        env.viewer.desired_config = None
-    else:
-        env.step(False)
-    # env.step(Action('push_perp', (env.world_def.lock, 2)))
-    # env.step(Action('move_end_frame', (-5, 0, 0)))
-    # # env.step(Action('rest', None))
-    # # env.step(Action('push_perp', (env.world_def.door, 4)))
-    # # env.step(Action('move_end_frame', (-10, 0, 0)))
-    # env.step(Action('pull_perp', (env.world_def.lock, 2)))
+    # if env.viewer.desired_config:
+    #     # TODO: messy interface for stepping, add adapter or simplyify
+    #     # TODO: add ability to move base
+    #     obs, rew, done, info = env.step(Action('goto', env.viewer.desired_config))
+    #     # TODO: abstraction
+    #     env.viewer.desired_config = None
+    #     print obs['FSM_STATE']
+    # else:
+    #     env.step(False)
+
+
+    obs, rew, done, info = env.step(Action('push_perp', ('l0', 4))) # unlock l0
+    print obs['FSM_STATE']
+
+    obs, rew, done, info = env.step(Action('push_perp', ('l1', 4))) # unlock l1
+    print obs['FSM_STATE']
+
+    obs, rew, done, info = env.step(Action('push_perp', ('l2', 4))) # try to unlock l2, but it doesn't budge!
+    print obs['FSM_STATE']
+
+    obs, rew, done, info = env.step(Action('pull_perp', ('l2', 4))) # try pulling l2 instead
+    print obs['FSM_STATE']
+
+    obs, rew, done, info = env.step(Action('push_perp', ('door', 4))) # open the door
+    print obs['FSM_STATE']
 
 
 

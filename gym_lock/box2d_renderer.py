@@ -70,15 +70,11 @@ class Box2DRenderer():
         self.viewer.draw_line((50, 50), (53, 53))
 
     def _draw_arrow(self, *args):
-        print args
         x, y, theta, width, length, color = args
 
         rot = b2Rot(theta)
         trans = b2Transform((x, y), rot)
-        print 'trans', trans
-        print 'theta', theta
 
-        # rot = np.array([[np.cos(theta), -np.sin(theta)], [np.sin(theta), np.cos(theta)]])
         vert = [b2Vec2((0, -width / 2)), b2Vec2((0, width / 2)), b2Vec2((length, 0))]
         trans_vert = [trans * v for v in vert]
 

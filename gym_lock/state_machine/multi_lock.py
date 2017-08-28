@@ -14,7 +14,7 @@ def cartesian_product(*lists):
 class MultiDoorLockFSM(object):
 
     lock_states = ['+', '-']
-    locks = ['l1', 'l2', 'l3']
+    locks = ['l0', 'l1', 'l2']
     door_states = ['+', '-']
     doors = ['o']
     states = []
@@ -26,14 +26,16 @@ class MultiDoorLockFSM(object):
         self.states = self._init_states()
 
         self.machine = Machine(model=self,
-                               states=MultiDoorLockFSM.states,
-                               initial='l1+l2+l3+o-')
+                               states=self.states,
+                               initial='l0+l1+l2+o-',
+                               ignore_invalid_triggers=True,
+                               auto_transitions=False)
 
         # add unlock/lock transition for every lock
         for lock in MultiDoorLockFSM.locks:
-            if lock == 'l3':
-                locked = [s for s in self.states if lock + '+' in s and 'l1-' in s and 'l2-' in s]
-                unlocked = [s for s in self.states if lock + '-' in s and 'l1-' in s and 'l2-' in s]
+            if lock == 'l2':
+                locked = [s for s in self.states if lock + '+' in s and 'l0-' in s and 'l1-' in s]
+                unlocked = [s for s in self.states if lock + '-' in s and 'l0-' in s and 'l1-' in s]
             else:
                 locked = [s for s in self.states if lock + '+' in s]
                 unlocked = [s for s in self.states if lock + '-' in s]
@@ -46,12 +48,14 @@ class MultiDoorLockFSM(object):
             self.machine.add_transition('nothing', state, state)
 
         # add door open/close transition
-        self.machine.add_transition('open', 'l1-l2-l3-o-', 'l1-l2-l3-o+')
-        self.machine.add_transition('open', 'l1-l2-l3-o+', 'l1-l2-l3-o-')
+        self.machine.add_transition('open', 'l0-l1-l2-o-', 'l0-l1-l2-o+')
+        self.machine.add_transition('close', 'l0-l1-l2-o+', 'l0-l1-l2-o-')
 
 
 
-
+    @property
+    def actions(self):
+        return self.machine.get_triggers(self.state)
 
 
     @classmethod
@@ -99,13 +103,13 @@ class MultiDoorLockFSM(object):
 #             self.add_transition('nothing', state, state, 1)
 #
 #         # add door open/close transition
-#             self.add_transition('open', 'l1-l2-l3-o-', 'l1-l2-l3-o+', MultiDoorLockMDP.door_prob)
-#             self.add_transition('open', 'l1-l2-l3-o-', 'l1-l2-l3-o-', 1 - MultiDoorLockMDP.door_prob)
+#             self.add_transition('open', 'l0-l1-l2-o-', 'l0-l1-l2-o+', MultiDoorLockMDP.door_prob)
+#             self.add_transition('open', 'l0-l1-l2-o-', 'l0-l1-l2-o-', 1 - MultiDoorLockMDP.door_prob)
 #
-#             self.add_transition('close', 'l1-l2-l3-o+', 'l1-l2-l3-o-', MultiDoorLockMDP.door_prob)
-#             self.add_transition('close', 'l1-l2-l3-o+', 'l1-l2-l3-o+', 1 - MultiDoorLockMDP.door_prob)
+#             self.add_transition('close', 'l0-l1-l2-o+', 'l0-l1-l2-o-', MultiDoorLockMDP.door_prob)
+#             self.add_transition('close', 'l0-l1-l2-o+', 'l0-l1-l2-o+', 1 - MultiDoorLockMDP.door_prob)
 #
-#         self.add_reward('l1-l2-l3-o+', 10)
+#         self.add_reward('l0-l1-l2-o+', 10)
 #
 #         self.alg = mdptoolbox.mdp.PolicyIteration(self.transitions,
 #                                                   self.rewards,
@@ -115,3 +119,4 @@ class MultiDoorLockFSM(object):
 
 if __name__ == '__main__':
     simple = MultiDoorLockFSM()
+    simple.get_graph().draw('my_state_diagram.png', prog='dot')

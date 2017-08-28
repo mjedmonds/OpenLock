@@ -21,7 +21,6 @@ class ArmLockEnv(gym.Env):
     def __init__(self):
 
         # TODO: properly define these
-        self.action_space = spaces.Discrete(5)  # up, down, left, right
         self.observation_space = spaces.Box(-np.inf, np.inf, [4])  # [x, y, vx, vy]
         self.reward_range = (-np.inf, np.inf)
         self.clock = 0
@@ -37,6 +36,11 @@ class ArmLockEnv(gym.Env):
 
         # setup Box2D world
         self.world_def = ArmLockDef(self.invkine.kinematic_chain, 1.0 / BOX2D_SETTINGS['FPS'], 30)
+
+        self.action_space = []
+        for obj, val in self.world_def.obj_map.items():
+            self.action_space.append('push_perp_{}'.format(obj))
+            self.action_space.append('pull_perp_{}'.format(obj))
 
         # setup renderer
         self.viewer = Box2DRenderer(self._action_grasp)
@@ -103,6 +107,8 @@ class ArmLockEnv(gym.Env):
                 success = self._action_move(action.params)
             elif action.name == 'move_end_frame':
                 success = self._action_move_end_frame(action.params)
+            elif action.name == 'unlock':
+                success = self._action_unlock(action.params)
             return self.world_def.get_state(), 0, False, {'success' : success}
 
     def _reset(self):
@@ -166,9 +172,9 @@ class ArmLockEnv(gym.Env):
                 self.viewer.close()
                 self.viewer = None
                 return
-        
+
         if self.viewer is None:
-            self.viewer = Box2DRenderer(self.world_def.end_effector_grasp_all)
+            self.viewer = Box2DRenderer(self._action_grasp)
 
         self.viewer.render_world(self.world_def.world, mode)
 
@@ -319,7 +325,7 @@ class ArmLockEnv(gym.Env):
 
         return True
 
-    def _action_go_to_obj(self, object):
+    def _action_go_to_obj(self, params):
         """
 
         Args:
@@ -328,6 +334,8 @@ class ArmLockEnv(gym.Env):
         Returns:
 
         """
+        object = self.world_def.obj_map[params][0]
+
         # find face facing us by raycasting from end effector to center of fixture
         end_eff = self.world_def.end_effector_fixture
         end_eff_shape = end_eff.shape
@@ -344,13 +352,15 @@ class ArmLockEnv(gym.Env):
         if hit:
             hit_point = input.p1 + output.fraction * (input.p2 - input.p1)
             normal = output.normal
-            angle = np.arctan2(normal[1], normal[0])
 
-            end_effector_offset = end_eff_shape.radius / 2.0 * normal # TODO: is this the right offset?
+            angle = np.arctan2(-normal[1], -normal[0])
+
+
+            end_effector_offset = end_eff_shape.radius / 1.1 * normal # TODO: is this the right offset?
 
             desired_config = TwoDConfig(hit_point[0] + end_effector_offset[0],
                                         hit_point[1] + end_effector_offset[1],
-                                        wrapToMinusPiToPi(np.pi - angle))
+                                        wrapToMinusPiToPi(angle))
             return self._action_go_to(desired_config)
         else:
             # path is blocked
@@ -384,16 +394,17 @@ class ArmLockEnv(gym.Env):
 
         for waypoint in waypoints:
             if not self.__update_and_converge_controllers(waypoint):
+                print 'swag'
                 return False
         
         return True
 
     def _action_pull_perp(self, params):
-        object, distance = params
-        
-        if not self._action_go_to_obj(object):
+        name, distance = params
+
+        if not self._action_go_to_obj(name):
             return False
-       
+
         if not self._action_grasp():
             return False
         
@@ -412,9 +423,9 @@ class ArmLockEnv(gym.Env):
         return True
 
     def _action_push_perp(self, params):
-        object, distance = params
+        name, distance = params
 
-        if not self._action_go_to_obj(object):
+        if not self._action_go_to_obj(name):
             return False
 
         if not self._action_move_end_frame(TwoDConfig(distance, 0, 0)):
@@ -501,6 +512,24 @@ class ArmLockEnv(gym.Env):
                                 cur_theta + delta_theta)
 
         return self._action_go_to(new_config)
+
+    # def _action_unlock(self, params):
+    #     name = params
+    #
+    #     lock, joint, _ = self.world_def.obj_map[name]
+    #     self._action_push_perp((lock, abs(joint.lowerLimit)))
+    #
+    # def _action_lock(self, params):
+    #     name = params
+    #
+    #     lock, joint, _ = self.world_def.obj_map[name]
+    #     self._action_pull_perp((lock, abs(joint.lowerLimit)))
+
+    def _action_nothing(self):
+        return True
+
+    def get_avail_actions(self):
+        return self.world_def.fsm.actions
 
 
 

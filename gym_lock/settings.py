@@ -3,7 +3,7 @@ import numpy as np
 from gym_lock.common import TwoDConfig, Color
 
 RENDER_SETTINGS = {
-    "RENDER_CLK_DIV": 10,
+    "RENDER_CLK_DIV": 25,
     "VIEWPORT_W": 800,
     "VIEWPORT_H": 800,
     "SCALE": 15.0,
@@ -29,6 +29,7 @@ BOX2D_SETTINGS = {
     "VEL_ITERS": 10,
     "POS_ITERS": 10,
     "POS_PID_CLK_DIV": 10,
+    "STATE_MACHINE_CLK_DIV" : 10,
 
     # Makes physics results more accurate (see Box2D wiki)
     "ENABLE_WARM_START": True,
