@@ -1,26 +1,27 @@
 import numpy as np
 
-from gym_lock.common import TwoDConfig
+from gym_lock.common import TwoDConfig, Color
 
 RENDER_SETTINGS = {
     "RENDER_CLK_DIV": 10,
     "VIEWPORT_W": 800,
     "VIEWPORT_H": 800,
     "SCALE": 15.0,
-    "drawStats": True,
-    "drawShapes": True,
-    "drawJoints": True,
-    "drawCoreShapes": False,
-    "drawAABBs": False,
-    "drawOBBs": False,
-    "drawPairs": False,
-    "drawContactPoints": False,
-    "maxContactPoints": 100,
-    "drawContactNormals": False,
-    "drawFPS": True,
-    "drawMenu": True,  # toggle by pressing F1
-    "drawCOMs": False,  # Centers of mass
-    "pointSize": 2.5,  # pixel radius for drawing points
+    "DRAW_SHAPES": True,
+    "DRAW_JOINTS": True,
+    "DRAW_AABB": False, # TODO
+    "DRAW_MARKERS" : True,
+    "COLORS" : {
+        'active': Color(0.5, 0.5, 0.3),
+        'static': Color(0.5, 0.9, 0.5),
+        'kinematic': Color(0.5, 0.5, 0.9),
+        'asleep': Color(0.6, 0.6, 0.6),
+        'default': Color(0.9, 0.7, 0.7),
+        'rev_joint' : Color(1.0, 0, 0),
+        'pris_joint' : Color(0.0, 1.0, 0.0),
+        'dist_joint' : Color(0.0, 0.0, 1.0),
+        'weld_joint' : Color(0, 0, 0)
+    }
 }
 
 BOX2D_SETTINGS = {

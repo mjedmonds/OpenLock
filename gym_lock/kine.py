@@ -57,6 +57,7 @@ def get_adjoint(transform):
 def discretize_path(cur, targ, step_delta):
     # calculate number of discretized steps
     delta = [t - c for t, c in zip(targ, cur)]
+    delta[-1] = wrapToMinusPiToPi(delta[-1])
 
     num_steps = max([int(abs(d / step_delta)) for d in delta])
 

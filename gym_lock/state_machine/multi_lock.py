@@ -31,11 +31,15 @@ class MultiDoorLockFSM(object):
 
         # add unlock/lock transition for every lock
         for lock in MultiDoorLockFSM.locks:
-            locked = [s for s in self.states if lock + '+' in s]
-            unlocked = [s for s in self.states if lock + '-' in s]
+            if lock == 'l3':
+                locked = [s for s in self.states if lock + '+' in s and 'l1-' in s and 'l2-' in s]
+                unlocked = [s for s in self.states if lock + '-' in s and 'l1-' in s and 'l2-' in s]
+            else:
+                locked = [s for s in self.states if lock + '+' in s]
+                unlocked = [s for s in self.states if lock + '-' in s]
             for locked_state, unlocked_state in zip(locked, unlocked):
-                self.machine.add_transition('lock_{}'.format(lock), unlocked_state, locked_state)
-                self.machine.add_transition('unlock_{}'.format(lock), locked_state, unlocked_state)
+                    self.machine.add_transition('lock_{}'.format(lock), unlocked_state, locked_state)
+                    self.machine.add_transition('unlock_{}'.format(lock), locked_state, unlocked_state)
 
         # add nothing transition
         for state in self.states:
@@ -67,47 +71,47 @@ class MultiDoorLockFSM(object):
         return cartesian_product(lock_list, door_list)
 
 
-class MultiDoorLockMDP(StateMachineMDP):
-
-    lock_prob = 0.2
-    door_prob = 0.8
-
-    def __init__(self):
-        self.fsm = MultiDoorLockFSM()
-        self.fsm.get_graph().draw('my_state_diagram.png', prog='dot')
-
-        super(MultiDoorLockMDP, self).__init__()
-
-        # add unlock/lock transition for every lock
-        for lock in MultiDoorLockFSM.locks:
-            locked = [s for s in self.fsm.states if lock + '+' in s]
-            unlocked = [s for s in self.fsm.states if lock + '-' in s]
-            for locked_state, unlocked_state in zip(locked, unlocked):
-                self.add_transition('lock_{}'.format(lock), unlocked_state, locked_state, MultiDoorLockMDP.lock_prob)
-                self.add_transition('lock_{}'.format(lock), unlocked_state, unlocked_state, 1 - MultiDoorLockMDP.lock_prob)
-
-                self.add_transition('unlock_{}'.format(lock), locked_state, unlocked_state, MultiDoorLockMDP.lock_prob)
-                self.add_transition('unlock_{}'.format(lock), locked_state, locked_state, 1 - MultiDoorLockMDP.lock_prob)
-
-        # add nothing transition
-        for state in self.fsm.states:
-            self.add_transition('nothing', state, state, 1)
-
-        # add door open/close transition
-            self.add_transition('open', 'l1-l2-l3-o-', 'l1-l2-l3-o+', MultiDoorLockMDP.door_prob)
-            self.add_transition('open', 'l1-l2-l3-o-', 'l1-l2-l3-o-', 1 - MultiDoorLockMDP.door_prob)
-
-            self.add_transition('close', 'l1-l2-l3-o+', 'l1-l2-l3-o-', MultiDoorLockMDP.door_prob)
-            self.add_transition('close', 'l1-l2-l3-o+', 'l1-l2-l3-o+', 1 - MultiDoorLockMDP.door_prob)
-
-        self.add_reward('l1-l2-l3-o+', 10)
-
-        self.alg = mdptoolbox.mdp.PolicyIteration(self.transitions,
-                                                  self.rewards,
-                                                  0.9,
-                                                  skip_check=True)
+# class MultiDoorLockMDP(StateMachineMDP):
+#
+#     lock_prob = 0.2
+#     door_prob = 0.8
+#
+#     def __init__(self):
+#         self.fsm = MultiDoorLockFSM()
+#         self.fsm.get_graph().draw('my_state_diagram.png', prog='dot')
+#         exit()
+#
+#         super(MultiDoorLockMDP, self).__init__()
+#
+#         # add unlock/lock transition for every lock
+#         for lock in MultiDoorLockFSM.locks:
+#             locked = [s for s in self.fsm.states if lock + '+' in s]
+#             unlocked = [s for s in self.fsm.states if lock + '-' in s]
+#             for locked_state, unlocked_state in zip(locked, unlocked):
+#                 self.add_transition('lock_{}'.format(lock), unlocked_state, locked_state, MultiDoorLockMDP.lock_prob)
+#                 self.add_transition('lock_{}'.format(lock), unlocked_state, unlocked_state, 1 - MultiDoorLockMDP.lock_prob)
+#
+#                 self.add_transition('unlock_{}'.format(lock), locked_state, unlocked_state, MultiDoorLockMDP.lock_prob)
+#                 self.add_transition('unlock_{}'.format(lock), locked_state, locked_state, 1 - MultiDoorLockMDP.lock_prob)
+#
+#         # add nothing transition
+#         for state in self.fsm.states:
+#             self.add_transition('nothing', state, state, 1)
+#
+#         # add door open/close transition
+#             self.add_transition('open', 'l1-l2-l3-o-', 'l1-l2-l3-o+', MultiDoorLockMDP.door_prob)
+#             self.add_transition('open', 'l1-l2-l3-o-', 'l1-l2-l3-o-', 1 - MultiDoorLockMDP.door_prob)
+#
+#             self.add_transition('close', 'l1-l2-l3-o+', 'l1-l2-l3-o-', MultiDoorLockMDP.door_prob)
+#             self.add_transition('close', 'l1-l2-l3-o+', 'l1-l2-l3-o+', 1 - MultiDoorLockMDP.door_prob)
+#
+#         self.add_reward('l1-l2-l3-o+', 10)
+#
+#         self.alg = mdptoolbox.mdp.PolicyIteration(self.transitions,
+#                                                   self.rewards,
+#                                                   0.9,
+#                                                   skip_check=True)
 
 
 if __name__ == '__main__':
-    simple = MultiDoorLockMDP()
-    simple.run()
+    simple = MultiDoorLockFSM()

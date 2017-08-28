@@ -9,20 +9,13 @@ from gym_lock.common import TwoDConfig, TwoDForce
 from gym_lock.common import wrapToMinusPiToPi
 from gym_lock.pid_central import PIDController
 from gym_lock.settings import BOX2D_SETTINGS
+from gym_lock.state_machine.multi_lock import MultiDoorLockFSM
 
 
 # TODO: cleaner interface than indices between bodies and lengths
 # TODO: cleanup initialization/reset method
-
+# TODO: no __ for class parameters
 # TODO: add state machine here
-
-# monkey patchery
-# b2WorldManifold.my_normal = property(Box2D._Box2D.b2WorldManifold_normal_get, None)
-def my_normal(self):
-    print 'my_normal'
-    return getattr(self, 'normal')
-
-b2WorldManifold.my_normal = MethodType(my_normal, None, b2WorldManifold)
 
 class ArmLockContactListener(b2ContactListener):
     def __init__(self, end_effector_fixture, timestep):
@@ -105,7 +98,6 @@ class ArmLockContactListener(b2ContactListener):
             #
             # self.__iterations += 1
 
-
 class ArmLockDef(object):
     def __init__(self, chain, timestep, world_size):
         super(ArmLockDef, self).__init__()
@@ -131,7 +123,7 @@ class ArmLockDef(object):
                                      (-world_size, -world_size)])
 
         self.__init_arm(x0)
-        self.__init_door_lock()
+        self._init_fsm_rep()
         self.__init_cascade_controller()
 
         self.contact_listener = ArmLockContactListener(self.end_effector_fixture, self.timestep)
@@ -214,83 +206,97 @@ class ArmLockDef(object):
                 localAnchorB=(-self.arm_lengths[i], 0),
                 enableMotor=True,
                 motorSpeed=0,
-                maxMotorTorque=0,
+                maxMotorTorque=50,
                 enableLimit=False))
 
-    def draw_target_arrow(self, x, y, theta):
-        if self.target_arrow:
-            self.world.DestroyBody(self.target_arrow)
-        self.target_arrow = self.world.CreateBody(position=(x, y),
-                                                  angle=theta,
-                                                  active=False,
-                                                  shapes=[b2PolygonShape(vertices=[(0, 0.25), (0, -0.25), (1, 0)])])
+    def _init_fsm_rep(self):
+        self.door, self.door_hinge, self.door_lock = self._create_door(TwoDConfig(15, 5, -np.pi/2))
 
-    def __init_door_lock(self):
+        self.lock1, self.lock_joint1 = self._create_lock(TwoDConfig(0, 15, 0))
+        self.lock2, self.lock_joint2 = self._create_lock(TwoDConfig(-15, 0, np.pi/2))
+        self.lock3, self.lock_joint3 = self._create_lock(TwoDConfig(0, -15, -0))
+
+
+    def _create_door(self, config, width=0.5, length=10, locked=True):
         # TODO: add relocking ability
         # create door
-        door_width = 0.5
-        door_length = 10
-        door_fixture = b2FixtureDef(
-            shape=b2PolygonShape(vertices=[(0, -door_width),
-                                           (0, door_width),
-                                           (door_length, door_width),
-                                           (door_length, -door_width)]),
+        x, y, theta = config
+        
+        fixture_def = b2FixtureDef(
+            shape=b2PolygonShape(vertices=[(0, -width),
+                                           (0, width),
+                                           (length, width),
+                                           (length, -width)]),
             density=1,
             friction=1.0,
             categoryBits=0x0010,
             maskBits=0x1101)
 
         door_body = self.world.CreateDynamicBody(
-            position=(15, 10),
-            angle=-np.pi / 2,
+            position=(x, y),
+            angle=theta,
             angularDamping=0.5,
             linearDamping=0.5)
 
-        self.door = door_body.CreateFixture(door_fixture)
+        door = door_body.CreateFixture(fixture_def)
 
-        self.door_hinge = self.world.CreateRevoluteJoint(
-            bodyA=self.door.body,  # end of link A
+        door_hinge = self.world.CreateRevoluteJoint(
+            bodyA=door.body,  # end of link A
             bodyB=self.ground,  # beginning of link B
             localAnchorA=(0, 0),
-            localAnchorB=(15, 10),
+            localAnchorB=(x, y),
             enableMotor=True,
             motorSpeed=0,
             enableLimit=False,
             maxMotorTorque=20)
+        
+        door_lock = None
+        if locked:
+            delta_x = np.cos(theta) * length
+            delta_y = np.sin(theta) * length
+            door_lock = self.world.CreateWeldJoint(
+                bodyA=door.body,  # end of link A
+                bodyB=self.ground,  # beginning of link B
+                localAnchorB=(x + delta_x, y + delta_y),
+            )
+        
+        return door, door_hinge, door_lock
+            
+    def _create_lock(self, config, width=0.5, length=5, lower_lim=-2, upper_lim=0):
 
-        self.door_lock = self.world.CreateWeldJoint(
-            bodyA=self.door.body,  # end of link A
-            bodyB=self.ground,  # beginning of link B
-            localAnchorB=(15, 5),
-        )
+        x, y, theta = config
 
-        lock_width = 0.5
-        lock_length = 5
-        lock_fixture = b2FixtureDef(
-            shape=b2PolygonShape(vertices=[(0, -lock_width),
-                                           (0, lock_width),
-                                           (lock_length, lock_width),
-                                           (lock_length, -lock_width)]),
+        fixture_def = b2FixtureDef(
+            shape=b2PolygonShape(vertices=[(0, -width),
+                                           (0, width),
+                                           (length, width),
+                                           (length, -width)]),
             density=1,
             friction=1.0,
             categoryBits=0x0010,
             maskBits=0x1101)
 
         lock_body = self.world.CreateDynamicBody(
-            position=(15, -5),
-            angle=-np.pi / 2)
+            position=(x, y),
+            angle=theta)
 
-        self.lock = lock_body.CreateFixture(lock_fixture)
+        lock = lock_body.CreateFixture(fixture_def)
 
-        self.lock_joint = self.world.CreatePrismaticJoint(
-            bodyA=self.lock.body,
+        joint_axis = (-np.sin(theta), np.cos(theta))
+        lock_joint = self.world.CreatePrismaticJoint(
+            bodyA=lock.body,
             bodyB=self.ground,
             anchor=(0, 0),
-            axis=(1, 0),
-            lowerTranslation=-2,
-            upperTranslation=0,
-            enableLimit=True
+            axis=joint_axis,
+            lowerTranslation=lower_lim,
+            upperTranslation=upper_lim,
+            enableLimit=True,
+            motorSpeed = 0,
+            maxMotorForce = abs(b2Dot(lock_body.massData.mass * self.world.gravity, b2Vec2(joint_axis))),
+            enableMotor = True
         )
+
+        return lock, lock_joint
 
     def __init_cascade_controller(self):
         pts = [c.theta for c in self.chain.get_rel_config()[1:]]
@@ -313,7 +319,7 @@ class ArmLockDef(object):
     def get_state(self):
         return {
             'END_EFFECTOR_POS': self.get_abs_config()[-1],
-            'LOCK_STATE': self.door_lock != None,
+            # 'LOCK_STATE': self.door_lock != None,
             'END_EFFECTOR_FORCE' : TwoDForce(self.contact_listener.norm_force, self.contact_listener.tan_force)
         }
 
@@ -327,9 +333,10 @@ class ArmLockDef(object):
 
     # TODO: move to contact listener
     def update_state_machine(self):
-        if self.lock_joint.translation < -1.0 and self.door_lock:
-            self.world.DestroyJoint(self.door_lock)
-            self.door_lock = None
+        pass
+        # if self.lock_joint.translation < -1.0 and self.door_lock:
+        #     self.world.DestroyJoint(self.door_lock)
+        #     self.door_lock = None
 
     def set_controllers(self, setpoints):
         # make sure that angles are in [-pi, pi]

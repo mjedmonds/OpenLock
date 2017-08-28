@@ -87,21 +87,23 @@ class ArmLockEnv(gym.Env):
             if self.world_def.clock % RENDER_SETTINGS['RENDER_CLK_DIV'] == 0:
                 self._render()
             return self.world_def.get_state(), 0, False, {}
-
-        elif action.name == 'goto':
-            return self._action_go_to(action.params)
-        elif action.name == 'goto_obj':
-            return self._action_go_to_obj(action.params)
-        elif action.name == 'rest':
-            return self._action_rest()
-        elif action.name == 'pull_perp':
-            return  self._action_pull_perp(action.params)
-        elif action.name == 'push_perp':
-            return self._action_push_perp(action.params)
-        elif action.name == 'move':
-            return self._action_move(action.params)
-        elif action.name == 'move_end_frame':
-            return self._action_move_end_frame(action.params)
+        else:
+            success = False
+            if action.name == 'goto':
+                success = self._action_go_to(action.params)
+            elif action.name == 'goto_obj':
+                success = self._action_go_to_obj(action.params)
+            elif action.name == 'rest':
+                success = self._action_rest()
+            elif action.name == 'pull_perp':
+                success =  self._action_pull_perp(action.params)
+            elif action.name == 'push_perp':
+                success = self._action_push_perp(action.params)
+            elif action.name == 'move':
+                success = self._action_move(action.params)
+            elif action.name == 'move_end_frame':
+                success = self._action_move_end_frame(action.params)
+            return self.world_def.get_state(), 0, False, {'success' : success}
 
     def _reset(self):
         """Resets the state of the environment and returns an initial observation.
@@ -169,8 +171,6 @@ class ArmLockEnv(gym.Env):
             self.viewer = Box2DRenderer(self.world_def.end_effector_grasp_all)
 
         self.viewer.render_world(self.world_def.world, mode)
-        #TODO returnvalue
-
 
     def _seed(self, seed=None):
         """Sets the seed for this env's random number generator(s).
@@ -190,78 +190,74 @@ class ArmLockEnv(gym.Env):
         self.np_random, seed = seeding.np_random(seed)
         return [seed]
 
-    def manual_draw(self):
-        """
-        This implements code normally present in the C++ version, which calls
-        the callbacks that you see in this class (DrawSegment, DrawSolidCircle,
-        etc.).
-
-        This is implemented in Python as an example of how to do it, and also a
-        test.
-        """
-        colors = {
-            'active': b2Color(0.5, 0.5, 0.3),
-            'static': b2Color(0.5, 0.9, 0.5),
-            'kinematic': b2Color(0.5, 0.5, 0.9),
-            'asleep': b2Color(0.6, 0.6, 0.6),
-            'default': b2Color(0.9, 0.7, 0.7),
-        }
-
-        settings = fwSettings
-        world = self.world_def.world
-
-        # if self.test.selected_shapebody:
-        #     sel_shape, sel_body = self.test.selected_shapebody
-        # else:
-        #     sel_shape = None
-
-        if settings.drawShapes:
-            for body in world.bodies:
-                transform = body.transform
-                for fixture in body.fixtures:
-                    shape = fixture.shape
-
-                    if not body.active:
-                        color = colors['active']
-                    elif body.type == b2_staticBody:
-                        color = colors['static']
-                    elif body.type == b2_kinematicBody:
-                        color = colors['kinematic']
-                    elif not body.awake:
-                        color = colors['asleep']
-                    else:
-                        color = colors['default']
-
-                    self.DrawShape(fixture, transform,
-                                   color)
-
-                    # if settings.drawJoints:
-                    #     for joint in world.joints:
-                    #         self.DrawJoint(joint)
-                    #
-                    # # if settings.drawPairs
-                    # #   pass
-                    #
-                    # if settings.drawAABBs:
-                    #     color = b2Color(0.9, 0.3, 0.9)
-                    #     # cm = world.contactManager
-                    #     for body in world.bodies:
-                    #         if not body.active:
-                    #             continue
-                    #         transform = body.transform
-                    #         for fixture in body.fixtures:
-                    #             shape = fixture.shape
-                    #             for childIndex in range(shape.childCount):
-                    #                 self.DrawAABB(shape.getAABB(
-                    #                     transform, childIndex), color)
+    # TODO por the rest of this over
+    # def manual_draw(self):
+    #     """
+    #     This implements code normally present in the C++ version, which calls
+    #     the callbacks that you see in this class (DrawSegment, DrawSolidCircle,
+    #     etc.).
+    #
+    #     This is implemented in Python as an example of how to do it, and also a
+    #     test.
+    #     """
+    #     colors = RENDER_SETTINGS['COLORS']
+    #
+    #     world = self.world_def.world
+    #
+    #     # if self.test.selected_shapebody:
+    #     #     sel_shape, sel_body = self.test.selected_shapebody
+    #     # else:
+    #     #     sel_shape = None
+    #
+    #     if RENDER_SETTINGS['DRAW_SHAPES']:
+    #         for body in world.bodies:
+    #             transform = body.transform
+    #             for fixture in body.fixtures:
+    #                 shape = fixture.shape
+    #
+    #                 if not body.active:
+    #                     color = colors['active']
+    #                 elif body.type == b2_staticBody:
+    #                     color = colors['static']
+    #                 elif body.type == b2_kinematicBody:
+    #                     color = colors['kinematic']
+    #                 elif not body.awake:
+    #                     color = colors['asleep']
+    #                 else:
+    #                     color = colors['default']
+    #
+    #                 # self.DrawShape(fixture, transform,
+    #                 #                color)
+    #
+    #                 # if settings.drawJoints:
+    #                 #     for joint in world.joints:
+    #                 #         self.DrawJoint(joint)
+    #                 #
+    #                 # # if settings.drawPairs
+    #                 # #   pass
+    #                 #
+    #                 # if settings.drawAABBs:
+    #                 #     color = b2Color(0.9, 0.3, 0.9)
+    #                 #     # cm = world.contactManager
+    #                 #     for body in world.bodies:
+    #                 #         if not body.active:
+    #                 #             continue
+    #                 #         transform = body.transform
+    #                 #         for fixture in body.fixtures:
+    #                 #             shape = fixture.shape
+    #                 #             for childIndex in range(shape.childCount):
+    #                 #                 self.DrawAABB(shape.getAABB(
+    #                 #                     transform, childIndex), color)
 
     # TODO: return states
+
     def _action_go_to(self, config):
         # get configuatin of end effector
         targ_x, targ_y, targ_theta = config
 
         # draw arrow to show target location
-        self.world_def.draw_target_arrow(targ_x, targ_y, targ_theta)
+        args = (targ_x, targ_y, targ_theta, 0.5, 1, Color(0.8, 0.8, 0.8))
+        self.viewer.markers['targ_arrow'] = ('arrow', args)
 
         # update current config
         self.invkine.kinematic_chain.update_chain(self.world_def.get_rel_config())
@@ -317,6 +313,10 @@ class ArmLockEnv(gym.Env):
                     return False
 
         # succesfully reached target config
+
+        # delete target arrow
+        del self.viewer.markers['targ_arrow']
+
         return True
 
     def _action_go_to_obj(self, object):
