@@ -89,6 +89,7 @@ while(True):
         for action in env.action_space + ['exit']:
             print action
     elif user_input == 'exit':
+        print 'saving results.csv'
         np.savetxt('results.csv', results, delimiter=',', fmt='%s')
         exit()
     elif user_input in env.action_map:
