@@ -3,8 +3,6 @@ from Box2D import *
 from Box2D import _Box2D
 from types import MethodType
 
-
-
 from gym_lock.common import TwoDConfig, TwoDForce
 from gym_lock.common import wrapToMinusPiToPi
 from gym_lock.pid_central import PIDController
@@ -66,7 +64,7 @@ class ArmLockContactListener(b2ContactListener):
 
             # checking assumtion: Every contact.points list has two points: true contact point in world coordinates
             # and (0,0), checking assumption that former is always head of list
-            assert manifold.points[0] != (0,0)
+            assert manifold.points[0] != (0, 0)
 
             # checking assumptions...cannot find documentation on how/why length of impulses
             # would be greater than 1
@@ -97,6 +95,7 @@ class ArmLockContactListener(b2ContactListener):
             # self.__total_tan_force_vector += tan_force_vector
             #
             # self.__iterations += 1
+
 
 class ArmLockDef(object):
     def __init__(self, chain, timestep, world_size):
@@ -182,11 +181,11 @@ class ArmLockDef(object):
             self.arm_lengths.append(length)
 
             link_fixture_def.shape = b2PolygonShape(vertices=[(0, -BOX2D_SETTINGS['ARM_WIDTH'] / 2),
-                                                          (-BOX2D_SETTINGS['ARM_LENGTH'],
-                                                           -BOX2D_SETTINGS['ARM_WIDTH'] / 2),
-                                                          (-BOX2D_SETTINGS['ARM_LENGTH'],
-                                                           BOX2D_SETTINGS['ARM_WIDTH'] / 2),
-                                                          (0, BOX2D_SETTINGS['ARM_WIDTH'] / 2)])
+                                                              (-BOX2D_SETTINGS['ARM_LENGTH'],
+                                                               -BOX2D_SETTINGS['ARM_WIDTH'] / 2),
+                                                              (-BOX2D_SETTINGS['ARM_LENGTH'],
+                                                               BOX2D_SETTINGS['ARM_WIDTH'] / 2),
+                                                              (0, BOX2D_SETTINGS['ARM_WIDTH'] / 2)])
             arm_body = self.world.CreateDynamicBody(
                 position=(x0[i].x, x0[i].y),
                 angle=x0[i].theta,
@@ -214,14 +213,14 @@ class ArmLockDef(object):
     def _init_fsm_rep(self):
         # TODO: better setup interface
 
-        self.door, self.door_hinge, self.door_lock = self._create_door(TwoDConfig(15, 5, -np.pi/2))
+        self.door, self.door_hinge, self.door_lock = self._create_door(TwoDConfig(15, 5, -np.pi / 2))
 
         open_test = lambda door_hinge: abs(door_hinge.angle) > np.pi / 16
         self.obj_map['door'] = [self.door, self.door_hinge, open_test, open_test]
 
-        configs = [TwoDConfig(0, 15, 0), TwoDConfig(-15, 0, np.pi/2), TwoDConfig(0, -15, -np.pi)]
+        configs = [TwoDConfig(0, 15, 0), TwoDConfig(-15, 0, np.pi / 2), TwoDConfig(0, -15, -np.pi)]
 
-        opt_params = [None, None, None]
+        opt_params = [None, None, {'lower_lim': 0.0, 'upper_lim': 2.0}]
 
         for i in range(0, len(configs)):
             if opt_params[i]:
@@ -238,15 +237,14 @@ class ArmLockDef(object):
             self.obj_map['l{}'.format(i)] = [lock, joint, int_test, ext_test]
 
         # modify l2, true iff in
-        # self.obj_map['l2'][2] = lambda joint: joint.translation > (joint.upperLimit + joint.lowerLimit) / 2.0
-        # self.obj_map['l2'][3] = lambda joint: joint.translation > (joint.upperLimit + joint.lowerLimit) / 2.0
-
+        self.obj_map['l2'][2] = lambda joint: joint.translation > (joint.upperLimit + joint.lowerLimit) / 2.0
+        self.obj_map['l2'][3] = lambda joint: joint.translation > (joint.upperLimit + joint.lowerLimit) / 2.0
 
     def _create_door(self, config, width=0.5, length=10, locked=True):
         # TODO: add relocking ability
         # create door
         x, y, theta = config
-        
+
         fixture_def = b2FixtureDef(
             shape=b2PolygonShape(vertices=[(0, -width),
                                            (0, width),
@@ -274,7 +272,7 @@ class ArmLockDef(object):
             motorSpeed=0,
             enableLimit=False,
             maxMotorTorque=500)
-        
+
         door_lock = None
         if locked:
             delta_x = np.cos(theta) * length
@@ -286,7 +284,7 @@ class ArmLockDef(object):
             )
 
         return door, door_hinge, door_lock
-            
+
     def _create_lock(self, config, width=0.5, length=5, lower_lim=-2, upper_lim=0):
         x, y, theta = config
 
@@ -317,9 +315,9 @@ class ArmLockDef(object):
             lowerTranslation=lower_lim,
             upperTranslation=upper_lim,
             enableLimit=True,
-            motorSpeed = 0,
-            maxMotorForce = abs(b2Dot(lock_body.massData.mass * self.world.gravity, b2Vec2(joint_axis))),
-            enableMotor = True
+            motorSpeed=0,
+            maxMotorForce=abs(b2Dot(lock_body.massData.mass * self.world.gravity, b2Vec2(joint_axis))),
+            enableMotor=True
         )
 
         return lock, lock_joint
@@ -367,13 +365,12 @@ class ArmLockDef(object):
 
         return {
             'END_EFFECTOR_POS': self.get_abs_config()[-1],
-            'END_EFFECTOR_FORCE' : TwoDForce(self.contact_listener.norm_force, self.contact_listener.tan_force),
+            'END_EFFECTOR_FORCE': TwoDForce(self.contact_listener.norm_force, self.contact_listener.tan_force),
             # 'DOOR_ANGLE' : self.obj_map['door'][1].angle,
             # 'LOCK_TRANSLATIONS' : {name : val[1].translation for name, val in self.obj_map.items() if name != 'door'},
-            'OBJ_STATES' : {name : val[3](val[1]) for name, val in self.obj_map.items()}, # ext state
-            'LOCK_STATE' : self.obj_map['door'][2](self.obj_map['door'][1]),
+            'OBJ_STATES': {name: val[3](val[1]) for name, val in self.obj_map.items()},  # ext state
+            'LOCK_STATE': self.obj_map['door'][2](self.obj_map['door'][1]),
             '_FSM_STATE': self.fsm.state,
-
 
         }
 
@@ -422,10 +419,10 @@ class ArmLockDef(object):
 
 
 
-        # if 'o+' in self.fsm.state and self.door_lock is not None:
-        #     self._unlock_door()
-        # elif 'o-' in self.fsm.state and self.door_lock is None:
-        #     self.world.CreateJoint()
+            # if 'o+' in self.fsm.state and self.door_lock is not None:
+            #     self._unlock_door()
+            # elif 'o-' in self.fsm.state and self.door_lock is None:
+            #     self.world.CreateJoint()
 
     def set_controllers(self, setpoints):
         # make sure that angles are in [-pi, pi]
