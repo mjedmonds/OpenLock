@@ -51,7 +51,7 @@ results.append(create_state_entry(env.reset(), i))
 
 print 'Hello! Welcome to the game!'
 
-time.sleep(1)
+#time.sleep(1)
 
 print 'This is a bomb:'
 
@@ -62,21 +62,25 @@ print '|    |'
 print ' \\  /'
 print '  --  '
 
-time.sleep(1)
+#time.sleep(1)
 print '''See that door on your right? It is the vertical vertical on your right, with the
          red circle (the door hinge) and black circle (it's lock). That is your only escape.'''
-time.sleep(1)
+#time.sleep(1)
 print    '''To open it, you must manipulate the three locks (the rectangles above, below, and
          to your left). Their behavior is unknown! You'll know that you unlocked the door
          when the black circle goes away'''
-time.sleep(1)
+#time.sleep(1)
 print 'ready...'
-time.sleep(1)
+#time.sleep(1)
 print 'set...'
-time.sleep(1)
+#time.sleep(1)
 print 'go!'
 
 env.render()
+
+obs = env.reset()
+print obs['OBJ_STATES']
+print obs['_FSM_STATE']
 
 while(True):
 
@@ -118,9 +122,9 @@ while(True):
         # take action
         obs, rew, done, info = env.step(action)
         # import time
-        # print obs['OBJ_STATES']
-        # print obs['_FSM_STATE']
-        # time.sleep(5)
+        print obs['OBJ_STATES']
+        print obs['_FSM_STATE']
+        # #time.sleep(5)
 
         # append post-observation entry to results list
         i += 1
