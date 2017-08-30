@@ -221,7 +221,7 @@ class ArmLockDef(object):
 
         configs = [TwoDConfig(0, 15, 0), TwoDConfig(-15, 0, np.pi/2), TwoDConfig(0, -15, -np.pi)]
 
-        opt_params = [None, None, {'lower_lim' : 0.0, 'upper_lim' : 2.0}]
+        opt_params = [None, None, None]
 
         for i in range(0, len(configs)):
             if opt_params[i]:
@@ -238,8 +238,8 @@ class ArmLockDef(object):
             self.obj_map['l{}'.format(i)] = [lock, joint, int_test, ext_test]
 
         # modify l2, true iff in
-        self.obj_map['l2'][2] = lambda joint: joint.translation > (joint.upperLimit + joint.lowerLimit) / 2.0
-        self.obj_map['l2'][3] = lambda joint: joint.translation > (joint.upperLimit + joint.lowerLimit) / 2.0
+        # self.obj_map['l2'][2] = lambda joint: joint.translation > (joint.upperLimit + joint.lowerLimit) / 2.0
+        # self.obj_map['l2'][3] = lambda joint: joint.translation > (joint.upperLimit + joint.lowerLimit) / 2.0
 
 
     def _create_door(self, config, width=0.5, length=10, locked=True):
