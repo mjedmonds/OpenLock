@@ -69,6 +69,12 @@ class Box2DRenderer():
             self.viewer.draw_line(screen_to_world_coord(self.arrow_start), screen_to_world_coord(self.cur_arrow_end))
         self.viewer.draw_line((50, 50), (53, 53))
 
+    def reset(self):
+        self.markers = dict()
+
+        self.cur_arrow_end = self.arrow_start = self.arrow_end = self.desired_config = None
+
+
     def _draw_arrow(self, *args):
         x, y, theta, width, length, color = args
 

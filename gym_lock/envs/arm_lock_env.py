@@ -20,37 +20,8 @@ class ArmLockEnv(gym.Env):
 
     def __init__(self):
 
-        # TODO: properly define these
-        self.observation_space = spaces.Box(-np.inf, np.inf, [4])  # [x, y, vx, vy]
-        self.reward_range = (-np.inf, np.inf)
-        self.clock = 0
-        self._seed()
-
-        # initialize inverse kinematics module with chain==target
-        self.theta0 = BOX2D_SETTINGS['INITIAL_THETA_VECTOR']
-        self.base0 = BOX2D_SETTINGS['INITIAL_BASE_CONFIG']
-        initial_config = generate_five_arm(self.theta0[0], self.theta0[1], self.theta0[2], self.theta0[3], self.theta0[4])
-        self.base = TwoDKinematicTransform(x=self.base0.x, y=self.base0.y, theta=self.base0.theta)
-        self.invkine = InverseKinematics(KinematicChain(self.base, initial_config),
-                                         KinematicChain(self.base, initial_config))
-
-        # setup Box2D world
-        self.world_def = ArmLockDef(self.invkine.kinematic_chain, 1.0 / BOX2D_SETTINGS['FPS'], 30)
-
-        self.action_space = []
-        self.action_map = dict()
-        for obj, val in self.world_def.obj_map.items():
-            push = 'push_perp_{}'.format(obj)
-            pull = 'pull_perp_{}'.format(obj)
-
-            self.action_space.append(pull)
-            self.action_space.append(push)
-
-            self.action_map[push] = Action('push_perp', (obj, 4))
-            self.action_map[pull] = Action('pull_perp', (obj, 4))
-
-        # setup renderer
-        self.viewer = Box2DRenderer(self._action_grasp)
+        self.viewer = None
+        self._reset()
 
     def __update_and_converge_controllers(self, new_theta):
         self.world_def.set_controllers(new_theta)
@@ -130,16 +101,42 @@ class ArmLockEnv(gym.Env):
         Returns: observation (object): the initial observation of the
                 space.
         """
+        # TODO: properly define these
+        self.observation_space = spaces.Box(-np.inf, np.inf, [4])  # [x, y, vx, vy]
+        self.reward_range = (-np.inf, np.inf)
+        self.clock = 0
+        self._seed()
+
         # initialize inverse kinematics module with chain==target
-        # theta0 = BOX2D_SETTINGS['INITIAL_THETA_VECTOR']
-        # base0 = BOX2D_SETTINGS['INITIAL_BASE_CONFIG']
-        # initial_config = generate_five_arm(theta0[0], theta0[1], theta0[2], theta0[3], theta0[4])
-        # self.base = TwoDKinematicTransform(x=base0.x, y=base0.y, theta=base0.theta)
-        # self.invkine = InverseKinematics(KinematicChain(self.base, initial_config),
-        #                                  KinematicChain(self.base, initial_config))
-        #
-        # # setup Box2D world
-        # self.world_def = ArmLockDef(self.invkine.kinematic_chain, 1.0 / BOX2D_SETTINGS['FPS'], 30)
+        self.theta0 = BOX2D_SETTINGS['INITIAL_THETA_VECTOR']
+        self.base0 = BOX2D_SETTINGS['INITIAL_BASE_CONFIG']
+        initial_config = generate_five_arm(self.theta0[0], self.theta0[1], self.theta0[2], self.theta0[3], self.theta0[4])
+        self.base = TwoDKinematicTransform(x=self.base0.x, y=self.base0.y, theta=self.base0.theta)
+        self.invkine = InverseKinematics(KinematicChain(self.base, initial_config),
+                                         KinematicChain(self.base, initial_config))
+
+        # setup Box2D world
+        self.world_def = ArmLockDef(self.invkine.kinematic_chain, 1.0 / BOX2D_SETTINGS['FPS'], 30)
+
+        self.action_space = []
+        self.action_map = dict()
+        for obj, val in self.world_def.obj_map.items():
+            push = 'push_perp_{}'.format(obj)
+            pull = 'pull_perp_{}'.format(obj)
+
+            self.action_space.append(pull)
+            self.action_space.append(push)
+
+            self.action_map[push] = Action('push_perp', (obj, 4))
+            self.action_map[pull] = Action('pull_perp', (obj, 4))
+
+        # setup renderer
+        if not self.viewer:
+            self.viewer = Box2DRenderer(self._action_grasp)
+
+        self.viewer.reset()
+        self._render()
+
         return self.world_def.get_state()
 
     def _render(self, mode='human', close=False):
@@ -206,8 +203,7 @@ class ArmLockEnv(gym.Env):
                         'seed'. Often, the main seed equals the provided 'seed', but
                         this won't be true if seed=None, for example.
             """
-        self.np_random, seed = seeding.np_random(seed)
-        return [seed]
+        pass
 
     # TODO por the rest of this over
     # def manual_draw(self):
