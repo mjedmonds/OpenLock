@@ -1,5 +1,5 @@
 import numpy as np
-import common as cc
+import common
 import copy
 import sys
 
@@ -51,14 +51,13 @@ class CausalPlanner:
 
         self.known_action_seqs = self.extract_reachable_states_from_demonstration(fluent_vecs, action_vecs)
 
+        # build shortest action seqs
+        self.compute_shortest_action_seqs()
+
         reachable_fluent_states = self.known_action_seqs.keys()
         unreachable_fluent_states = [x for x in range(pow(2, self.n_fluents)) if x not in reachable_fluent_states]
 
         self.possible_action_seqs = self.compute_possible_action_seqs(unreachable_fluent_states)
-
-        self.known_shortest_action_seqs = dict()
-        for known_starting_fluent in self.known_action_seqs.keys():
-            self.known_shortest_action_seqs[known_starting_fluent] = self.shortest_known_action_seq(known_starting_fluent)
 
     def shortest_known_action_seq(self, starting_action):
         known_starting_action_seqs = self.known_action_seqs[starting_action]
@@ -72,7 +71,12 @@ class CausalPlanner:
 
         return known_starting_action_seqs[shortest_idx]
 
-    def compute_possible_complete_plans(self):
+    def compute_shortest_action_seqs(self):
+        self.known_shortest_action_seqs = dict()
+        for known_starting_fluent in self.known_action_seqs.keys():
+            self.known_shortest_action_seqs[known_starting_fluent] = self.shortest_known_action_seq(known_starting_fluent)
+
+    def compute_possible_complete_action_seqs(self):
         possible_complete_plans = dict()
         for unreachable_fluent_state in self.possible_action_seqs.keys():
             possible_tuples = self.possible_action_seqs[unreachable_fluent_state]
@@ -102,7 +106,7 @@ class CausalPlanner:
         """
 
         # setup fluent space
-        fluent_space = cc.tabulate(self.fluent_labels)
+        fluent_space = common.tabulate(self.fluent_labels)
 
         # setup known action_seqs
         known_action_seqs = dict()
@@ -116,7 +120,7 @@ class CausalPlanner:
 
             prev_action_val = actions[i - 1]
 
-            lin_fluent_vec = cc.linearize_fluent_vec(fluents[i])
+            lin_fluent_vec = common.linearize_fluent_vec(fluents[i])
             action_executed = np.where(prev_action_val > 0)[0]  # find action executed at last frame
             assert (action_executed.size <= 1), "More than one action in a single frame, should be impossible"
             if action_executed.size == 1:
@@ -145,7 +149,7 @@ class CausalPlanner:
         # each key is an unreachable state, each value is a tuple between a starting (known) fluent and a list of possible action sequences
         unreachable_fluent_to_possible_action_seq = dict()
         for unreachable_fluent in unreachable_fluent_states:
-            unreachable_fluent_vec = cc.delinearize_fluent_vec(unreachable_fluent, self.n_fluents)
+            unreachable_fluent_vec = common.delinearize_fluent_vec(unreachable_fluent, self.n_fluents)
 
             # find the closest reachable fluents to unreachable fluent states
             distances, starting_fluents = self.compute_closest_fluents(unreachable_fluent_vec, self.known_action_seqs)
@@ -153,7 +157,7 @@ class CausalPlanner:
             possible_action_seqs = []
             # compute possible action_seqs using each starting reachable fluent
             for starting_fluent in starting_fluents:
-                starting_fluent_vec = cc.delinearize_fluent_vec(starting_fluent, self.n_fluents)
+                starting_fluent_vec = common.delinearize_fluent_vec(starting_fluent, self.n_fluents)
 
                 possible_action_seqs.append((starting_fluent, self.compute_perceptual_action_seq(starting_fluent_vec, unreachable_fluent_vec)))
 
@@ -203,32 +207,6 @@ class CausalPlanner:
 
         return possible_action_seqs
 
-    # XXX: this does not work, but may be useful for other future work. enumerates (most) transitions from a starting vec
-    # def compute_perceptual_action_seq_rec(self, parent_vec, target_vec, action_seq, depth, max_depth=5):
-    #
-    #     if depth >= max_depth:
-    #         return action_seq
-    #
-    #     children_action_seqs = []
-    #     # compute possible children
-    #     children_vec, transition_actions = self.compute_perceptual_transition(parent_vec)
-    #     for i in range(children_vec.shape[0]):
-    #
-    #         new_action_seq = copy.copy(action_seq)
-    #         new_action_seq.append(transition_actions[i])
-    #         if np.equal(children_vec[i], target_vec).all():
-    #             children_action_seqs.append(ActionSequence(new_action_seq))
-    #         else:
-    #             new_action_seqs = self.compute_perceptual_action_seq_rec(children_vec[i], target_vec, new_action_seq, depth+1, max_depth)
-    #             # extend the list if we already have action sequences
-    #             if isinstance(new_action_seqs[0], ActionSequence):
-    #                 children_action_seqs.extend(new_action_seqs)
-    #             # otherwise append the action sequence
-    #             else:
-    #                 children_action_seqs.append(ActionSequence(new_action_seqs))
-    #
-    #     return children_action_seqs
-
     def compute_perceptual_transition(self, fluent_vec):
         """
         computes all possible perceptual transitions from fluent_vec using perceptual model
@@ -274,7 +252,7 @@ class CausalPlanner:
         starting_fluent_vec = []
         distances = []
         for known_action_seq in known_action_seqs.keys():
-            known_fluent_vec = cc.delinearize_fluent_vec(known_action_seq, self.n_fluents)
+            known_fluent_vec = common.delinearize_fluent_vec(known_action_seq, self.n_fluents)
             dist = self.fluent_dist(unreachable_fluent_vec, known_fluent_vec)
             starting_fluent_vec.append(known_action_seq)
             distances.append(dist)
@@ -309,7 +287,7 @@ class CausalPlanner:
 def load_trial(demonstration_file, perceptual_file):
 
     data, col_labels, fluent_vecs, action_vecs, fluent_labels, action_labels = load_csv(demonstration_file)
-    perceptual_model = cc.PerceptualModel(perceptual_file)
+    perceptual_model = common.PerceptualModel(perceptual_file)
 
     #perceptual_model.pretty_print()
 

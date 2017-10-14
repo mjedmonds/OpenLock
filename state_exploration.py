@@ -2,7 +2,8 @@ import gym
 import numpy as np
 from gym_lock.envs import ArmLockEnv
 from gym_lock.common import Action
-import causality.causal_planner as causalplanner
+import causality.causal_planner
+import causality.common
 import time
 
 def create_state_entry(state, i, col_label, index_map):
@@ -22,7 +23,7 @@ def main():
     demonstration_file = data_dir + trial_name + '.csv'
     perceptual_file = data_dir + 'output_node_' + trial_name + '.mat'
 
-    causal_planner = causalplanner.load_trial(demonstration_file, perceptual_file)
+    causal_planner = causality.causal_planner.load_trial(demonstration_file, perceptual_file)
 
     # setup .csv headers
     col_label = []
@@ -60,10 +61,20 @@ def main():
     print obs['OBJ_STATES']
     print obs['_FSM_STATE']
 
-    possible_complete_plans = causal_planner.compute_possible_complete_plans()
+    causal_planner, env, results, i = explore_fluent_space(causal_planner, env, index_map, results, col_label, i)
 
-    for unreachable_fluent in possible_complete_plans.keys():
-        possible_action_seq_list = possible_complete_plans[unreachable_fluent]
+    # update the shortest paths with the computed paths
+    causal_planner.compute_shortest_action_seqs()
+
+    np.savetxt('results.csv', results, delimiter=',', fmt='%s')
+
+
+def explore_fluent_space(causal_planner, env, index_map, results, col_label, i):
+    # hypothesize possible plans to unobserved fluent
+    possible_complete_plans = causal_planner.compute_possible_complete_action_seqs()
+
+    for unobserved_fluent in possible_complete_plans.keys():
+        possible_action_seq_list = possible_complete_plans[unobserved_fluent]
 
         for possible_action_seq in possible_action_seq_list:
             for action in possible_action_seq:
@@ -86,9 +97,21 @@ def main():
 
                     # append post-observation entry to results list
                     i += 1
-                    results.append(create_state_entry(obs, i, col_label, index_map))
+                    new_state = create_state_entry(obs, i, col_label, index_map)
+                    results.append(new_state)
                 else:
                     raise ValueError('whoops that is not a valid action!')
+
+            # determine if fluent state matches the unobserved state (action sequence is a success), and save successful paths as known_paths
+            unobserved_fluent_vec = causality.common.delinearize_fluent_vec(unobserved_fluent, causal_planner.n_fluents)
+            final_fluent_vec = np.array(new_state[1:5])
+            # we reached the desired state
+            if np.array_equal(unobserved_fluent_vec, final_fluent_vec):
+                # add the action sequence to the known paths
+                if unobserved_fluent not in causal_planner.known_action_seqs.keys():
+                    causal_planner.known_action_seqs[unobserved_fluent] = [possible_action_seq]
+                else:
+                    causal_planner.known_action_seqs[unobserved_fluent].append(possible_action_seq)
 
             # reset the environment for next possible sequence
             obs = env.reset()
@@ -98,7 +121,8 @@ def main():
 
             time.sleep(1)
 
-    np.savetxt('results.csv', results, delimiter=',', fmt='%s')
+    return causal_planner, env, results, i
+
 
 def produce_row_entry(index_map, results, col_label, i, action):
     # create pre-observation entry
