@@ -160,13 +160,28 @@ class Box2DRenderer():
         elif isinstance(joint, b2RevoluteJoint):
             trans = rendering.Transform(translation=p1)
             self.viewer.draw_circle(0.5, fillied=True, color=RENDER_SETTINGS['COLORS']['rev_joint']).add_attr(trans)
-        # elif isinstance(joint, b2PrismaticJoint):
-        #     print joint
-        #     print p1, p2
-        #     print x1, x2
-        #     print 'xf1', xf1
-        #     print '2', xf2
-        #     self.viewer.draw_line(xf2 * p1, xf2 * p2, color=RENDER_SETTINGS['COLORS']['pris_joint'])
+        elif isinstance(joint, b2PrismaticJoint):
+
+            #padding = 0
+            #if type(joint.userData) is dict:
+            #    if 'plot_padding' in joint.userData:
+            #        padding = joint.userData['plot_padding']
+
+            axis = x1 - x2
+            axis.Normalize()
+
+            limits = joint.limits
+
+            
+            end1 = p2 - axis * limits[0]
+            end2 = p2 + axis * limits[1]
+
+
+            width = 0.5
+            norm = b2Vec2(-axis[1], axis[0])
+            norm.Normalize()
+            vertices = [end1 + norm * width, end1 - norm * width, end2 - norm * width, end2 + norm * width]
+            self.viewer.draw_polygon(vertices, filled=True, color=RENDER_SETTINGS['COLORS']['pris_joint'])
         elif isinstance(joint, b2WeldJoint):
             trans = rendering.Transform(translation=p2)
             self.viewer.draw_circle(0.5, fillied=True, color=RENDER_SETTINGS['COLORS']['weld_joint']).add_attr(trans)

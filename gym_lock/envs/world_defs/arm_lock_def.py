@@ -310,14 +310,18 @@ class ArmLockDef(object):
         lock_joint = self.world.CreatePrismaticJoint(
             bodyA=lock.body,
             bodyB=self.ground,
-            anchor=(0, 0),
+            #anchor=(0, 0),
+            anchor=lock.body.position,
+            #localAnchorA=lock.body.position,
+            #localAnchorB=self.ground.position,
             axis=joint_axis,
             lowerTranslation=lower_lim,
             upperTranslation=upper_lim,
             enableLimit=True,
             motorSpeed=0,
             maxMotorForce=abs(b2Dot(lock_body.massData.mass * self.world.gravity, b2Vec2(joint_axis))),
-            enableMotor=True
+            enableMotor=True,
+            userData={'plot_padding': width},
         )
 
         return lock, lock_joint
