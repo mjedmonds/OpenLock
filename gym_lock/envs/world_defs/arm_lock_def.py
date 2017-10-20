@@ -273,7 +273,7 @@ class ArmLockDef(object):
             enableLimit=False,
             maxMotorTorque=500)
 
-        door_lock = None
+        oor_lock = None
         if locked:
             delta_x = np.cos(theta) * length
             delta_y = np.sin(theta) * length
@@ -321,7 +321,9 @@ class ArmLockDef(object):
             motorSpeed=0,
             maxMotorForce=abs(b2Dot(lock_body.massData.mass * self.world.gravity, b2Vec2(joint_axis))),
             enableMotor=True,
-            userData={'plot_padding': width},
+            userData={'plot_padding': width,
+                      'joint_axis': joint_axis,
+                      'obj_type' : 'lock_joint'},
         )
 
         return lock, lock_joint

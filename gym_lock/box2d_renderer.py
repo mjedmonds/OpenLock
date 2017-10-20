@@ -94,7 +94,27 @@ class Box2DRenderer():
         self.viewer.draw_line((x - size, y + size), (x + size, y - size), color=color)
 
     def render_world(self, world, mode='human'):
+        for joint in world.joints:
+            if type(joint.userData) is dict and 'obj_type' in joint.userData and joint.userData['obj_type'] == 'lock_joint':
+                bodyA, bodyB = joint.bodyA, joint.bodyB
+                xf1, xf2 = bodyA.transform, bodyB.transform
+                x1, x2 = xf1.position, xf2.position
+                p1, p2 = joint.anchorA, joint.anchorB
+                padding = joint.userData['plot_padding']
+                width = 0.5
 
+                # plot the bounds in which body A's anchor point can move relative to B 
+                axis = joint.userData['joint_axis']
+                local_axis = joint.bodyA.GetLocalVector(axis)
+                world_axis = joint.bodyA.GetWorldVector(local_axis)
+                lower_lim, upper_lim = joint.limits
+                end1 = p2 - world_axis * (upper_lim + padding)
+                end2 = p2 - world_axis * (lower_lim - padding)
+                norm = b2Vec2(-world_axis[1], world_axis[0])
+
+
+                vertices = [end1 + norm * width, end1 - norm * width, end2 - norm * width, end2 + norm * width]
+                self.viewer.draw_polygon(vertices, filled=True, color=RENDER_SETTINGS['COLORS']['pris_joint'])
         # draw bodies
         if RENDER_SETTINGS['DRAW_SHAPES']:
             for body in world.bodies:
@@ -103,15 +123,15 @@ class Box2DRenderer():
                     shape = fixture.shape
 
                     if not body.active:
-                        color = COLORS['active']
+                        color = RENDER_SETTINGS['COLORS']['active']
                     elif body.type == b2_staticBody:
-                        color = COLORS['static']
+                        color = RENDER_SETTINGS['COLORS']['static']
                     elif body.type == b2_kinematicBody:
-                        color = COLORS['kinematic']
+                        color = RENDER_SETTINGS['COLORS']['kinematic']
                     elif not body.awake:
-                        color = COLORS['asleep']
+                        color = RENDER_SETTINGS['COLORS']['asleep']
                     else:
-                        color = COLORS['default']
+                        color = RENDER_SETTINGS['COLORS']['default']
 
                     if isinstance(fixture.shape, b2EdgeShape):
                         self.viewer.draw_line(fixture.shape.vertices[0], fixture.shape.vertices[1], color=color)
@@ -133,8 +153,8 @@ class Box2DRenderer():
         # draw markers
         if RENDER_SETTINGS['DRAW_MARKERS']:
             for _, val in self.markers.items():
-                type, args = val
-                if type == 'arrow':
+                type_, args = val
+                if type_ == 'arrow':
                     self._draw_arrow(*args)
                 # elif type == 'cross':
                 #     self._draw_cross(args)
@@ -160,28 +180,6 @@ class Box2DRenderer():
         elif isinstance(joint, b2RevoluteJoint):
             trans = rendering.Transform(translation=p1)
             self.viewer.draw_circle(0.5, fillied=True, color=RENDER_SETTINGS['COLORS']['rev_joint']).add_attr(trans)
-        elif isinstance(joint, b2PrismaticJoint):
-
-            #padding = 0
-            #if type(joint.userData) is dict:
-            #    if 'plot_padding' in joint.userData:
-            #        padding = joint.userData['plot_padding']
-
-            axis = x1 - x2
-            axis.Normalize()
-
-            limits = joint.limits
-
-            
-            end1 = p2 - axis * limits[0]
-            end2 = p2 + axis * limits[1]
-
-
-            width = 0.5
-            norm = b2Vec2(-axis[1], axis[0])
-            norm.Normalize()
-            vertices = [end1 + norm * width, end1 - norm * width, end2 - norm * width, end2 + norm * width]
-            self.viewer.draw_polygon(vertices, filled=True, color=RENDER_SETTINGS['COLORS']['pris_joint'])
         elif isinstance(joint, b2WeldJoint):
             trans = rendering.Transform(translation=p2)
             self.viewer.draw_circle(0.5, fillied=True, color=RENDER_SETTINGS['COLORS']['weld_joint']).add_attr(trans)
