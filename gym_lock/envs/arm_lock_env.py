@@ -186,7 +186,7 @@ class ArmLockEnv(gym.Env):
         if self.viewer is None:
             self.viewer = Box2DRenderer(self._action_grasp)
 
-        self.viewer.render_world(self.world_def.world, mode)
+        self.viewer.render_multiple_worlds([self.world_def.background, self.world_def.world], mode='human')
 
     def _seed(self, seed=None):
         """Sets the seed for this env's random number generator(s).

@@ -93,28 +93,33 @@ class Box2DRenderer():
         self.viewer.draw_line((x - size, y - size), (x + size, y + size), color=color)
         self.viewer.draw_line((x - size, y + size), (x + size, y - size), color=color)
 
-    def render_world(self, world, mode='human'):
-        for joint in world.joints:
-            if type(joint.userData) is dict and 'obj_type' in joint.userData and joint.userData['obj_type'] == 'lock_joint':
-                bodyA, bodyB = joint.bodyA, joint.bodyB
-                xf1, xf2 = bodyA.transform, bodyB.transform
-                x1, x2 = xf1.position, xf2.position
-                p1, p2 = joint.anchorA, joint.anchorB
-                padding = joint.userData['plot_padding']
-                width = 0.5
+    def render_multiple_worlds(self, worlds, mode='human'):
+        for world in worlds:
+            self._render_world(world, mode)
+        return self.viewer.render(return_rgb_array=mode=='rgb_array')
+    
+    def _render_world(self, world, mode):
+        #for joint in world.joints:
+        #    if type(joint.userData) is dict and 'obj_type' in joint.userData and joint.userData['obj_type'] == 'lock_joint':
+        #        bodyA, bodyB = joint.bodyA, joint.bodyB
+        #        xf1, xf2 = bodyA.transform, bodyB.transform
+        #        x1, x2 = xf1.position, xf2.position
+        #        p1, p2 = joint.anchorA, joint.anchorB
+        #        padding = joint.userData['plot_padding']
+        #        width = 0.5
 
-                # plot the bounds in which body A's anchor point can move relative to B 
-                axis = joint.userData['joint_axis']
-                local_axis = joint.bodyA.GetLocalVector(axis)
-                world_axis = joint.bodyA.GetWorldVector(local_axis)
-                lower_lim, upper_lim = joint.limits
-                end1 = p2 - world_axis * (upper_lim + padding)
-                end2 = p2 - world_axis * (lower_lim - padding)
-                norm = b2Vec2(-world_axis[1], world_axis[0])
+        #        # plot the bounds in which body A's anchor point can move relative to B 
+        #        axis = joint.userData['joint_axis']
+        #        local_axis = joint.bodyA.GetLocalVector(axis)
+        #        world_axis = joint.bodyA.GetWorldVector(local_axis)
+        #        lower_lim, upper_lim = joint.limits
+        #        end1 = p2 - world_axis * (upper_lim + padding)
+        #        end2 = p2 - world_axis * (lower_lim - padding)
+        #        norm = b2Vec2(-world_axis[1], world_axis[0])
 
 
-                vertices = [end1 + norm * width, end1 - norm * width, end2 - norm * width, end2 + norm * width]
-                self.viewer.draw_polygon(vertices, filled=True, color=RENDER_SETTINGS['COLORS']['pris_joint'])
+        #        vertices = [end1 + norm * width, end1 - norm * width, end2 - norm * width, end2 + norm * width]
+        #        self.viewer.draw_polygon(vertices, filled=True, color=RENDER_SETTINGS['COLORS']['pris_joint'])
         # draw bodies
         if RENDER_SETTINGS['DRAW_SHAPES']:
             for body in world.bodies:
@@ -159,7 +164,6 @@ class Box2DRenderer():
                 # elif type == 'cross':
                 #     self._draw_cross(args)
 
-        return self.viewer.render(return_rgb_array=mode == 'rgb_array')
 
     def __draw_joint(self, joint, color=Color(0.5, 0.8, 0.8)):
         """

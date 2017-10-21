@@ -106,6 +106,7 @@ class ArmLockDef(object):
 
         self.world = b2World(gravity=(0, -10),
                              doSleep=False)
+        self.background = b2World(gravity=(0,0), dosleep=True)
 
         self.clock = 0
         self.target_arrow = None
@@ -224,9 +225,9 @@ class ArmLockDef(object):
 
         for i in range(0, len(configs)):
             if opt_params[i]:
-                lock, joint = self._create_lock(configs[i], **opt_params[i])
+                lock, joint, track = self._create_lock(configs[i], **opt_params[i])
             else:
-                lock, joint = self._create_lock(configs[i])
+                lock, joint, track = self._create_lock(configs[i])
 
             # true iff out
             int_test = lambda joint: joint.translation < (joint.upperLimit + joint.lowerLimit) / 2.0
@@ -326,7 +327,27 @@ class ArmLockDef(object):
                       'obj_type' : 'lock_joint'},
         )
 
-        return lock, lock_joint
+        # create lock track in background
+        xf1, xf2 = lock.body.transform, self.ground.transform
+        x1, x2 = xf1.position, xf2.position
+        p1, p2 = lock_joint.anchorA, lock_joint.anchorB
+        padding = width
+        width = 0.5
+
+        # plot the bounds in which body A's anchor point can move relative to B 
+        local_axis = lock_body.GetLocalVector(joint_axis)
+        world_axis = lock_body.GetWorldVector(local_axis)
+        lower_lim, upper_lim = lock_joint.limits
+        end1 = -world_axis * (upper_lim + padding)
+        end2 = -world_axis * (lower_lim - padding)
+        norm = b2Vec2(-world_axis[1], world_axis[0])
+        vertices = [end1 + norm * width, end1 - norm * width, end2 - norm * width, end2 + norm * width]
+        lock_track_body = self.background.CreateStaticBody(position=p2, 
+                active=False,
+                shapes=b2PolygonShape(vertices=vertices))
+
+
+        return lock, lock_joint, lock_track_body
 
     def _lock_door(self):
         theta = self.door.body.angle
