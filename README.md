@@ -7,7 +7,9 @@ To install:
 2. Make sure you meet all the pre-requisites specified in the `setup.py` file.
    Specifically, make sure you install pybox2d from source (https://github.com/pybox2d/pybox2d/blob/master/INSTALL.md)
 
-2. Inside the gym-lock folder: `python setup.py install`
+3. Inside the gym-lock folder: `python setup.py install`
+
+4. You may run into problems with graphviz and future modules. Make sure before you run the previous setup step to `sudo apt-get graphviz-dev` and `sudo apt-get graphviz`, and if you run into "ImportError: No module named 'future'", run `pip install future`.
 
 To run:
 
