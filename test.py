@@ -1,17 +1,19 @@
 import gym
+import signal
 import numpy as np
 from gym_lock.envs import ArmLockEnv
 from gym_lock.common import Action
 import time
 
-def create_state_entry(state, i):
-    entry = [0] * len(col_label)
-    entry[0] = i
-    for name, val in state['OBJ_STATES'].items():
-        entry[index_map[name]] = int(val)
-    return entry
 
 env = gym.make('arm_lock-v0')
+
+def exit_handler(signum, frame):
+   print 'saving results.csv'
+   np.savetxt('results.csv', env.results, delimiter=',', fmt='%s')
+   exit()
+
+signal.signal(signal.SIGINT, exit_handler)
 
 action_script = [Action('push_perp', ('l2', 4)),    # try to unlock l2, but it doesn't budge!
                  Action('pull_perp', ('l2', 4)),    # try pulling l2 instead, still won't budge
@@ -32,22 +34,6 @@ action_script = [Action('push_perp', ('l2', 4)),    # try to unlock l2, but it d
                  Action('pull_perp', ('l0', 4))]    # re-lock l0
 
 
-# setup .csv headers
-col_label = []
-col_label.append('frame')
-for col_name in env.world_def.get_state()['OBJ_STATES']:
-    col_label.append(col_name)
-col_label.append('agent')
-for col_name in env.action_space:
-    col_label.append(col_name)
-
-index_map = {name : idx for idx, name in enumerate(col_label)}
-results = [col_label]
-
-i = 0
-
-# append initial observation
-results.append(create_state_entry(env.reset(), i))
 
 print 'Hello! Welcome to the game!'
 
@@ -83,53 +69,5 @@ print obs['OBJ_STATES']
 print obs['_FSM_STATE']
 
 while(True):
-
-    # get action
-
-    user_input = raw_input('What would you like to do (type \'help\' for a list of actions?: ')
-
-    if user_input == 'help':
-        'You can do the following:'
-        for action in env.action_space + ['exit']:
-            print action
-    elif user_input == 'exit':
-        print 'saving results.csv'
-        np.savetxt('results.csv', results, delimiter=',', fmt='%s')
-        exit()
-    elif user_input in env.action_map:
-
-        action = env.action_map[user_input]
-
-        i += 1
-
-        # create pre-observation entry
-        entry = [0] * len(col_label)
-        entry[0] = i
-        # copy over previous state
-        entry[1:index_map['agent']] = results[-1][1:index_map['agent']]
-
-        # mark action idx
-        if type(action.params[0]) is str:
-            col = '{}_{}'.format(action.name, action.params[0])
-        else:
-            col = action.name
-
-        entry[index_map[col]] = 1
-
-        # append pre-observation entry
-        results.append(entry)
-
-        # take action
-        obs, rew, done, info = env.step(action)
-        # import time
-        print obs['OBJ_STATES']
-        print obs['_FSM_STATE']
-        # #time.sleep(5)
-
-        # append post-observation entry to results list
-        i += 1
-        results.append(create_state_entry(obs, i))
-    else:
-        print 'whoops that is not a valid action!'
-
+    env.render()
 

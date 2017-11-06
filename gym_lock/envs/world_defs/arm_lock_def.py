@@ -15,6 +15,19 @@ from gym_lock.state_machine.multi_lock import MultiDoorLockFSM
 # TODO: no __ for class parameters
 # TODO: add state machine here
 
+class Clickable(object):
+
+    def __init__(self, test, callback, args):
+        self.test = test
+        self.callback = callback
+        self.args = args
+
+    def test_region(self, world_xy):
+        return self.test(world_xy)
+
+    def call(self):
+        return self.callback(*args)
+
 class ArmLockContactListener(b2ContactListener):
     def __init__(self, end_effector_fixture, timestep):
         b2ContactListener.__init__(self)
@@ -225,9 +238,9 @@ class ArmLockDef(object):
 
         for i in range(0, len(configs)):
             if opt_params[i]:
-                lock, joint, track = self._create_lock(configs[i], **opt_params[i])
+                lock, joint, outer_track, inner_track = self._create_lock(configs[i], **opt_params[i])
             else:
-                lock, joint, track = self._create_lock(configs[i])
+                lock, joint, outer_track, inner_track = self._create_lock(configs[i])
 
             # true iff out
             int_test = lambda joint: joint.translation < (joint.upperLimit + joint.lowerLimit) / 2.0
@@ -235,7 +248,7 @@ class ArmLockDef(object):
             # true iff in
             ext_test = lambda joint: joint.translation > (joint.upperLimit + joint.lowerLimit) / 2.0
 
-            self.obj_map['l{}'.format(i)] = [lock, joint, int_test, ext_test]
+            self.obj_map['l{}'.format(i)] = [lock, joint, int_test, ext_test, outer_track, inner_track]
 
         # modify l2, true iff in
         self.obj_map['l2'][2] = lambda joint: joint.translation > (joint.upperLimit + joint.lowerLimit) / 2.0
@@ -338,16 +351,26 @@ class ArmLockDef(object):
         local_axis = lock_body.GetLocalVector(joint_axis)
         world_axis = lock_body.GetWorldVector(local_axis)
         lower_lim, upper_lim = lock_joint.limits
+        middle_lim = (upper_lim + lower_lim) / 2.0
         end1 = -world_axis * (upper_lim + padding)
+        middle = -world_axis * middle_lim
         end2 = -world_axis * (lower_lim - padding)
         norm = b2Vec2(-world_axis[1], world_axis[0])
-        vertices = [end1 + norm * width, end1 - norm * width, end2 - norm * width, end2 + norm * width]
-        lock_track_body = self.background.CreateStaticBody(position=p2, 
+
+        inner_vertices = [end1 + norm * width, end1 - norm * width, middle - norm * width, middle + norm * width]
+        outer_vertices = [middle - norm * width, middle + norm * width, end2 - norm * width, end2 + norm * width]
+
+        inner_lock_track_body = self.background.CreateStaticBody(position=p2, 
                 active=False,
-                shapes=b2PolygonShape(vertices=vertices))
+                shapes=b2PolygonShape(vertices=inner_vertices))
 
+        outer_lock_track_body = self.background.CreateStaticBody(position=p2, 
+                active=False,
+                shapes=b2PolygonShape(vertices=outer_vertices))
+        trans = b2Transform()
+        trans.SetIdentity()
 
-        return lock, lock_joint, lock_track_body
+        return lock, lock_joint, outer_lock_track_body, inner_lock_track_body
 
     def _lock_door(self):
         theta = self.door.body.angle
@@ -415,7 +438,7 @@ class ArmLockDef(object):
 
         # check locks
         for name, val in self.obj_map.items():
-            lock, joint, test, _ = val
+            lock, joint, test = val[0:3]
 
             if test(joint):
                 # unlocked
@@ -437,7 +460,7 @@ class ArmLockDef(object):
             self._lock_door()
 
         if 'l0-l1-' in self.fsm.state:
-            lock, joint, _, _ = self.obj_map['l2']
+            lock, joint = self.obj_map['l2'][0:2]
             joint_axis = (-np.sin(lock.body.angle), np.cos(lock.body.angle))
             joint.maxMotorForce = abs(b2Dot(lock.body.massData.mass * self.world.gravity, b2Vec2(joint_axis)))
         else:

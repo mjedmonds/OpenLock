@@ -8,6 +8,7 @@ from gym_lock.common import Color, TwoDConfig
 from gym_lock.kine import TwoDKinematicTransform
 from gym_lock.settings import RENDER_SETTINGS
 
+
 COLORS = {
     'active': Color(0.5, 0.5, 0.3),
     'static': Color(0.5, 0.9, 0.5),
@@ -26,6 +27,20 @@ def screen_to_world_coord(xy):
     y_world = (xy[1] - VIEWPORT_H / 2) / (SCALE / 2.0)
     return (x_world, y_world)
 
+class Clickable(object):
+
+    def __init__(self, test, callback, callback_args=[], test_args=[]):
+        self.test = test
+        self.callback = callback
+        self.callback_args = callback_args
+        self.test_args = test_args
+
+    def test_region(self, world_xy):
+        return self.test(world_xy, *self.test_args)
+
+    def call(self):
+        return self.callback(*self.callback_args)
+
 
 class Box2DRenderer():
     def __init__(self, enter_key_callback):
@@ -41,14 +56,34 @@ class Box2DRenderer():
 
         self.cur_arrow_end = self.arrow_start = self.arrow_end = self.desired_config = None
 
+        # TODO: registry decorator
+        self.on_mouse_press_callbacks, self.on_mouse_release_callbacks = {self._detect_region_click}, {}
+        self.clickable_regions = set()
+
+    def register_clickable_region(self, clickable_region):
+        self.clickable_regions.add(clickable_region)
+
     def close(self):
         self.viewer.close()
 
     # event callbacks
     def on_mouse_press(self, x, y, button, modifiers):
-        self.arrow_start = (x, y)
+        for callback in self.on_mouse_press_callbacks:
+            callback(x, y, button, modifiers)
 
     def on_mouse_release(self, x, y, button, modifiers):
+        for callback in self.on_mouse_release_callbacks:
+            callback(x, y, button, modifiers)
+
+    def _detect_region_click(self, x, y, button, modifiers):
+        for clickable_region in self.clickable_regions:
+            if clickable_region.test_region(screen_to_world_coord((x, y))):
+                clickable_region.call()
+
+    def _set_config_on_mouse_press(self, x, y, button, modifiers):
+        self.arrow_start = (x, y)
+
+    def _set_config_on_mouse_release(self, x, y, button, modifiers):
         self.arrow_end = (x, y)
         # compute arrow
         theta = np.arctan2(self.arrow_end[1] - self.arrow_start[1], self.arrow_end[0] - self.arrow_start[0])
