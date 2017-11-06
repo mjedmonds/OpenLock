@@ -8,6 +8,7 @@ from gym_lock.common import Color, TwoDConfig
 from gym_lock.kine import TwoDKinematicTransform
 from gym_lock.settings import RENDER_SETTINGS
 
+
 COLORS = {
     'active': Color(0.5, 0.5, 0.3),
     'static': Color(0.5, 0.9, 0.5),
@@ -26,6 +27,20 @@ def screen_to_world_coord(xy):
     y_world = (xy[1] - VIEWPORT_H / 2) / (SCALE / 2.0)
     return (x_world, y_world)
 
+class Clickable(object):
+
+    def __init__(self, test, callback, callback_args=[], test_args=[]):
+        self.test = test
+        self.callback = callback
+        self.callback_args = callback_args
+        self.test_args = test_args
+
+    def test_region(self, world_xy):
+        return self.test(world_xy, *self.test_args)
+
+    def call(self):
+        return self.callback(*self.callback_args)
+
 
 class Box2DRenderer():
     def __init__(self, enter_key_callback):
@@ -41,14 +56,34 @@ class Box2DRenderer():
 
         self.cur_arrow_end = self.arrow_start = self.arrow_end = self.desired_config = None
 
+        # TODO: registry decorator
+        self.on_mouse_press_callbacks, self.on_mouse_release_callbacks = {self._detect_region_click}, {}
+        self.clickable_regions = set()
+
+    def register_clickable_region(self, clickable_region):
+        self.clickable_regions.add(clickable_region)
+
     def close(self):
         self.viewer.close()
 
     # event callbacks
     def on_mouse_press(self, x, y, button, modifiers):
-        self.arrow_start = (x, y)
+        for callback in self.on_mouse_press_callbacks:
+            callback(x, y, button, modifiers)
 
     def on_mouse_release(self, x, y, button, modifiers):
+        for callback in self.on_mouse_release_callbacks:
+            callback(x, y, button, modifiers)
+
+    def _detect_region_click(self, x, y, button, modifiers):
+        for clickable_region in self.clickable_regions:
+            if clickable_region.test_region(screen_to_world_coord((x, y))):
+                clickable_region.call()
+
+    def _set_config_on_mouse_press(self, x, y, button, modifiers):
+        self.arrow_start = (x, y)
+
+    def _set_config_on_mouse_release(self, x, y, button, modifiers):
         self.arrow_end = (x, y)
         # compute arrow
         theta = np.arctan2(self.arrow_end[1] - self.arrow_start[1], self.arrow_end[0] - self.arrow_start[0])
@@ -93,28 +128,33 @@ class Box2DRenderer():
         self.viewer.draw_line((x - size, y - size), (x + size, y + size), color=color)
         self.viewer.draw_line((x - size, y + size), (x + size, y - size), color=color)
 
-    def render_world(self, world, mode='human'):
-        for joint in world.joints:
-            if type(joint.userData) is dict and 'obj_type' in joint.userData and joint.userData['obj_type'] == 'lock_joint':
-                bodyA, bodyB = joint.bodyA, joint.bodyB
-                xf1, xf2 = bodyA.transform, bodyB.transform
-                x1, x2 = xf1.position, xf2.position
-                p1, p2 = joint.anchorA, joint.anchorB
-                padding = joint.userData['plot_padding']
-                width = 0.5
+    def render_multiple_worlds(self, worlds, mode='human'):
+        for world in worlds:
+            self._render_world(world, mode)
+        return self.viewer.render(return_rgb_array=mode=='rgb_array')
+    
+    def _render_world(self, world, mode):
+        #for joint in world.joints:
+        #    if type(joint.userData) is dict and 'obj_type' in joint.userData and joint.userData['obj_type'] == 'lock_joint':
+        #        bodyA, bodyB = joint.bodyA, joint.bodyB
+        #        xf1, xf2 = bodyA.transform, bodyB.transform
+        #        x1, x2 = xf1.position, xf2.position
+        #        p1, p2 = joint.anchorA, joint.anchorB
+        #        padding = joint.userData['plot_padding']
+        #        width = 0.5
 
-                # plot the bounds in which body A's anchor point can move relative to B 
-                axis = joint.userData['joint_axis']
-                local_axis = joint.bodyA.GetLocalVector(axis)
-                world_axis = joint.bodyA.GetWorldVector(local_axis)
-                lower_lim, upper_lim = joint.limits
-                end1 = p2 - world_axis * (upper_lim + padding)
-                end2 = p2 - world_axis * (lower_lim - padding)
-                norm = b2Vec2(-world_axis[1], world_axis[0])
+        #        # plot the bounds in which body A's anchor point can move relative to B 
+        #        axis = joint.userData['joint_axis']
+        #        local_axis = joint.bodyA.GetLocalVector(axis)
+        #        world_axis = joint.bodyA.GetWorldVector(local_axis)
+        #        lower_lim, upper_lim = joint.limits
+        #        end1 = p2 - world_axis * (upper_lim + padding)
+        #        end2 = p2 - world_axis * (lower_lim - padding)
+        #        norm = b2Vec2(-world_axis[1], world_axis[0])
 
 
-                vertices = [end1 + norm * width, end1 - norm * width, end2 - norm * width, end2 + norm * width]
-                self.viewer.draw_polygon(vertices, filled=True, color=RENDER_SETTINGS['COLORS']['pris_joint'])
+        #        vertices = [end1 + norm * width, end1 - norm * width, end2 - norm * width, end2 + norm * width]
+        #        self.viewer.draw_polygon(vertices, filled=True, color=RENDER_SETTINGS['COLORS']['pris_joint'])
         # draw bodies
         if RENDER_SETTINGS['DRAW_SHAPES']:
             for body in world.bodies:
@@ -159,7 +199,6 @@ class Box2DRenderer():
                 # elif type == 'cross':
                 #     self._draw_cross(args)
 
-        return self.viewer.render(return_rgb_array=mode == 'rgb_array')
 
     def __draw_joint(self, joint, color=Color(0.5, 0.8, 0.8)):
         """

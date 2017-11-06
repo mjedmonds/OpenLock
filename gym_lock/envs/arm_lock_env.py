@@ -1,9 +1,10 @@
 import gym
+from shapely.geometry import Polygon, Point
 from Box2D import b2Color, b2_kinematicBody, b2_staticBody, b2RayCastInput, b2Transform, b2Shape, b2Distance
 from gym import spaces
 from gym.utils import seeding
 
-from gym_lock.box2d_renderer import Box2DRenderer
+from gym_lock.box2d_renderer import Box2DRenderer, Clickable
 from gym_lock.common import *
 from gym_lock.envs.world_defs.arm_lock_def import ArmLockDef, b2RayCastOutput
 from gym_lock.kine import KinematicChain, discretize_path, InverseKinematics, generate_five_arm, \
@@ -14,6 +15,8 @@ from gym_lock.settings import RENDER_SETTINGS, BOX2D_SETTINGS, ENV_SETTINGS
 # TODO: add ability to move base
 # TODO: more physically plausible units?
 
+
+
 class ArmLockEnv(gym.Env):
     # Set this in SOME subclasses
     metadata = {'render.modes': ['human']}  # TODO what does this do?
@@ -21,7 +24,40 @@ class ArmLockEnv(gym.Env):
     def __init__(self):
 
         self.viewer = None
-        self._reset()
+
+        init_obs = self._reset()
+
+        # setup .csv headers
+        self.col_label = []
+        self.col_label.append('frame')
+        for col_name in self.world_def.get_state()['OBJ_STATES']:
+            self.col_label.append(col_name)
+        self.col_label.append('agent')
+        for col_name in self.action_space:
+            self.col_label.append(col_name)
+        
+        self.index_map = {name : idx for idx, name in enumerate(self.col_label)}
+        self.results = [self.col_label]
+        
+        self.i = 0
+
+        # append initial observation
+        self.results.append(self.create_state_entry(init_obs, self.i))
+
+    def create_state_entry(state, i):
+        entry = [0] * len(self.col_label)
+        entry[0] = i
+        for name, val in state['OBJ_STATES'].items():
+            entry[index_map[name]] = int(val)
+        return entry
+
+    def create_state_entry(self, state, i):
+        entry = [0] * len(self.col_label)
+        entry[0] = i
+        for name, val in state['OBJ_STATES'].items():
+            entry[self.index_map[name]] = int(val)
+
+        return entry
 
     def __update_and_converge_controllers(self, new_theta):
         self.world_def.set_controllers(new_theta)
@@ -73,6 +109,24 @@ class ArmLockEnv(gym.Env):
             state['SUCCESS'] = False
             return state, 0, False, {}
         else:
+            self.i += 1
+            # create pre-observation entry
+            entry = [0] * len(self.col_label)
+            entry[0] = self.i
+            # copy over previous state
+            entry[1:self.index_map['agent']] = self.results[-1][1:self.index_map['agent']]
+
+            # mark action idx
+            if type(action.params[0]) is str:
+                col = '{}_{}'.format(action.name, action.params[0])
+            else:
+                col = action.name
+
+            entry[self.index_map[col]] = 1
+
+            # append pre-observation entry
+            self.results.append(entry)
+
             success = False
             if action.name == 'goto':
                 success = self._action_go_to(action.params)
@@ -93,6 +147,10 @@ class ArmLockEnv(gym.Env):
 
             state = self.world_def.get_state()
             state['SUCCESS'] = success
+            self.i += 1
+            print state['OBJ_STATES']
+            print state['_FSM_STATE']
+            self.results.append(self.create_state_entry(state, self.i))
             return state, 0, False, {}
 
     def _reset(self):
@@ -133,6 +191,38 @@ class ArmLockEnv(gym.Env):
         # setup renderer
         if not self.viewer:
             self.viewer = Box2DRenderer(self._action_grasp)
+            # register clickable regions
+            print 'register?'
+            for b2_object_name, b2_object_data in self.world_def.obj_map.items():
+                if b2_object_name in {'l1', 'l2', 'l0'}:
+                    inner_body = b2_object_data[5]
+                    outer_body = b2_object_data[4]
+
+                    inner_vertices = [inner_body.GetWorldPoint(vertex) for vertex in inner_body.fixtures[0].shape.vertices]
+                    inner_poly = Polygon(inner_vertices)
+                    outer_vertices = [outer_body.GetWorldPoint(vertex) for vertex in outer_body.fixtures[0].shape.vertices]
+                    outer_poly = Polygon(outer_vertices)
+
+                    push = 'push_perp_{}'.format(b2_object_name)
+                    pull = 'pull_perp_{}'.format(b2_object_name)
+
+                    inner_clickable = Clickable(lambda xy, poly: poly.contains(Point(xy)), self._step, callback_args=[self.action_map[pull]], test_args=[inner_poly])
+                    outer_clickable = Clickable(lambda xy, poly: poly.contains(Point(xy)), self._step, callback_args=[self.action_map[push]], test_args=[outer_poly])
+
+                    self.viewer.register_clickable_region(inner_clickable)
+                    self.viewer.register_clickable_region(outer_clickable)
+                elif b2_object_name == 'door':
+                    door = b2_object_data[0]
+
+                    vertices = [door.body.GetWorldPoint(vertex) for vertex in door.shape.vertices]
+                    poly = Polygon(vertices)
+
+                    push = 'push_perp_door'
+
+                    clickable = Clickable(lambda xy, poly: poly.contains(Point(xy)), self._step, callback_args=[self.action_map[push]], test_args=[poly])
+
+                    self.viewer.register_clickable_region(clickable)
+
 
         self.viewer.reset()
         self._render()
@@ -177,16 +267,22 @@ class ArmLockEnv(gym.Env):
                         else:
                                 super(MyEnv, self).render(mode=mode) # just raise an exception
         """
+
+        def printer(x):
+            print x
         if close:
             if self.viewer is not None:
                 self.viewer.close()
                 self.viewer = None
                 return
 
-        if self.viewer is None:
-            self.viewer = Box2DRenderer(self._action_grasp)
+#        if self.viewer is None:
+#            print 'legglo'
+#            self.viewer = Box2DRenderer(self._action_grasp)
+            
 
-        self.viewer.render_world(self.world_def.world, mode)
+
+        self.viewer.render_multiple_worlds([self.world_def.background, self.world_def.world], mode='human')
 
     def _seed(self, seed=None):
         """Sets the seed for this env's random number generator(s).
