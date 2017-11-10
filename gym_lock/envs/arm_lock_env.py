@@ -211,16 +211,19 @@ class ArmLockEnv(gym.Env):
 
                     self.viewer.register_clickable_region(inner_clickable)
                     self.viewer.register_clickable_region(outer_clickable)
-                elif b2_object_name == 'door':
-                    door = b2_object_data[0]
-
+                elif b2_object_name == 'door_right_button':
+                    door = b2_object_data
                     vertices = [door.body.GetWorldPoint(vertex) for vertex in door.shape.vertices]
                     poly = Polygon(vertices)
-
                     push = 'push_perp_door'
-
                     clickable = Clickable(lambda xy, poly: poly.contains(Point(xy)), self._step, callback_args=[self.action_map[push]], test_args=[poly])
-
+                    self.viewer.register_clickable_region(clickable)
+                elif b2_object_name == 'door_left_button':
+                    door = b2_object_data
+                    vertices = [door.body.GetWorldPoint(vertex) for vertex in door.shape.vertices]
+                    poly = Polygon(vertices)
+                    push = 'pull_perp_door'
+                    clickable = Clickable(lambda xy, poly: poly.contains(Point(xy)), self._step, callback_args=[self.action_map[push]], test_args=[poly])
                     self.viewer.register_clickable_region(clickable)
 
 

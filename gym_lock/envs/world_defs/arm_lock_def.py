@@ -287,7 +287,20 @@ class ArmLockDef(object):
             enableLimit=False,
             maxMotorTorque=500)
 
-        oor_lock = None
+        door_right_button = self.world.CreateStaticBody(
+            position=(x + 3, y + 5),
+            angle=theta,
+            shapes=b2PolygonShape(box=(1.5, 1.5))
+        )
+        self.obj_map['door_right_button']=door_right_button.fixtures[0]
+        door_left_button = self.world.CreateStaticBody(
+            position=(x - 3, y + 5),
+            angle=theta,
+            shapes=b2PolygonShape(box=(1.5, 1.5))
+        )
+        self.obj_map['door_left_button']=door_left_button.fixtures[0]
+
+        door_lock = None
         if locked:
             delta_x = np.cos(theta) * length
             delta_y = np.sin(theta) * length
@@ -418,7 +431,7 @@ class ArmLockDef(object):
             'END_EFFECTOR_FORCE': TwoDForce(self.contact_listener.norm_force, self.contact_listener.tan_force),
             # 'DOOR_ANGLE' : self.obj_map['door'][1].angle,
             # 'LOCK_TRANSLATIONS' : {name : val[1].translation for name, val in self.obj_map.items() if name != 'door'},
-            'OBJ_STATES': {name: val[3](val[1]) for name, val in self.obj_map.items()},  # ext state
+            'OBJ_STATES': {name: val[3](val[1]) for name, val in self.obj_map.items() if 'button' not in name},  # ext state
             'LOCK_STATE': self.obj_map['door'][2](self.obj_map['door'][1]),
             '_FSM_STATE': self.fsm.state,
 
@@ -438,18 +451,19 @@ class ArmLockDef(object):
 
         # check locks
         for name, val in self.obj_map.items():
-            lock, joint, test = val[0:3]
+            if 'button' not in name:
+                lock, joint, test = val[0:3]
 
-            if test(joint):
-                # unlocked
-                action = 'unlock_{}'.format(name) if name != 'door' else 'open'
-                if action in self.fsm.actions:
-                    self.fsm.trigger(action)
-            else:
-                # unlock
-                action = 'lock_{}'.format(name) if name != 'door' else 'close'
-                if action in self.fsm.actions:
-                    self.fsm.trigger(action)
+                if test(joint):
+                    # unlocked
+                    action = 'unlock_{}'.format(name) if name != 'door' else 'open'
+                    if action in self.fsm.actions:
+                        self.fsm.trigger(action)
+                else:
+                    # unlock
+                    action = 'lock_{}'.format(name) if name != 'door' else 'close'
+                    if action in self.fsm.actions:
+                        self.fsm.trigger(action)
 
         # check door
 
