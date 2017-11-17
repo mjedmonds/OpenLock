@@ -4,7 +4,7 @@ from Box2D import b2Color, b2_kinematicBody, b2_staticBody, b2RayCastInput, b2Tr
 from gym import spaces
 from gym.utils import seeding
 
-from gym_lock.box2d_renderer import Box2DRenderer, Clickable
+from gym_lock.box2d_renderer import Box2DRenderer
 from gym_lock.common import *
 from gym_lock.envs.world_defs.arm_lock_def import ArmLockDef, b2RayCastOutput
 from gym_lock.kine import KinematicChain, discretize_path, InverseKinematics, generate_five_arm, \
@@ -195,22 +195,12 @@ class ArmLockEnv(gym.Env):
             print 'register?'
             for b2_object_name, b2_object_data in self.world_def.obj_map.items():
                 if b2_object_name in {'l1', 'l2', 'l0'}:
-                    inner_body = b2_object_data[5]
-                    outer_body = b2_object_data[4]
+                    lock = b2_object_data
 
-                    inner_vertices = [inner_body.GetWorldPoint(vertex) for vertex in inner_body.fixtures[0].shape.vertices]
-                    inner_poly = Polygon(inner_vertices)
-                    outer_vertices = [outer_body.GetWorldPoint(vertex) for vertex in outer_body.fixtures[0].shape.vertices]
-                    outer_poly = Polygon(outer_vertices)
+                    lock.create_clickable(self._step, self.action_map)
+                    self.viewer.register_clickable_region(lock.inner_clickable)
+                    self.viewer.register_clickable_region(lock.outer_clickable)
 
-                    push = 'push_perp_{}'.format(b2_object_name)
-                    pull = 'pull_perp_{}'.format(b2_object_name)
-
-                    inner_clickable = Clickable(lambda xy, poly: poly.contains(Point(xy)), self._step, callback_args=[self.action_map[pull]], test_args=[inner_poly])
-                    outer_clickable = Clickable(lambda xy, poly: poly.contains(Point(xy)), self._step, callback_args=[self.action_map[push]], test_args=[outer_poly])
-
-                    self.viewer.register_clickable_region(inner_clickable)
-                    self.viewer.register_clickable_region(outer_clickable)
                 elif b2_object_name == 'door_right_button':
                     door = b2_object_data
                     vertices = [door.body.GetWorldPoint(vertex) for vertex in door.shape.vertices]
@@ -443,7 +433,7 @@ class ArmLockEnv(gym.Env):
         Returns:
 
         """
-        object = self.world_def.obj_map[params][0]
+        object = self.world_def.obj_map[params].fixture
 
         # find face facing us by raycasting from end effector to center of fixture
         end_eff = self.world_def.end_effector_fixture

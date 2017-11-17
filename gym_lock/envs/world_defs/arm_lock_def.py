@@ -3,7 +3,7 @@ from Box2D import *
 from Box2D import _Box2D
 from types import MethodType
 
-from gym_lock.common import TwoDConfig, TwoDForce
+from gym_lock.common import TwoDConfig, TwoDForce, Lock, Door
 from gym_lock.common import wrapToMinusPiToPi
 from gym_lock.pid_central import PIDController
 from gym_lock.settings import BOX2D_SETTINGS
@@ -15,18 +15,18 @@ from gym_lock.state_machine.multi_lock import MultiDoorLockFSM
 # TODO: no __ for class parameters
 # TODO: add state machine here
 
-class Clickable(object):
-
-    def __init__(self, test, callback, args):
-        self.test = test
-        self.callback = callback
-        self.args = args
-
-    def test_region(self, world_xy):
-        return self.test(world_xy)
-
-    def call(self):
-        return self.callback(*args)
+# class Clickable(object):
+#
+#     def __init__(self, test, callback, args):
+#         self.test = test
+#         self.callback = callback
+#         self.args = args
+#
+#     def test_region(self, world_xy):
+#         return self.test(world_xy)
+#
+#     def call(self):
+#         return self.callback(*args)
 
 class ArmLockContactListener(b2ContactListener):
     def __init__(self, end_effector_fixture, timestep):
@@ -230,17 +230,19 @@ class ArmLockDef(object):
         self.door, self.door_hinge, self.door_lock = self._create_door(TwoDConfig(15, 5, -np.pi / 2))
 
         open_test = lambda door_hinge: abs(door_hinge.angle) > np.pi / 16
-        self.obj_map['door'] = [self.door, self.door_hinge, open_test, open_test]
+        self.obj_map['door'] = Door(self.door, self.door_hinge, open_test, open_test, 'door')
+        # self.obj_map['door'] = [self.door, self.door_hinge, open_test, open_test]
 
         configs = [TwoDConfig(0, 15, 0), TwoDConfig(-15, 0, np.pi / 2), TwoDConfig(0, -15, -np.pi)]
 
         opt_params = [None, None, {'lower_lim': 0.0, 'upper_lim': 2.0}]
 
         for i in range(0, len(configs)):
+            name = 'l{}'.format(i)
             if opt_params[i]:
-                lock, joint, outer_track, inner_track = self._create_lock(configs[i], **opt_params[i])
+                lock_fixture, joint, outer_track, inner_track = self._create_lock(configs[i], **opt_params[i])
             else:
-                lock, joint, outer_track, inner_track = self._create_lock(configs[i])
+                lock_fixture, joint, outer_track, inner_track = self._create_lock(configs[i])
 
             # true iff out
             int_test = lambda joint: joint.translation < (joint.upperLimit + joint.lowerLimit) / 2.0
@@ -248,11 +250,14 @@ class ArmLockDef(object):
             # true iff in
             ext_test = lambda joint: joint.translation > (joint.upperLimit + joint.lowerLimit) / 2.0
 
-            self.obj_map['l{}'.format(i)] = [lock, joint, int_test, ext_test, outer_track, inner_track]
+            self.obj_map[name] = Lock(lock_fixture, joint, int_test, ext_test, outer_track, inner_track, name)
+            # self.obj_map[name] = [lock_fixture, joint, int_test, ext_test, outer_track, inner_track]
 
         # modify l2, true iff in
-        self.obj_map['l2'][2] = lambda joint: joint.translation > (joint.upperLimit + joint.lowerLimit) / 2.0
-        self.obj_map['l2'][3] = lambda joint: joint.translation > (joint.upperLimit + joint.lowerLimit) / 2.0
+        # self.obj_map['l2'][2] = lambda joint: joint.translation > (joint.upperLimit + joint.lowerLimit) / 2.0
+        self.obj_map['l2'].int_test = lambda joint: joint.translation > (joint.upperLimit + joint.lowerLimit) / 2.0
+        # self.obj_map['l2'][3] = lambda joint: joint.translation > (joint.upperLimit + joint.lowerLimit) / 2.0
+        self.obj_map['l2'].ext_test = lambda joint: joint.translation > (joint.upperLimit + joint.lowerLimit) / 2.0
 
     def _create_door(self, config, width=0.5, length=10, locked=True):
         # TODO: add relocking ability
@@ -275,10 +280,10 @@ class ArmLockDef(object):
             angularDamping=0.8,
             linearDamping=0.8)
 
-        door = door_body.CreateFixture(fixture_def)
+        door_fixture = door_body.CreateFixture(fixture_def)
 
         door_hinge = self.world.CreateRevoluteJoint(
-            bodyA=door.body,  # end of link A
+            bodyA=door_fixture.body,  # end of link A
             bodyB=self.ground,  # beginning of link B
             localAnchorA=(0, 0),
             localAnchorB=(x, y),
@@ -305,12 +310,12 @@ class ArmLockDef(object):
             delta_x = np.cos(theta) * length
             delta_y = np.sin(theta) * length
             door_lock = self.world.CreateWeldJoint(
-                bodyA=door.body,  # end of link A
+                bodyA=door_fixture.body,  # end of link A
                 bodyB=self.ground,  # beginning of link B
                 localAnchorB=(x + delta_x, y + delta_y),
             )
 
-        return door, door_hinge, door_lock
+        return door_fixture, door_hinge, door_lock
 
     def _create_lock(self, config, width=0.5, length=5, lower_lim=-2, upper_lim=0):
         x, y, theta = config
@@ -331,14 +336,14 @@ class ArmLockDef(object):
             angularDamping=0.8,
             linearDamping=0.8)
 
-        lock = lock_body.CreateFixture(fixture_def)
+        lock_fixture = lock_body.CreateFixture(fixture_def)
 
         joint_axis = (-np.sin(theta), np.cos(theta))
         lock_joint = self.world.CreatePrismaticJoint(
-            bodyA=lock.body,
+            bodyA=lock_fixture.body,
             bodyB=self.ground,
             #anchor=(0, 0),
-            anchor=lock.body.position,
+            anchor=lock_fixture.body.position,
             #localAnchorA=lock.body.position,
             #localAnchorB=self.ground.position,
             axis=joint_axis,
@@ -354,7 +359,7 @@ class ArmLockDef(object):
         )
 
         # create lock track in background
-        xf1, xf2 = lock.body.transform, self.ground.transform
+        xf1, xf2 = lock_fixture.body.transform, self.ground.transform
         x1, x2 = xf1.position, xf2.position
         p1, p2 = lock_joint.anchorA, lock_joint.anchorB
         padding = width
@@ -383,7 +388,7 @@ class ArmLockDef(object):
         trans = b2Transform()
         trans.SetIdentity()
 
-        return lock, lock_joint, outer_lock_track_body, inner_lock_track_body
+        return lock_fixture, lock_joint, outer_lock_track_body, inner_lock_track_body
 
     def _lock_door(self):
         theta = self.door.body.angle
@@ -431,8 +436,11 @@ class ArmLockDef(object):
             'END_EFFECTOR_FORCE': TwoDForce(self.contact_listener.norm_force, self.contact_listener.tan_force),
             # 'DOOR_ANGLE' : self.obj_map['door'][1].angle,
             # 'LOCK_TRANSLATIONS' : {name : val[1].translation for name, val in self.obj_map.items() if name != 'door'},
-            'OBJ_STATES': {name: val[3](val[1]) for name, val in self.obj_map.items() if 'button' not in name},  # ext state
-            'LOCK_STATE': self.obj_map['door'][2](self.obj_map['door'][1]),
+            'OBJ_STATES': {name: val.ext_test(val.joint) for name, val in self.obj_map.items() if 'button' not in name},  # ext state
+            # 'OBJ_STATES': {name: val[3](val[1]) for name, val in self.obj_map.items() if 'button' not in name},
+        # ext state
+            'LOCK_STATE': self.obj_map['door'].int_test(self.obj_map['door'].joint),
+            # 'LOCK_STATE': self.obj_map['door'][2](self.obj_map['door'][1]),
             '_FSM_STATE': self.fsm.state,
 
         }
@@ -450,11 +458,9 @@ class ArmLockDef(object):
         # execute state transitions
 
         # check locks
-        for name, val in self.obj_map.items():
+        for name, obj in self.obj_map.items():
             if 'button' not in name:
-                lock, joint, test = val[0:3]
-
-                if test(joint):
+                if obj.int_test(obj.joint):
                     # unlocked
                     action = 'unlock_{}'.format(name) if name != 'door' else 'open'
                     if action in self.fsm.actions:
@@ -474,14 +480,12 @@ class ArmLockDef(object):
             self._lock_door()
 
         if 'l0-l1-' in self.fsm.state:
-            lock, joint = self.obj_map['l2'][0:2]
+            lock = self.obj_map['l2'].fixture
+            joint = self.obj_map['l2'].joint
             joint_axis = (-np.sin(lock.body.angle), np.cos(lock.body.angle))
             joint.maxMotorForce = abs(b2Dot(lock.body.massData.mass * self.world.gravity, b2Vec2(joint_axis)))
         else:
-            self.obj_map['l2'][1].maxMotorForce = 100000
-
-
-
+            self.obj_map['l2'].joint.maxMotorForce = 100000
 
             # if 'o+' in self.fsm.state and self.door_lock is not None:
             #     self._unlock_door()

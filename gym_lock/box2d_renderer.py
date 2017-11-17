@@ -1,4 +1,5 @@
 import numpy as np
+
 from Box2D import b2CircleShape, b2EdgeShape, b2PolygonShape, b2_staticBody, b2_kinematicBody, b2DistanceJoint, \
     b2PulleyJoint, b2MouseJoint, b2RevoluteJoint, b2PrismaticJoint, b2Transform, b2Vec2, b2Rot, b2WeldJoint
 from pyglet.window import key
@@ -26,20 +27,6 @@ def screen_to_world_coord(xy):
     x_world = (xy[0] - VIEWPORT_W / 2) / (SCALE / 2.0)
     y_world = (xy[1] - VIEWPORT_H / 2) / (SCALE / 2.0)
     return (x_world, y_world)
-
-class Clickable(object):
-
-    def __init__(self, test, callback, callback_args=[], test_args=[]):
-        self.test = test
-        self.callback = callback
-        self.callback_args = callback_args
-        self.test_args = test_args
-
-    def test_region(self, world_xy):
-        return self.test(world_xy, *self.test_args)
-
-    def call(self):
-        return self.callback(*self.callback_args)
 
 
 class Box2DRenderer():
