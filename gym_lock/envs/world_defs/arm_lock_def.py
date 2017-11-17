@@ -8,6 +8,7 @@ from gym_lock.common import wrapToMinusPiToPi
 from gym_lock.pid_central import PIDController
 from gym_lock.settings import BOX2D_SETTINGS
 from gym_lock.state_machine.multi_lock import MultiDoorLockFSM
+from gym_lock.common import Button, COLORS
 
 
 # TODO: cleaner interface than indices between bodies and lengths
@@ -227,11 +228,16 @@ class ArmLockDef(object):
     def _init_fsm_rep(self):
         # TODO: better setup interface
 
-        self.door, self.door_hinge, self.door_lock = self._create_door(TwoDConfig(15, 5, -np.pi / 2))
+        door_config = TwoDConfig(15, 5, -np.pi / 2)
+        door = Door(self, 'door', door_config)
+        self.obj_map['door'] = door
 
-        open_test = lambda door_hinge: abs(door_hinge.angle) > np.pi / 16
-        self.obj_map['door'] = Door(self.door, self.door_hinge, open_test, open_test, 'door')
-        # self.obj_map['door'] = [self.door, self.door_hinge, open_test, open_test]
+        self._create_button(door_config, COLORS['static'], 'door_right_button', 1.5, 1.5, x_offset=3, y_offset=5)
+        self._create_button(door_config, COLORS['static'], 'door_left_button', 1.5, 1.5, x_offset=-3, y_offset=5)
+
+        button_config = TwoDConfig(-25, -27, -np.pi / 2)
+        self._create_button(button_config, COLORS['save_button'], 'save_button', 3, 1.5)
+        self._create_button(button_config, COLORS['reset_button'], 'reset_button', 3, 1.5, x_offset=7)
 
         configs = [TwoDConfig(0, 15, 0), TwoDConfig(-15, 0, np.pi / 2), TwoDConfig(0, -15, -np.pi)]
 
@@ -239,19 +245,8 @@ class ArmLockDef(object):
 
         for i in range(0, len(configs)):
             name = 'l{}'.format(i)
-            if opt_params[i]:
-                lock_fixture, joint, outer_track, inner_track = self._create_lock(configs[i], **opt_params[i])
-            else:
-                lock_fixture, joint, outer_track, inner_track = self._create_lock(configs[i])
-
-            # true iff out
-            int_test = lambda joint: joint.translation < (joint.upperLimit + joint.lowerLimit) / 2.0
-
-            # true iff in
-            ext_test = lambda joint: joint.translation > (joint.upperLimit + joint.lowerLimit) / 2.0
-
-            self.obj_map[name] = Lock(lock_fixture, joint, int_test, ext_test, outer_track, inner_track, name)
-            # self.obj_map[name] = [lock_fixture, joint, int_test, ext_test, outer_track, inner_track]
+            lock = Lock(self, name, configs[i], opt_params[i])
+            self.obj_map[name] = lock
 
         # modify l2, true iff in
         # self.obj_map['l2'][2] = lambda joint: joint.translation > (joint.upperLimit + joint.lowerLimit) / 2.0
@@ -259,63 +254,54 @@ class ArmLockDef(object):
         # self.obj_map['l2'][3] = lambda joint: joint.translation > (joint.upperLimit + joint.lowerLimit) / 2.0
         self.obj_map['l2'].ext_test = lambda joint: joint.translation > (joint.upperLimit + joint.lowerLimit) / 2.0
 
-    def _create_door(self, config, width=0.5, length=10, locked=True):
-        # TODO: add relocking ability
-        # create door
-        x, y, theta = config
+    # def _create_door(self, config, width=0.5, length=10, locked=True):
+    #     # TODO: add relocking ability
+    #     # create door
+    #     x, y, theta = config
+    #
+    #     fixture_def = b2FixtureDef(
+    #         shape=b2PolygonShape(vertices=[(0, -width),
+    #                                        (0, width),
+    #                                        (length, width),
+    #                                        (length, -width)]),
+    #         density=1,
+    #         friction=1.0,
+    #         categoryBits=0x0010,
+    #         maskBits=0x1101)
+    #
+    #     door_body = self.world.CreateDynamicBody(
+    #         position=(x, y),
+    #         angle=theta,
+    #         angularDamping=0.8,
+    #         linearDamping=0.8)
+    #
+    #     door_fixture = door_body.CreateFixture(fixture_def)
+    #
+    #     door_hinge = self.world.CreateRevoluteJoint(
+    #         bodyA=door_fixture.body,  # end of link A
+    #         bodyB=self.ground,  # beginning of link B
+    #         localAnchorA=(0, 0),
+    #         localAnchorB=(x, y),
+    #         enableMotor=True,
+    #         motorSpeed=0,
+    #         enableLimit=False,
+    #         maxMotorTorque=500)
+    #
+    #     door_lock = None
+    #     if locked:
+    #         delta_x = np.cos(theta) * length
+    #         delta_y = np.sin(theta) * length
+    #         door_lock = self.world.CreateWeldJoint(
+    #             bodyA=door_fixture.body,  # end of link A
+    #             bodyB=self.ground,  # beginning of link B
+    #             localAnchorB=(x + delta_x, y + delta_y),
+    #         )
+    #
+    #     return door_fixture, door_hinge, door_lock
 
-        fixture_def = b2FixtureDef(
-            shape=b2PolygonShape(vertices=[(0, -width),
-                                           (0, width),
-                                           (length, width),
-                                           (length, -width)]),
-            density=1,
-            friction=1.0,
-            categoryBits=0x0010,
-            maskBits=0x1101)
-
-        door_body = self.world.CreateDynamicBody(
-            position=(x, y),
-            angle=theta,
-            angularDamping=0.8,
-            linearDamping=0.8)
-
-        door_fixture = door_body.CreateFixture(fixture_def)
-
-        door_hinge = self.world.CreateRevoluteJoint(
-            bodyA=door_fixture.body,  # end of link A
-            bodyB=self.ground,  # beginning of link B
-            localAnchorA=(0, 0),
-            localAnchorB=(x, y),
-            enableMotor=True,
-            motorSpeed=0,
-            enableLimit=False,
-            maxMotorTorque=500)
-
-        door_right_button = self.world.CreateStaticBody(
-            position=(x + 3, y + 5),
-            angle=theta,
-            shapes=b2PolygonShape(box=(1.5, 1.5))
-        )
-        self.obj_map['door_right_button']=door_right_button.fixtures[0]
-        door_left_button = self.world.CreateStaticBody(
-            position=(x - 3, y + 5),
-            angle=theta,
-            shapes=b2PolygonShape(box=(1.5, 1.5))
-        )
-        self.obj_map['door_left_button']=door_left_button.fixtures[0]
-
-        door_lock = None
-        if locked:
-            delta_x = np.cos(theta) * length
-            delta_y = np.sin(theta) * length
-            door_lock = self.world.CreateWeldJoint(
-                bodyA=door_fixture.body,  # end of link A
-                bodyB=self.ground,  # beginning of link B
-                localAnchorB=(x + delta_x, y + delta_y),
-            )
-
-        return door_fixture, door_hinge, door_lock
+    def _create_button(self, config, color, name, height, width, x_offset=0, y_offset=0,):
+        button = Button(self.world, config, color, name, height, width, x_offset, y_offset)
+        self.obj_map[name] = button
 
     def _create_lock(self, config, width=0.5, length=5, lower_lim=-2, upper_lim=0):
         x, y, theta = config
@@ -365,7 +351,7 @@ class ArmLockDef(object):
         padding = width
         width = 0.5
 
-        # plot the bounds in which body A's anchor point can move relative to B 
+        # plot the bounds in which body A's anchor point can move relative to B
         local_axis = lock_body.GetLocalVector(joint_axis)
         world_axis = lock_body.GetWorldVector(local_axis)
         lower_lim, upper_lim = lock_joint.limits
@@ -378,11 +364,11 @@ class ArmLockDef(object):
         inner_vertices = [end1 + norm * width, end1 - norm * width, middle - norm * width, middle + norm * width]
         outer_vertices = [middle - norm * width, middle + norm * width, end2 - norm * width, end2 + norm * width]
 
-        inner_lock_track_body = self.background.CreateStaticBody(position=p2, 
+        inner_lock_track_body = self.background.CreateStaticBody(position=p2,
                 active=False,
                 shapes=b2PolygonShape(vertices=inner_vertices))
 
-        outer_lock_track_body = self.background.CreateStaticBody(position=p2, 
+        outer_lock_track_body = self.background.CreateStaticBody(position=p2,
                 active=False,
                 shapes=b2PolygonShape(vertices=outer_vertices))
         trans = b2Transform()

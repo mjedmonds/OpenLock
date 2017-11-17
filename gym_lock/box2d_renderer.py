@@ -5,23 +5,13 @@ from Box2D import b2CircleShape, b2EdgeShape, b2PolygonShape, b2_staticBody, b2_
 from pyglet.window import key
 
 from gym_lock import rendering
-from gym_lock.common import Color, TwoDConfig
+from gym_lock.common import Color, TwoDConfig, COLORS
 from gym_lock.kine import TwoDKinematicTransform
 from gym_lock.settings import RENDER_SETTINGS
-
-
-COLORS = {
-    'active': Color(0.5, 0.5, 0.3),
-    'static': Color(0.5, 0.9, 0.5),
-    'kinematic': Color(0.5, 0.5, 0.9),
-    'asleep': Color(0.6, 0.6, 0.6),
-    'default': Color(0.9, 0.7, 0.7),
-}
 
 VIEWPORT_W = 800
 VIEWPORT_H = 800
 SCALE = 25.0  # affects how fast-paced the game is, forces should be adjusted as well
-
 
 def screen_to_world_coord(xy):
     x_world = (xy[0] - VIEWPORT_W / 2) / (SCALE / 2.0)
@@ -149,7 +139,10 @@ class Box2DRenderer():
                 for fixture in body.fixtures:
                     shape = fixture.shape
 
-                    if not body.active:
+                    # if the class used a color, use that color
+                    if body.userData is not None and body.userData.color is not None:
+                        color = body.userData.color
+                    elif not body.active:
                         color = RENDER_SETTINGS['COLORS']['active']
                     elif body.type == b2_staticBody:
                         color = RENDER_SETTINGS['COLORS']['static']

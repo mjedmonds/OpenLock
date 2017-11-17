@@ -1,10 +1,2 @@
-frame,l2,door,l0,l1,agent,pull_perp_door,push_perp_door,pull_perp_door_right_button,push_perp_door_right_button,pull_perp_l2,push_perp_l2,pull_perp_l0,push_perp_l0,pull_perp_l1,push_perp_l1,pull_perp_door_left_button,push_perp_door_left_button
-0,0,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0
-1,0,0,1,1,0,0,0,0,0,0,0,0,1,0,0,0,0
-2,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0
-3,0,0,0,1,0,0,0,0,0,0,0,0,0,0,1,0,0
-4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-5,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0
-6,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
-7,1,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0
-8,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+frame,l2,door,l0,l1,agent,pull_perp_door,push_perp_door,pull_perp_reset_button,push_perp_reset_button,pull_perp_door_right_button,push_perp_door_right_button,pull_perp_l2,push_perp_l2,pull_perp_l0,push_perp_l0,pull_perp_l1,push_perp_l1,pull_perp_save_button,push_perp_save_button,pull_perp_door_left_button,push_perp_door_left_button
+0,0,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0

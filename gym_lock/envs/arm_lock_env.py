@@ -135,7 +135,7 @@ class ArmLockEnv(gym.Env):
             elif action.name == 'rest':
                 success = self._action_rest()
             elif action.name == 'pull_perp':
-                success =  self._action_pull_perp(action.params)
+                success = self._action_pull_perp(action.params)
             elif action.name == 'push_perp':
                 success = self._action_push_perp(action.params)
             elif action.name == 'move':
@@ -202,19 +202,23 @@ class ArmLockEnv(gym.Env):
                     self.viewer.register_clickable_region(lock.outer_clickable)
 
                 elif b2_object_name == 'door_right_button':
-                    door = b2_object_data
-                    vertices = [door.body.GetWorldPoint(vertex) for vertex in door.shape.vertices]
-                    poly = Polygon(vertices)
-                    push = 'push_perp_door'
-                    clickable = Clickable(lambda xy, poly: poly.contains(Point(xy)), self._step, callback_args=[self.action_map[push]], test_args=[poly])
-                    self.viewer.register_clickable_region(clickable)
+                    door_button = b2_object_data
+                    # vertices = [door.body.GetWorldPoint(vertex) for vertex in door.shape.vertices]
+                    # poly = Polygon(vertices)
+                    # push = 'push_perp_door'
+                    # clickable = Clickable(lambda xy, poly: poly.contains(Point(xy)), self._step, callback_args=[self.action_map[push]], test_args=[poly])
+                    callback_action = 'push_perp_door'
+                    door_button.create_clickable(self._step, self.action_map, callback_action)
+                    self.viewer.register_clickable_region(door_button.clickable)
                 elif b2_object_name == 'door_left_button':
-                    door = b2_object_data
-                    vertices = [door.body.GetWorldPoint(vertex) for vertex in door.shape.vertices]
-                    poly = Polygon(vertices)
-                    push = 'pull_perp_door'
-                    clickable = Clickable(lambda xy, poly: poly.contains(Point(xy)), self._step, callback_args=[self.action_map[push]], test_args=[poly])
-                    self.viewer.register_clickable_region(clickable)
+                    door_button = b2_object_data
+                    # vertices = [door.body.GetWorldPoint(vertex) for vertex in door.shape.vertices]
+                    # poly = Polygon(vertices)
+                    # push = 'pull_perp_door'
+                    callback_action = 'pull_perp_door'
+                    door_button.create_clickable(self._step, self.action_map, callback_action)
+                    # clickable = Clickable(lambda xy, poly: poly.contains(Point(xy)), self._step, callback_args=[self.action_map[push]], test_args=[poly])
+                    self.viewer.register_clickable_region(door_button.clickable)
 
 
         self.viewer.reset()
@@ -273,8 +277,6 @@ class ArmLockEnv(gym.Env):
 #            print 'legglo'
 #            self.viewer = Box2DRenderer(self._action_grasp)
             
-
-
         self.viewer.render_multiple_worlds([self.world_def.background, self.world_def.world], mode='human')
 
     def _seed(self, seed=None):
