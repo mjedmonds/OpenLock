@@ -661,7 +661,7 @@ class ArmLockEnv(gym.Env):
         return True
 
     def _action_save(self, params):
-        np.savetxt('results{}.csv'.format(self.save_count), self.results, delimiter=',', fmt='%s')
+        np.savetxt('../OpenLockResults/results{}.csv'.format(self.save_count), self.results, delimiter=',', fmt='%s')
         self.results = [self.col_label]
         self.save_count += 1
         self.reset()
