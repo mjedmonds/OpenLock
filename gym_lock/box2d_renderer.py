@@ -139,7 +139,7 @@ class Box2DRenderer():
                 for fixture in body.fixtures:
                     shape = fixture.shape
 
-                    # if the class used a color, use that color
+                    # if the userData used a color, use that color
                     if body.userData is not None and body.userData.color is not None:
                         color = body.userData.color
                     elif not body.active:

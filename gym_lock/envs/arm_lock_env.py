@@ -40,6 +40,7 @@ class ArmLockEnv(gym.Env):
         self.results = [self.col_label]
         
         self.i = 0
+        self.save_count = 0
 
         # append initial observation
         self.results.append(self.create_state_entry(init_obs, self.i))
@@ -122,10 +123,13 @@ class ArmLockEnv(gym.Env):
             else:
                 col = action.name
 
-            entry[self.index_map[col]] = 1
+            observable_action = col in self.index_map
 
-            # append pre-observation entry
-            self.results.append(entry)
+            if observable_action:
+                entry[self.index_map[col]] = 1
+
+                # append pre-observation entry
+                self.results.append(entry)
 
             success = False
             if action.name == 'goto':
@@ -144,13 +148,20 @@ class ArmLockEnv(gym.Env):
                 success = self._action_move_end_frame(action.params)
             elif action.name == 'unlock':
                 success = self._action_unlock(action.params)
+            elif action.name == 'reset':
+                success = self._action_reset(action.params)
+            elif action.name == 'save':
+                success = self._action_save(action.params)
 
             state = self.world_def.get_state()
             state['SUCCESS'] = success
             self.i += 1
-            print state['OBJ_STATES']
-            print state['_FSM_STATE']
-            self.results.append(self.create_state_entry(state, self.i))
+
+            if observable_action:
+                print state['OBJ_STATES']
+                print state['_FSM_STATE']
+                self.results.append(self.create_state_entry(state, self.i))
+
             return state, 0, False, {}
 
     def _reset(self):
@@ -179,14 +190,15 @@ class ArmLockEnv(gym.Env):
         self.action_space = []
         self.action_map = dict()
         for obj, val in self.world_def.obj_map.items():
-            push = 'push_perp_{}'.format(obj)
-            pull = 'pull_perp_{}'.format(obj)
+            if 'button' not in obj:
+                push = 'push_perp_{}'.format(obj)
+                pull = 'pull_perp_{}'.format(obj)
 
-            self.action_space.append(pull)
-            self.action_space.append(push)
+                self.action_space.append(pull)
+                self.action_space.append(push)
 
-            self.action_map[push] = Action('push_perp', (obj, 4))
-            self.action_map[pull] = Action('pull_perp', (obj, 4))
+                self.action_map[push] = Action('push_perp', (obj, 4))
+                self.action_map[pull] = Action('pull_perp', (obj, 4))
 
         # setup renderer
         if not self.viewer:
@@ -208,7 +220,7 @@ class ArmLockEnv(gym.Env):
                     # push = 'push_perp_door'
                     # clickable = Clickable(lambda xy, poly: poly.contains(Point(xy)), self._step, callback_args=[self.action_map[push]], test_args=[poly])
                     callback_action = 'push_perp_door'
-                    door_button.create_clickable(self._step, self.action_map, callback_action)
+                    door_button.create_clickable(self._step, self.action_map, self.action_map[callback_action])
                     self.viewer.register_clickable_region(door_button.clickable)
                 elif b2_object_name == 'door_left_button':
                     door_button = b2_object_data
@@ -216,9 +228,18 @@ class ArmLockEnv(gym.Env):
                     # poly = Polygon(vertices)
                     # push = 'pull_perp_door'
                     callback_action = 'pull_perp_door'
-                    door_button.create_clickable(self._step, self.action_map, callback_action)
-                    # clickable = Clickable(lambda xy, poly: poly.contains(Point(xy)), self._step, callback_args=[self.action_map[push]], test_args=[poly])
+                    door_button.create_clickable(self._step, self.action_map, self.action_map[callback_action])
                     self.viewer.register_clickable_region(door_button.clickable)
+                elif b2_object_name == 'reset_button':
+                    reset_button = b2_object_data
+                    callback_action = 'reset'
+                    reset_button.create_clickable(self._step, self.action_map, Action(callback_action, (reset_button, 4)))
+                    self.viewer.register_clickable_region(reset_button.clickable)
+                elif b2_object_name == 'save_button':
+                    save_button = b2_object_data
+                    callback_action = 'save'
+                    save_button.create_clickable(self._step, self.action_map, Action(callback_action, (save_button, 4)))
+                    self.viewer.register_clickable_region(save_button.clickable)
 
 
         self.viewer.reset()
@@ -634,6 +655,17 @@ class ArmLockEnv(gym.Env):
     #
     #     lock, joint, _ = self.world_def.obj_map[name]
     #     self._action_pull_perp((lock, abs(joint.lowerLimit)))
+
+    def _action_reset(self, params):
+        self.reset()
+        return True
+
+    def _action_save(self, params):
+        np.savetxt('results{}.csv'.format(self.save_count), self.results, delimiter=',', fmt='%s')
+        self.results = [self.col_label]
+        self.save_count += 1
+        self.reset()
+        return True
 
     def _action_nothing(self):
         return True

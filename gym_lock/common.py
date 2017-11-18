@@ -232,10 +232,10 @@ class Button(Object):
         self.color = color
         self.clickable = None
 
-    def create_clickable(self, step, action_map, callback_action):
+    def create_clickable(self, step, action_map, callback_args):
         vertices = [self.fixture.body.GetWorldPoint(vertex) for vertex in self.fixture.shape.vertices]
         poly = Polygon(vertices)
-        self.clickable = Clickable(lambda xy, poly: poly.contains(Point(xy)), step, callback_args=[action_map[callback_action]], test_args=[poly])
+        self.clickable = Clickable(lambda xy, poly: poly.contains(Point(xy)), step, callback_args=[callback_args], test_args=[poly])
 
 
 def wrapToMinusPiToPi(original):

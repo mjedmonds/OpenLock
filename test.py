@@ -13,7 +13,7 @@ def exit_handler(signum, frame):
    np.savetxt('results.csv', env.results, delimiter=',', fmt='%s')
    exit()
 
-signal.signal(signal.SIGINT, exit_handler)
+# signal.signal(signal.SIGINT, exit_handler)
 
 action_script = [Action('push_perp', ('l2', 4)),    # try to unlock l2, but it doesn't budge!
                  Action('pull_perp', ('l2', 4)),    # try pulling l2 instead, still won't budge
