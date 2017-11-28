@@ -10,6 +10,7 @@ from gym_lock.envs.world_defs.arm_lock_def import ArmLockDef, b2RayCastOutput
 from gym_lock.kine import KinematicChain, discretize_path, InverseKinematics, generate_five_arm, \
     TwoDKinematicTransform
 from gym_lock.settings import RENDER_SETTINGS, BOX2D_SETTINGS, ENV_SETTINGS
+from glob import glob
 
 
 # TODO: add ability to move base
@@ -40,7 +41,7 @@ class ArmLockEnv(gym.Env):
         self.results = [self.col_label]
         
         self.i = 0
-        self.save_count = 0
+        self.save_path = '../OpenLockResults/'
 
         # append initial observation
         self.results.append(self.create_state_entry(init_obs, self.i))
@@ -657,14 +658,13 @@ class ArmLockEnv(gym.Env):
     #     self._action_pull_perp((lock, abs(joint.lowerLimit)))
 
     def _action_reset(self, params):
-        self.reset()
+        self._reset()
         return True
 
     def _action_save(self, params):
-        np.savetxt('../OpenLockResults/results{}.csv'.format(self.save_count), self.results, delimiter=',', fmt='%s')
-        self.results = [self.col_label]
-        self.save_count += 1
-        self.reset()
+        save_count = len(glob(self.save_path + 'results[0-9]*.csv'))
+        np.savetxt(save_path + 'results{}.csv'.format(save_count), self.results, delimiter=',', fmt='%s')
+        self._reset()
         return True
 
     def _action_nothing(self):
@@ -672,9 +672,6 @@ class ArmLockEnv(gym.Env):
 
     def get_avail_actions(self):
         return self.world_def.fsm.actions
-
-
-
 
 
 def main():

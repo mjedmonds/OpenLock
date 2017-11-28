@@ -232,12 +232,12 @@ class ArmLockDef(object):
         door = Door(self, 'door', door_config)
         self.obj_map['door'] = door
 
-        self._create_button(door_config, COLORS['static'], 'door_right_button', 1.5, 1.5, x_offset=3, y_offset=5)
-        self._create_button(door_config, COLORS['static'], 'door_left_button', 1.5, 1.5, x_offset=-3, y_offset=5)
+        self.obj_map['door_right_button'] = Button(world=self.world, config=door_config, color=COLORS['static'], name='door_right_button', height=1.5, width=1.5, x_offset=3, y_offset=5)
+        self.obj_map['door_left_button'] = Button(world=self.world, config=door_config, color=COLORS['static'], name='door_left_button', height=1.5, width=1.5, x_offset=-3, y_offset=5)
 
         button_config = TwoDConfig(-25, -27, -np.pi / 2)
-        self._create_button(button_config, COLORS['save_button'], 'save_button', 3, 1.5)
-        self._create_button(button_config, COLORS['reset_button'], 'reset_button', 3, 1.5, x_offset=7)
+        self.obj_map['save_button'] = Button(world=self.world, config=button_config, color=COLORS['save_button'], name='save_button', height=1.5, width=3)
+        self.obj_map['reset_button'] = Button(world=self.world, config=button_config, color=COLORS['reset_button'], name='reset_button', height=1.5, width=3, x_offset=7)
 
         configs = [TwoDConfig(0, 15, 0), TwoDConfig(-15, 0, np.pi / 2), TwoDConfig(0, -15, -np.pi)]
 
@@ -298,83 +298,6 @@ class ArmLockDef(object):
     #         )
     #
     #     return door_fixture, door_hinge, door_lock
-
-    def _create_button(self, config, color, name, height, width, x_offset=0, y_offset=0,):
-        button = Button(self.world, config, color, name, height, width, x_offset, y_offset)
-        self.obj_map[name] = button
-
-    def _create_lock(self, config, width=0.5, length=5, lower_lim=-2, upper_lim=0):
-        x, y, theta = config
-
-        fixture_def = b2FixtureDef(
-            shape=b2PolygonShape(vertices=[(-length, -width),
-                                           (-length, width),
-                                           (length, width),
-                                           (length, -width)]),
-            density=1,
-            friction=1.0,
-            categoryBits=0x0010,
-            maskBits=0x1101)
-
-        lock_body = self.world.CreateDynamicBody(
-            position=(x, y),
-            angle=theta,
-            angularDamping=0.8,
-            linearDamping=0.8)
-
-        lock_fixture = lock_body.CreateFixture(fixture_def)
-
-        joint_axis = (-np.sin(theta), np.cos(theta))
-        lock_joint = self.world.CreatePrismaticJoint(
-            bodyA=lock_fixture.body,
-            bodyB=self.ground,
-            #anchor=(0, 0),
-            anchor=lock_fixture.body.position,
-            #localAnchorA=lock.body.position,
-            #localAnchorB=self.ground.position,
-            axis=joint_axis,
-            lowerTranslation=lower_lim,
-            upperTranslation=upper_lim,
-            enableLimit=True,
-            motorSpeed=0,
-            maxMotorForce=abs(b2Dot(lock_body.massData.mass * self.world.gravity, b2Vec2(joint_axis))),
-            enableMotor=True,
-            userData={'plot_padding': width,
-                      'joint_axis': joint_axis,
-                      'obj_type' : 'lock_joint'},
-        )
-
-        # create lock track in background
-        xf1, xf2 = lock_fixture.body.transform, self.ground.transform
-        x1, x2 = xf1.position, xf2.position
-        p1, p2 = lock_joint.anchorA, lock_joint.anchorB
-        padding = width
-        width = 0.5
-
-        # plot the bounds in which body A's anchor point can move relative to B
-        local_axis = lock_body.GetLocalVector(joint_axis)
-        world_axis = lock_body.GetWorldVector(local_axis)
-        lower_lim, upper_lim = lock_joint.limits
-        middle_lim = (upper_lim + lower_lim) / 2.0
-        end1 = -world_axis * (upper_lim + padding)
-        middle = -world_axis * middle_lim
-        end2 = -world_axis * (lower_lim - padding)
-        norm = b2Vec2(-world_axis[1], world_axis[0])
-
-        inner_vertices = [end1 + norm * width, end1 - norm * width, middle - norm * width, middle + norm * width]
-        outer_vertices = [middle - norm * width, middle + norm * width, end2 - norm * width, end2 + norm * width]
-
-        inner_lock_track_body = self.background.CreateStaticBody(position=p2,
-                active=False,
-                shapes=b2PolygonShape(vertices=inner_vertices))
-
-        outer_lock_track_body = self.background.CreateStaticBody(position=p2,
-                active=False,
-                shapes=b2PolygonShape(vertices=outer_vertices))
-        trans = b2Transform()
-        trans.SetIdentity()
-
-        return lock_fixture, lock_joint, outer_lock_track_body, inner_lock_track_body
 
     def _lock_door(self):
         theta = self.door.body.angle

@@ -225,7 +225,7 @@ class Button(Object):
         button = world.CreateStaticBody(
             position=(x + x_offset, y + y_offset),
             angle=theta,
-            shapes=b2PolygonShape(box=(width, height)),
+            shapes=b2PolygonShape(box=(height, width)),
             userData=self
         )
         self.fixture = button.fixtures[0]
