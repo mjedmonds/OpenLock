@@ -15,23 +15,23 @@ def exit_handler(signum, frame):
 
 # signal.signal(signal.SIGINT, exit_handler)
 
-action_script = [Action('push_perp', ('l2', 4)),    # try to unlock l2, but it doesn't budge!
-                 Action('pull_perp', ('l2', 4)),    # try pulling l2 instead, still won't budge
-                 Action('push_perp', ('l0', 4)),    # unlock l0
-                 Action('push_perp', ('l1', 4)),    # unlock l1
-                 Action('push_perp', ('l2', 4)),    # try to unlock l2, but it still doesn't budge!
-                 Action('pull_perp', ('l2', 4)),    # try pulling l2 instead, it works
-                 Action('push_perp', ('door', 4)),  # open the door
-                 Action('pull_perp', ('l1', 4)),    # lock l1 (door locks too!)
-                 Action('push_perp', ('l2', 4)),    # try to move l2 again
-                 Action('pull_perp', ('l2', 4)),    # and it now doesn't work because l1 is locked!
-                 Action('push_perp', ('l1', 4)),    # so let's re-unlock l1 (re-unlocks door!)
-                 Action('pull_perp', ('door', 1)),  # close the door
-                 Action('pull_perp', ('door', 1)),
-                 Action('pull_perp', ('door', 1)),
-                 Action('push_perp', ('l2', 4)),    # then re-lock l2
-                 Action('pull_perp', ('l1', 4)),    # re-lock l1
-                 Action('pull_perp', ('l0', 4))]    # re-lock l0
+action_script = [Action('push_', ('l2', 4)),    # try to unlock l2, but it doesn't budge!
+                 Action('pull_', ('l2', 4)),    # try pulling l2 instead, still won't budge
+                 Action('push_', ('l0', 4)),    # unlock l0
+                 Action('push_', ('l1', 4)),    # unlock l1
+                 Action('push_', ('l2', 4)),    # try to unlock l2, but it still doesn't budge!
+                 Action('pull_', ('l2', 4)),    # try pulling l2 instead, it works
+                 Action('push_', ('door', 4)),  # open the door
+                 Action('pull_', ('l1', 4)),    # lock l1 (door locks too!)
+                 Action('push_', ('l2', 4)),    # try to move l2 again
+                 Action('pull_', ('l2', 4)),    # and it now doesn't work because l1 is locked!
+                 Action('push_', ('l1', 4)),    # so let's re-unlock l1 (re-unlocks door!)
+                 Action('pull_', ('door', 1)),  # close the door
+                 Action('pull_', ('door', 1)),
+                 Action('pull_', ('door', 1)),
+                 Action('push_', ('l2', 4)),    # then re-lock l2
+                 Action('pull_', ('l1', 4)),    # re-lock l1
+                 Action('pull_', ('l0', 4))]    # re-lock l0
 
 
 

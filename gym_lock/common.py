@@ -144,8 +144,8 @@ class Lock(Object):
 
     # step is env step function
     def create_clickable(self, step, action_map):
-        push = 'push_perp_{}'.format(self.name)
-        pull = 'pull_perp_{}'.format(self.name)
+        push = 'push_{}'.format(self.name)
+        pull = 'pull_{}'.format(self.name)
 
         self.inner_clickable = Clickable(lambda xy, poly: poly.contains(Point(xy)), step,
                                          callback_args=[action_map[pull]], test_args=[self.inner_poly])

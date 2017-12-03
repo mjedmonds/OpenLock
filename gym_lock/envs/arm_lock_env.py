@@ -17,13 +17,11 @@ from glob import glob
 # TODO: more physically plausible units?
 
 
-
 class ArmLockEnv(gym.Env):
     # Set this in SOME subclasses
     metadata = {'render.modes': ['human']}  # TODO what does this do?
 
     def __init__(self):
-
         self.viewer = None
 
         init_obs = self._reset()
@@ -139,10 +137,10 @@ class ArmLockEnv(gym.Env):
                 success = self._action_go_to_obj(action.params)
             elif action.name == 'rest':
                 success = self._action_rest()
-            elif action.name == 'pull_perp':
-                success = self._action_pull_perp(action.params)
-            elif action.name == 'push_perp':
-                success = self._action_push_perp(action.params)
+            elif action.name == 'pull':
+                success = self._action_pull(action.params)
+            elif action.name == 'push':
+                success = self._action_push(action.params)
             elif action.name == 'move':
                 success = self._action_move(action.params)
             elif action.name == 'move_end_frame':
@@ -192,14 +190,14 @@ class ArmLockEnv(gym.Env):
         self.action_map = dict()
         for obj, val in self.world_def.obj_map.items():
             if 'button' not in obj:
-                push = 'push_perp_{}'.format(obj)
-                pull = 'pull_perp_{}'.format(obj)
+                push = 'push_{}'.format(obj)
+                pull = 'pull_{}'.format(obj)
 
                 self.action_space.append(pull)
                 self.action_space.append(push)
 
-                self.action_map[push] = Action('push_perp', (obj, 4))
-                self.action_map[pull] = Action('pull_perp', (obj, 4))
+                self.action_map[push] = Action('push', (obj, 4))
+                self.action_map[pull] = Action('pull', (obj, 4))
 
         # setup renderer
         if not self.viewer:
@@ -216,19 +214,12 @@ class ArmLockEnv(gym.Env):
 
                 elif b2_object_name == 'door_right_button':
                     door_button = b2_object_data
-                    # vertices = [door.body.GetWorldPoint(vertex) for vertex in door.shape.vertices]
-                    # poly = Polygon(vertices)
-                    # push = 'push_perp_door'
-                    # clickable = Clickable(lambda xy, poly: poly.contains(Point(xy)), self._step, callback_args=[self.action_map[push]], test_args=[poly])
-                    callback_action = 'push_perp_door'
+                    callback_action = 'push_door'
                     door_button.create_clickable(self._step, self.action_map, self.action_map[callback_action])
                     self.viewer.register_clickable_region(door_button.clickable)
                 elif b2_object_name == 'door_left_button':
                     door_button = b2_object_data
-                    # vertices = [door.body.GetWorldPoint(vertex) for vertex in door.shape.vertices]
-                    # poly = Polygon(vertices)
-                    # push = 'pull_perp_door'
-                    callback_action = 'pull_perp_door'
+                    callback_action = 'pull_door'
                     door_button.create_clickable(self._step, self.action_map, self.action_map[callback_action])
                     self.viewer.register_clickable_region(door_button.clickable)
                 elif b2_object_name == 'reset_button':
@@ -530,7 +521,7 @@ class ArmLockEnv(gym.Env):
         
         return True
 
-    def _action_pull_perp(self, params):
+    def _action_pull(self, params):
         name, distance = params
 
         if not self._action_go_to_obj(name):
@@ -554,7 +545,7 @@ class ArmLockEnv(gym.Env):
 
         return True
 
-    def _action_push_perp(self, params):
+    def _action_push(self, params):
         name, distance = params
 
         if not self._action_go_to_obj(name):
@@ -663,7 +654,7 @@ class ArmLockEnv(gym.Env):
 
     def _action_save(self, params):
         save_count = len(glob(self.save_path + 'results[0-9]*.csv'))
-        np.savetxt(save_path + 'results{}.csv'.format(save_count), self.results, delimiter=',', fmt='%s')
+        np.savetxt(self.save_path + 'results{}.csv'.format(save_count), self.results, delimiter=',', fmt='%s')
         self._reset()
         return True
 

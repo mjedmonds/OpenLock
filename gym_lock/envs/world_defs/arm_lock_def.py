@@ -137,7 +137,7 @@ class ArmLockDef(object):
 
         self.obj_map = dict()
         self.grasped_list = []
-        self.fsm = MultiDoorLockFSM()
+        self.fsm = MultiDoorLockFSM(self)
         self.__init_arm(x0)
         self._init_fsm_rep()
         self.__init_cascade_controller()
@@ -248,57 +248,6 @@ class ArmLockDef(object):
             lock = Lock(self, name, configs[i], opt_params[i])
             self.obj_map[name] = lock
 
-        # modify l2, true iff in
-        # self.obj_map['l2'][2] = lambda joint: joint.translation > (joint.upperLimit + joint.lowerLimit) / 2.0
-        self.obj_map['l2'].int_test = lambda joint: joint.translation > (joint.upperLimit + joint.lowerLimit) / 2.0
-        # self.obj_map['l2'][3] = lambda joint: joint.translation > (joint.upperLimit + joint.lowerLimit) / 2.0
-        self.obj_map['l2'].ext_test = lambda joint: joint.translation > (joint.upperLimit + joint.lowerLimit) / 2.0
-
-    # def _create_door(self, config, width=0.5, length=10, locked=True):
-    #     # TODO: add relocking ability
-    #     # create door
-    #     x, y, theta = config
-    #
-    #     fixture_def = b2FixtureDef(
-    #         shape=b2PolygonShape(vertices=[(0, -width),
-    #                                        (0, width),
-    #                                        (length, width),
-    #                                        (length, -width)]),
-    #         density=1,
-    #         friction=1.0,
-    #         categoryBits=0x0010,
-    #         maskBits=0x1101)
-    #
-    #     door_body = self.world.CreateDynamicBody(
-    #         position=(x, y),
-    #         angle=theta,
-    #         angularDamping=0.8,
-    #         linearDamping=0.8)
-    #
-    #     door_fixture = door_body.CreateFixture(fixture_def)
-    #
-    #     door_hinge = self.world.CreateRevoluteJoint(
-    #         bodyA=door_fixture.body,  # end of link A
-    #         bodyB=self.ground,  # beginning of link B
-    #         localAnchorA=(0, 0),
-    #         localAnchorB=(x, y),
-    #         enableMotor=True,
-    #         motorSpeed=0,
-    #         enableLimit=False,
-    #         maxMotorTorque=500)
-    #
-    #     door_lock = None
-    #     if locked:
-    #         delta_x = np.cos(theta) * length
-    #         delta_y = np.sin(theta) * length
-    #         door_lock = self.world.CreateWeldJoint(
-    #             bodyA=door_fixture.body,  # end of link A
-    #             bodyB=self.ground,  # beginning of link B
-    #             localAnchorB=(x + delta_x, y + delta_y),
-    #         )
-    #
-    #     return door_fixture, door_hinge, door_lock
-
     def _lock_door(self):
         theta = self.door.body.angle
         length = max([v[0] for v in self.door.shape.vertices])
@@ -350,7 +299,7 @@ class ArmLockDef(object):
         # ext state
             'LOCK_STATE': self.obj_map['door'].int_test(self.obj_map['door'].joint),
             # 'LOCK_STATE': self.obj_map['door'][2](self.obj_map['door'][1]),
-            '_FSM_STATE': self.fsm.state,
+            '_FSM_STATE': self.fsm.observable_fsm.state + self.fsm.latent_fsm.state,
 
         }
 
@@ -361,45 +310,6 @@ class ArmLockDef(object):
             self.vel_controller.set_setpoint(vel_setpoints)
         joint_speeds = [joint.speed for joint in self.arm_joints]
         return self.vel_controller.update(joint_speeds)
-
-    def update_state_machine(self):
-
-        # execute state transitions
-
-        # check locks
-        for name, obj in self.obj_map.items():
-            if 'button' not in name:
-                if obj.int_test(obj.joint):
-                    # unlocked
-                    action = 'unlock_{}'.format(name) if name != 'door' else 'open'
-                    if action in self.fsm.actions:
-                        self.fsm.trigger(action)
-                else:
-                    # unlock
-                    action = 'lock_{}'.format(name) if name != 'door' else 'close'
-                    if action in self.fsm.actions:
-                        self.fsm.trigger(action)
-
-        # check door
-
-        if not '+' in self.fsm.state.split('o')[0] and self.door_lock is not None:
-            # all locks open
-            self._unlock_door()
-        elif '+' in self.fsm.state.split('o')[0] and self.door_lock is None:
-            self._lock_door()
-
-        if 'l0-l1-' in self.fsm.state:
-            lock = self.obj_map['l2'].fixture
-            joint = self.obj_map['l2'].joint
-            joint_axis = (-np.sin(lock.body.angle), np.cos(lock.body.angle))
-            joint.maxMotorForce = abs(b2Dot(lock.body.massData.mass * self.world.gravity, b2Vec2(joint_axis)))
-        else:
-            self.obj_map['l2'].joint.maxMotorForce = 100000
-
-            # if 'o+' in self.fsm.state and self.door_lock is not None:
-            #     self._unlock_door()
-            # elif 'o-' in self.fsm.state and self.door_lock is None:
-            #     self.world.CreateJoint()
 
     def set_controllers(self, setpoints):
         # make sure that angles are in [-pi, pi]
@@ -412,6 +322,15 @@ class ArmLockDef(object):
         theta = [c.theta for c in self.get_rel_config()[1:]]
         vel_setpoints = self.pos_controller.update(theta)
         self.vel_controller.set_setpoint(vel_setpoints)
+
+    def lock_lever(self, lever):
+        self.obj_map['l2'].joint.maxMotorForce = 100000
+
+    def unlock_lever(self, lever):
+        lock = self.obj_map['l2'].fixture
+        joint = self.obj_map['l2'].joint
+        joint_axis = (-np.sin(lock.body.angle), np.cos(lock.body.angle))
+        joint.maxMotorForce = abs(b2Dot(lock.body.massData.mass * self.world.gravity, b2Vec2(joint_axis)))
 
     def get_abs_config(self):
         config = []
@@ -463,7 +382,7 @@ class ArmLockDef(object):
         self.clock += 1
 
         if self.clock % BOX2D_SETTINGS['STATE_MACHINE_CLK_DIV'] == 0:
-            self.update_state_machine()
+            self.fsm.update_state_machine()
 
         # update torques
         new_torque = self.update_cascade_controller()
