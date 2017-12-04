@@ -14,9 +14,6 @@ if __name__ == '__main__':
     scenario = CURRENT_SCENARIO
     env = gym.make('arm_lock-v0')
 
-    # exchange references and intialize scenario-specific environment
-    scenario.env = env
-
     env.render()
 
     obs = env.reset()
