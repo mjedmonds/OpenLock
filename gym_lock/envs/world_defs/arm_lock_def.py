@@ -1,15 +1,11 @@
 import numpy as np
 from Box2D import *
-from Box2D import _Box2D
-from types import MethodType
 
-from gym_lock.common import TwoDConfig, TwoDForce, Lock, Door
+from gym_lock.common import Button, COLORS
+from gym_lock.common import TwoDConfig, Door
 from gym_lock.common import wrapToMinusPiToPi
 from gym_lock.pid_central import PIDController
 from gym_lock.settings import BOX2D_SETTINGS
-from gym_lock.state_machine.multi_lock import MultiDoorLockFSM
-from gym_lock.common import Button, COLORS
-
 
 # TODO: cleaner interface than indices between bodies and lengths
 # TODO: cleanup initialization/reset method
@@ -112,8 +108,10 @@ class ArmLockContactListener(b2ContactListener):
 
 
 class ArmLockDef(object):
-    def __init__(self, chain, timestep, world_size):
+    def __init__(self, chain, timestep, world_size, scenario):
         super(ArmLockDef, self).__init__()
+
+        self.scenario = scenario
 
         self.timestep = timestep
         self.chain = chain
@@ -136,15 +134,14 @@ class ArmLockDef(object):
                                      (-world_size, -world_size)])
 
         self.obj_map = dict()
+        self.door_lock = None
         self.grasped_list = []
-        self.fsm = MultiDoorLockFSM(self)
         self.__init_arm(x0)
-        self._init_fsm_rep()
+        self._init_env()
         self.__init_cascade_controller()
 
         self.contact_listener = ArmLockContactListener(self.end_effector_fixture, self.timestep)
         self.world.contactListener = self.contact_listener
-
 
         # for body in self.world.bodies:
         #     body.bullet = True
@@ -225,46 +222,27 @@ class ArmLockDef(object):
                 maxMotorTorque=50,
                 enableLimit=False))
 
-    def _init_fsm_rep(self):
+    def _init_env(self):
+        '''
+        Function to initialize buttons and door. This is constant across all scenario. Scenario specific code
+        (e.g. lever positions should be in the scenario's init_scenario_env function, which is called here)
+        '''
         # TODO: better setup interface
 
         door_config = TwoDConfig(15, 5, -np.pi / 2)
         door = Door(self, 'door', door_config)
         self.obj_map['door'] = door
 
-        self.obj_map['door_right_button'] = Button(world=self.world, config=door_config, color=COLORS['static'], name='door_right_button', height=1.5, width=1.5, x_offset=3, y_offset=5)
-        self.obj_map['door_left_button'] = Button(world=self.world, config=door_config, color=COLORS['static'], name='door_left_button', height=1.5, width=1.5, x_offset=-3, y_offset=5)
+        self.obj_map['door_right_button'] = Button(world_def=self, config=door_config, color=COLORS['static'], name='door_right_button', height=1.5, width=1.5, x_offset=3, y_offset=5)
+        self.obj_map['door_left_button'] = Button(world_def=self, config=door_config, color=COLORS['static'], name='door_left_button', height=1.5, width=1.5, x_offset=-3, y_offset=5)
 
         button_config = TwoDConfig(-25, -27, -np.pi / 2)
-        self.obj_map['save_button'] = Button(world=self.world, config=button_config, color=COLORS['save_button'], name='save_button', height=1.5, width=3)
-        self.obj_map['reset_button'] = Button(world=self.world, config=button_config, color=COLORS['reset_button'], name='reset_button', height=1.5, width=3, x_offset=7)
+        self.obj_map['save_button'] = Button(world_def=self, config=button_config, color=COLORS['save_button'], name='save_button', height=1.5, width=3)
+        self.obj_map['reset_button'] = Button(world_def=self, config=button_config, color=COLORS['reset_button'], name='reset_button', height=1.5, width=3, x_offset=7)
 
-        configs = [TwoDConfig(0, 15, 0), TwoDConfig(-15, 0, np.pi / 2), TwoDConfig(0, -15, -np.pi)]
-
-        opt_params = [None, None, {'lower_lim': 0.0, 'upper_lim': 2.0}]
-
-        for i in range(0, len(configs)):
-            name = 'l{}'.format(i)
-            lock = Lock(self, name, configs[i], opt_params[i])
-            self.obj_map[name] = lock
-
-    def _lock_door(self):
-        theta = self.door.body.angle
-        length = max([v[0] for v in self.door.shape.vertices])
-        x, y = self.door.body.position
-
-        delta_x = np.cos(theta) * length
-        delta_y = np.sin(theta) * length
-
-        self.door_lock = self.world.CreateWeldJoint(
-            bodyA=self.door.body,  # end of link A
-            bodyB=self.ground,  # beginning of link B
-            localAnchorB=(x + delta_x, y + delta_y),
-        )
-
-    def _unlock_door(self):
-        self.world.DestroyJoint(self.door_lock)
-        self.door_lock = None
+        # TODO: this is a bit of a hack to pass self to init_scenario_env, but there isn't a clean
+        # TODO: to have dual references during intialization
+        self.scenario.init_scenario_env(self)
 
     def __init_cascade_controller(self):
         pts = [c.theta for c in self.chain.get_rel_config()[1:]]
@@ -283,25 +261,6 @@ class ArmLockDef(object):
                                             [0] * len(self.arm_joints),
                                             self.timestep,
                                             max_out=30000)
-
-    def get_state(self):
-
-        # true iff out
-        in_out_test = lambda joint: joint.translation < (joint.upperLimit + joint.lowerLimit) / 2.0
-
-        return {
-            'END_EFFECTOR_POS': self.get_abs_config()[-1],
-            'END_EFFECTOR_FORCE': TwoDForce(self.contact_listener.norm_force, self.contact_listener.tan_force),
-            # 'DOOR_ANGLE' : self.obj_map['door'][1].angle,
-            # 'LOCK_TRANSLATIONS' : {name : val[1].translation for name, val in self.obj_map.items() if name != 'door'},
-            'OBJ_STATES': {name: val.ext_test(val.joint) for name, val in self.obj_map.items() if 'button' not in name},  # ext state
-            # 'OBJ_STATES': {name: val[3](val[1]) for name, val in self.obj_map.items() if 'button' not in name},
-        # ext state
-            'LOCK_STATE': self.obj_map['door'].int_test(self.obj_map['door'].joint),
-            # 'LOCK_STATE': self.obj_map['door'][2](self.obj_map['door'][1]),
-            '_FSM_STATE': self.fsm.observable_fsm.state + self.fsm.latent_fsm.state,
-
-        }
 
     def update_cascade_controller(self):
         if self.clock % BOX2D_SETTINGS['POS_PID_CLK_DIV'] == 0:
@@ -322,6 +281,24 @@ class ArmLockDef(object):
         theta = [c.theta for c in self.get_rel_config()[1:]]
         vel_setpoints = self.pos_controller.update(theta)
         self.vel_controller.set_setpoint(vel_setpoints)
+
+    def lock_door(self):
+        theta = self.door.body.angle
+        length = max([v[0] for v in self.door.shape.vertices])
+        x, y = self.door.body.position
+
+        delta_x = np.cos(theta) * length
+        delta_y = np.sin(theta) * length
+
+        self.door_lock = self.world.CreateWeldJoint(
+            bodyA=self.door.body,  # end of link A
+            bodyB=self.ground,  # beginning of link B
+            localAnchorB=(x + delta_x, y + delta_y),
+        )
+
+    def unlock_door(self):
+        self.world.DestroyJoint(self.door_lock)
+        self.door_lock = None
 
     def lock_lever(self, lever):
         self.obj_map['l2'].joint.maxMotorForce = 100000
@@ -381,15 +358,22 @@ class ArmLockDef(object):
     def step(self, timestep, vel_iterations, pos_iterations):
         self.clock += 1
 
-        if self.clock % BOX2D_SETTINGS['STATE_MACHINE_CLK_DIV'] == 0:
-            self.fsm.update_state_machine()
+        self._update_state_machine_at_frame_rate()
 
+        self._update_torques()
+
+        self.world.Step(timestep, vel_iterations, pos_iterations)
+
+    def _update_torques(self):
         # update torques
         new_torque = self.update_cascade_controller()
         for i in range(0, len(new_torque)):
             self.apply_torque(i + 1, new_torque[i])
 
-        self.world.Step(timestep, vel_iterations, pos_iterations)
+    def _update_state_machine_at_frame_rate(self):
+        ''''''
+        if self.clock % BOX2D_SETTINGS['STATE_MACHINE_CLK_DIV'] == 0:
+            self.scenario.update_state_machine()
 
     # TODO: implement
     def reset_world(self):

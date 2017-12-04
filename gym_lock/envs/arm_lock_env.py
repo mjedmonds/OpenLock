@@ -9,7 +9,7 @@ from gym_lock.common import *
 from gym_lock.envs.world_defs.arm_lock_def import ArmLockDef, b2RayCastOutput
 from gym_lock.kine import KinematicChain, discretize_path, InverseKinematics, generate_five_arm, \
     TwoDKinematicTransform
-from gym_lock.settings import RENDER_SETTINGS, BOX2D_SETTINGS, ENV_SETTINGS
+from gym_lock.settings import RENDER_SETTINGS, BOX2D_SETTINGS, ENV_SETTINGS, CURRENT_SCENARIO
 from glob import glob
 
 
@@ -24,12 +24,14 @@ class ArmLockEnv(gym.Env):
     def __init__(self):
         self.viewer = None
 
+        self.scenario = CURRENT_SCENARIO # handle to the scenario, defined by the scenario
+
         init_obs = self._reset()
 
         # setup .csv headers
         self.col_label = []
         self.col_label.append('frame')
-        for col_name in self.world_def.get_state()['OBJ_STATES']:
+        for col_name in self.get_state()['OBJ_STATES']:
             self.col_label.append(col_name)
         self.col_label.append('agent')
         for col_name in self.action_space:
@@ -39,17 +41,10 @@ class ArmLockEnv(gym.Env):
         self.results = [self.col_label]
         
         self.i = 0
-        self.save_path = '../OpenLockResults/'
+        self.save_path = '../../OpenLockResults/'
 
         # append initial observation
         self.results.append(self.create_state_entry(init_obs, self.i))
-
-    def create_state_entry(state, i):
-        entry = [0] * len(self.col_label)
-        entry[0] = i
-        for name, val in state['OBJ_STATES'].items():
-            entry[index_map[name]] = int(val)
-        return entry
 
     def create_state_entry(self, state, i):
         entry = [0] * len(self.col_label)
@@ -75,14 +70,19 @@ class ArmLockEnv(gym.Env):
                                 BOX2D_SETTINGS['VEL_ITERS'],
                                 BOX2D_SETTINGS['POS_ITERS'])
 
-            # render at desired frame rate
-            if self.world_def.clock % RENDER_SETTINGS['RENDER_CLK_DIV'] == 0:
-                self._render()
+            self._render_world_at_frame_rate()
 
             # update error values
             theta_err = sum([e ** 2 for e in self.world_def.pos_controller.error])
             vel_err = sum([e ** 2 for e in self.world_def.vel_controller.error])
         return True
+
+    def _render_world_at_frame_rate(self):
+        '''
+        render at desired frame rate
+        '''
+        if self.world_def.clock % RENDER_SETTINGS['RENDER_CLK_DIV'] == 0:
+            self._render()
 
     def _step(self, action):
         """Run one __timestep of the environment's dynamics. When end of
@@ -102,10 +102,10 @@ class ArmLockEnv(gym.Env):
             self.world_def.step(1.0 / BOX2D_SETTINGS['FPS'],
                                 BOX2D_SETTINGS['VEL_ITERS'],
                                 BOX2D_SETTINGS['POS_ITERS'])
-            if self.world_def.clock % RENDER_SETTINGS['RENDER_CLK_DIV'] == 0:
-                self._render()
 
-            state = self.world_def.get_state()
+            self._render_world_at_frame_rate()
+
+            state = self.get_state()
             state['SUCCESS'] = False
             return state, 0, False, {}
         else:
@@ -152,7 +152,7 @@ class ArmLockEnv(gym.Env):
             elif action.name == 'save':
                 success = self._action_save(action.params)
 
-            state = self.world_def.get_state()
+            state = self.get_state()
             state['SUCCESS'] = success
             self.i += 1
 
@@ -184,7 +184,7 @@ class ArmLockEnv(gym.Env):
                                          KinematicChain(self.base, initial_config))
 
         # setup Box2D world
-        self.world_def = ArmLockDef(self.invkine.kinematic_chain, 1.0 / BOX2D_SETTINGS['FPS'], 30)
+        self.world_def = ArmLockDef(self.invkine.kinematic_chain, 1.0 / BOX2D_SETTINGS['FPS'], 30, self.scenario)
 
         self.action_space = []
         self.action_map = dict()
@@ -237,7 +237,21 @@ class ArmLockEnv(gym.Env):
         self.viewer.reset()
         self._render()
 
-        return self.world_def.get_state()
+        return self.get_state()
+
+    def get_state(self):
+        return {
+            'END_EFFECTOR_POS': self.world_def.get_abs_config()[-1],
+            'END_EFFECTOR_FORCE': TwoDForce(self.world_def.contact_listener.norm_force, self.world_def.contact_listener.tan_force),
+            # 'DOOR_ANGLE' : self.obj_map['door'][1].angle,
+            # 'LOCK_TRANSLATIONS' : {name : val[1].translation for name, val in self.obj_map.items() if name != 'door'},
+            'OBJ_STATES': {name: val.ext_test(val.joint) for name, val in self.world_def.obj_map.items() if 'button' not in name},  # ext state
+            # 'OBJ_STATES': {name: val[3](val[1]) for name, val in self.obj_map.items() if 'button' not in name},
+        # ext state
+            'LOCK_STATE': self.world_def.obj_map['door'].int_test(self.world_def.obj_map['door'].joint),
+            # 'LOCK_STATE': self.obj_map['door'][2](self.obj_map['door'][1]),
+            '_FSM_STATE': self.scenario.fsmm.observable_fsm.state + self.scenario.fsmm.latent_fsm.state if self.scenario is not None else ValueError('No Scenario set'),
+        }
 
     def _render(self, mode='human', close=False):
         """Renders the environment.
@@ -662,7 +676,7 @@ class ArmLockEnv(gym.Env):
         return True
 
     def get_avail_actions(self):
-        return self.world_def.fsm.actions
+        return self.world_def.scenario.actions
 
 
 def main():

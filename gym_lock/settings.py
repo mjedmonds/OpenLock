@@ -1,6 +1,10 @@
 import numpy as np
 
 from gym_lock.common import TwoDConfig, Color
+from gym_lock.scenarios.multi_lock import MultiLockScenario
+
+# used as the current scenario for the environment and world_def setup
+CURRENT_SCENARIO = MultiLockScenario()
 
 RENDER_SETTINGS = {
     "RENDER_CLK_DIV": 25,
