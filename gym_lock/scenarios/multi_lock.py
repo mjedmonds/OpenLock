@@ -16,12 +16,12 @@ class MultiLockScenario(object):
     latent_vars = ['door:']
     latent_initial_state = 'door:locked,'
 
-    # define observable states that trigger changes in the latent space;
-    # this is the clue between the two machines.
-    # Here we assume if the observable case is in any criteria than those listed, the door is locked
-    door_unlock_criteria = ['l0:pushed,l1:pushed,l2:pulled,']
 
     lever_configs = [TwoDConfig(0, 15, 0), TwoDConfig(-15, 0, np.pi / 2), TwoDConfig(0, -15, -np.pi)]
+
+    lever_opt_params = [None, None, {'lower_lim': 0.0, 'upper_lim': 2.0}]
+
+    assert(len(lever_opt_params) == len(lever_configs))
 
     actions = ['nothing'] \
                    + ['pull_{}'.format(lock) for lock in observable_vars] \
@@ -38,6 +38,11 @@ class MultiLockScenario(object):
                                               l_vars=self.latent_vars,
                                               l_initial=self.latent_initial_state,
                                               actions=self.actions)
+
+        # define observable states that trigger changes in the latent space;
+        # this is the clue between the two machines.
+        # Here we assume if the observable case is in any criteria than those listed, the door is locked
+        self.door_unlock_criteria = [s for s in self.fsmm.observable_fsm.state_permutations if 'l0:pushed,' in s and 'l1:pushed,' in s and 'l2:pulled,' in s]
 
         # add unlock/lock transition for every lock
         for lock in self.fsmm.observable_fsm.vars:
@@ -116,12 +121,12 @@ class MultiLockScenario(object):
         # todo: come up with a better way to set self.world_def without passing as an argument here
         self.world_def = world_def
 
-        opt_params = [None, None, {'lower_lim': 0.0, 'upper_lim': 2.0}]
-
         for i in range(0, len(self.lever_configs)):
             name = 'l{}'.format(i)
-            lock = Lock(self.world_def, name, self.lever_configs[i], opt_params[i])
+            lock = Lock(self.world_def, name, self.lever_configs[i], self.lever_opt_params[i])
             self.world_def.obj_map[name] = lock
+
+        self.world_def.lock_lever('l2') #initially lock l2
 
     def _update_env(self):
         '''

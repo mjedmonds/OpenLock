@@ -4,9 +4,9 @@ from gym_lock.finite_state_machine import *
 from gym_lock.setttings_trial import *
 
 
-class CommonEffect3Scenario(object):
+class CommonCause3Scenario(object):
 
-    name = 'CE3'
+    name = 'CC3'
 
     observable_states = ['pulled,', 'pushed,']     # '+' -> locked/pulled, '-' -> unlocked/pushed
     # todo: make names between obj_map in env consistent with names in FSM (extra ':' in FSM)
@@ -38,16 +38,20 @@ class CommonEffect3Scenario(object):
                                               l_vars=self.latent_vars,
                                               l_initial=self.latent_initial_state,
                                               actions=self.actions)
+
         # define observable states that trigger changes in the latent space;
         # this is the clue between the two machines.
         # Here we assume if the observable case is in any criteria than those listed, the door is locked
-        self.door_unlock_criteria = [s for s in self.fsmm.observable_fsm.state_permutations if 'l3:pushed,' in s]
+        self.door_unlock_criteria = [s for s in self.fsmm.observable_fsm.state_permutations if 'l1:pushed,' in s or 'l2:pushed,' in s]
 
         # add unlock/lock transition for every lock
         for lock in self.fsmm.observable_fsm.vars:
             if lock == 'l2:':
-                pulled = [s for s in self.fsmm.observable_fsm.state_permutations if lock + 'pulled,' in s and ('l0:pushed,' in s or 'l1:pushed,' in s)]
-                pushed = [s for s in self.fsmm.observable_fsm.state_permutations if lock + 'pushed,' in s and ('l0:pushed,' in s or 'l1:pushed,' in s)]
+                pulled = [s for s in self.fsmm.observable_fsm.state_permutations if lock + 'pulled,' in s and 'l0:pushed,' in s]
+                pushed = [s for s in self.fsmm.observable_fsm.state_permutations if lock + 'pushed,' in s and 'l0:pushed,' in s]
+            if lock == 'l1:':
+                pulled = [s for s in self.fsmm.observable_fsm.state_permutations if lock + 'pulled,' in s and 'l0:pushed,' in s]
+                pushed = [s for s in self.fsmm.observable_fsm.state_permutations if lock + 'pushed,' in s and 'l0:pushed,' in s]
             else:
                 pulled = [s for s in self.fsmm.observable_fsm.state_permutations if lock + 'pulled,' in s]
                 pushed = [s for s in self.fsmm.observable_fsm.state_permutations if lock + 'pushed,' in s]
@@ -129,6 +133,7 @@ class CommonEffect3Scenario(object):
             self.world_def.obj_map[name] = lock
 
         self.world_def.lock_lever('l2') #initially lock l2
+        self.world_def.lock_lever('l1') #initially lock l1
 
     def _update_env(self):
         '''
@@ -162,11 +167,17 @@ class CommonEffect3Scenario(object):
             # add code to change part of the environment based on the state of an observable variable here
             # ---------------------------------------------------------------
             if observable_var == 'l2:':
-                # unlock l2 based on status of l0, l1, part of multi-lock FSM
-                if 'l0:pushed,' in self.fsmm.observable_fsm.state or 'l1:pushed,' in self.fsmm.observable_fsm.state:
+                # l2 unlocks if l0 is pushed
+                if 'l0:pushed,' in self.fsmm.observable_fsm.state:
                     self.world_def.unlock_lever('l2')
                 else:
                     self.world_def.lock_lever('l2')
+            if observable_var == 'l1:':
+                # l1 unlocks if l0 is pushed
+                if 'l0:pushed,' in self.fsmm.observable_fsm.state:
+                    self.world_def.unlock_lever('l1')
+                else:
+                    self.world_def.lock_lever('l1')
 
     # @property
     # def actions(self):

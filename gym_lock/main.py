@@ -1,7 +1,7 @@
 
 import gym
 import numpy as np
-from gym_lock.settings import CURRENT_SCENARIO
+from gym_lock.settings_render import CURRENT_SCENARIO
 
 
 def exit_handler(signum, frame):

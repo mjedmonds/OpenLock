@@ -3,10 +3,12 @@ import numpy as np
 from gym_lock.common import TwoDConfig, Color
 from gym_lock.scenarios.multi_lock import MultiLockScenario
 from gym_lock.scenarios.CE3 import CommonEffect3Scenario
+from gym_lock.scenarios.CC3 import CommonCause3Scenario
 
 # used as the current scenario for the environment and world_def setup
 # CURRENT_SCENARIO = MultiLockScenario()
-CURRENT_SCENARIO = CommonEffect3Scenario()
+# CURRENT_SCENARIO = CommonEffect3Scenario()
+CURRENT_SCENARIO = CommonCause3Scenario()
 
 RENDER_SETTINGS = {
     "RENDER_CLK_DIV": 25,
@@ -57,3 +59,4 @@ ENV_SETTINGS = {
     "INVK_CONV_TOL": 0.001,
     "PATH_INTERP_STEP_DELTA": 0.05
 }
+

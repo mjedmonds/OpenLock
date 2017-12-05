@@ -9,7 +9,7 @@ from gym_lock.common import *
 from gym_lock.envs.world_defs.arm_lock_def import ArmLockDef, b2RayCastOutput
 from gym_lock.kine import KinematicChain, discretize_path, InverseKinematics, generate_five_arm, \
     TwoDKinematicTransform
-from gym_lock.settings import RENDER_SETTINGS, BOX2D_SETTINGS, ENV_SETTINGS, CURRENT_SCENARIO
+from gym_lock.settings_render import RENDER_SETTINGS, BOX2D_SETTINGS, ENV_SETTINGS, CURRENT_SCENARIO
 from glob import glob
 
 

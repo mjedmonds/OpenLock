@@ -5,7 +5,7 @@ from gym_lock.common import Button, COLORS
 from gym_lock.common import TwoDConfig, Door
 from gym_lock.common import wrapToMinusPiToPi
 from gym_lock.pid_central import PIDController
-from gym_lock.settings import BOX2D_SETTINGS
+from gym_lock.settings_render import BOX2D_SETTINGS
 
 # TODO: cleaner interface than indices between bodies and lengths
 # TODO: cleanup initialization/reset method
@@ -229,12 +229,12 @@ class ArmLockDef(object):
         '''
         # TODO: better setup interface
 
-        door_config = TwoDConfig(15, 5, -np.pi / 2)
+        door_config = TwoDConfig(18, 5, -np.pi / 2)
         door = Door(self, 'door', door_config)
         self.obj_map['door'] = door
 
-        self.obj_map['door_right_button'] = Button(world_def=self, config=door_config, color=COLORS['static'], name='door_right_button', height=1.5, width=1.5, x_offset=3, y_offset=5)
-        self.obj_map['door_left_button'] = Button(world_def=self, config=door_config, color=COLORS['static'], name='door_left_button', height=1.5, width=1.5, x_offset=-3, y_offset=5)
+        self.obj_map['door_right_button'] = Button(world_def=self, config=door_config, color=COLORS['static'], name='door_right_button', height=1.5, width=1.5, x_offset=3, y_offset=10)
+        self.obj_map['door_left_button'] = Button(world_def=self, config=door_config, color=COLORS['static'], name='door_left_button', height=1.5, width=1.5, x_offset=-3, y_offset=10)
 
         button_config = TwoDConfig(-25, -27, -np.pi / 2)
         self.obj_map['save_button'] = Button(world_def=self, config=button_config, color=COLORS['save_button'], name='save_button', height=1.5, width=3)
@@ -301,11 +301,11 @@ class ArmLockDef(object):
         self.door_lock = None
 
     def lock_lever(self, lever):
-        self.obj_map['l2'].joint.maxMotorForce = 100000
+        self.obj_map[lever].joint.maxMotorForce = 100000
 
     def unlock_lever(self, lever):
-        lock = self.obj_map['l2'].fixture
-        joint = self.obj_map['l2'].joint
+        lock = self.obj_map[lever].fixture
+        joint = self.obj_map[lever].joint
         joint_axis = (-np.sin(lock.body.angle), np.cos(lock.body.angle))
         joint.maxMotorForce = abs(b2Dot(lock.body.massData.mass * self.world.gravity, b2Vec2(joint_axis)))
 

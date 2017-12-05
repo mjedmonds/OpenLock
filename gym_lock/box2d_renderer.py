@@ -7,7 +7,7 @@ from pyglet.window import key
 from gym_lock import rendering
 from gym_lock.common import Color, TwoDConfig, COLORS
 from gym_lock.kine import TwoDKinematicTransform
-from gym_lock.settings import RENDER_SETTINGS
+from gym_lock.settings_render import RENDER_SETTINGS
 
 VIEWPORT_W = 800
 VIEWPORT_H = 800
