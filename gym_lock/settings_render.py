@@ -4,11 +4,30 @@ from gym_lock.common import TwoDConfig, Color
 from gym_lock.scenarios.multi_lock import MultiLockScenario
 from gym_lock.scenarios.CE3 import CommonEffect3Scenario
 from gym_lock.scenarios.CC3 import CommonCause3Scenario
+from gym_lock.scenarios.CE4 import CommonEffect4Scenario
+from gym_lock.scenarios.CC4 import CommonCause4Scenario
+
+CURRENT_SCENARIO = None
 
 # used as the current scenario for the environment and world_def setup
-# CURRENT_SCENARIO = MultiLockScenario()
-# CURRENT_SCENARIO = CommonEffect3Scenario()
-CURRENT_SCENARIO = CommonCause3Scenario()
+# SCENARIO = 'CE3'
+# SCENARIO = 'CC3'
+# SCENARIO = 'CE4'
+SCENARIO = 'CC4'
+# SCENARIO = 'multi-lock'
+
+if SCENARIO == 'CE3':
+    CURRENT_SCENARIO = CommonEffect3Scenario()
+elif SCENARIO == 'CC3':
+    CURRENT_SCENARIO = CommonCause3Scenario()
+elif SCENARIO == 'CE4':
+    CURRENT_SCENARIO = CommonEffect4Scenario()
+elif SCENARIO == 'CC4':
+    CURRENT_SCENARIO = CommonCause4Scenario()
+elif SCENARIO == 'multi-lock':
+    CURRENT_SCENARIO = MultiLockScenario()
+else:
+    raise ValueError('Invalid SCENARIO chosen in settings_render.py: %s' % SCENARIO)
 
 RENDER_SETTINGS = {
     "RENDER_CLK_DIV": 25,

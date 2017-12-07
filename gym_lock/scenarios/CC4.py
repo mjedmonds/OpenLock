@@ -4,14 +4,14 @@ from gym_lock.finite_state_machine import *
 from gym_lock.setttings_trial import *
 
 
-class CommonCause3Scenario(object):
+class CommonCause4Scenario(object):
 
     name = 'CC3'
 
     observable_states = ['pulled,', 'pushed,']     # '+' -> locked/pulled, '-' -> unlocked/pushed
     # todo: make names between obj_map in env consistent with names in FSM (extra ':' in FSM)
-    observable_vars = ['l0:', 'l1:', 'l2:']
-    observable_initial_state = 'l0:pulled,l1:pulled,l2:pulled,'
+    observable_vars = ['l0:', 'l1:', 'l2:', 'l3:']
+    observable_initial_state = 'l0:pulled,l1:pulled,l2:pulled,l3:pulled,'
 
     latent_states = ['unlocked,', 'locked,']     # '+' -> open, '-' -> closed
     latent_vars = ['door:']
@@ -42,14 +42,17 @@ class CommonCause3Scenario(object):
         # define observable states that trigger changes in the latent space;
         # this is the clue between the two machines.
         # Here we assume if the observable case is in any criteria than those listed, the door is locked
-        self.door_unlock_criteria = [s for s in self.fsmm.observable_fsm.state_permutations if 'l1:pushed,' in s or 'l2:pushed,' in s]
+        self.door_unlock_criteria = [s for s in self.fsmm.observable_fsm.state_permutations if 'l1:pushed,' in s or 'l2:pushed,' in s or 'l3:pushed,' in s]
 
         # add unlock/lock transition for every lock
         for lock in self.fsmm.observable_fsm.vars:
-            if lock == 'l2:':
+            if lock == 'l1:':
                 pulled = [s for s in self.fsmm.observable_fsm.state_permutations if lock + 'pulled,' in s and 'l0:pushed,' in s]
                 pushed = [s for s in self.fsmm.observable_fsm.state_permutations if lock + 'pushed,' in s and 'l0:pushed,' in s]
-            elif lock == 'l1:':
+            elif lock == 'l2:':
+                pulled = [s for s in self.fsmm.observable_fsm.state_permutations if lock + 'pulled,' in s and 'l0:pushed,' in s]
+                pushed = [s for s in self.fsmm.observable_fsm.state_permutations if lock + 'pushed,' in s and 'l0:pushed,' in s]
+            elif lock == 'l3:':
                 pulled = [s for s in self.fsmm.observable_fsm.state_permutations if lock + 'pulled,' in s and 'l0:pushed,' in s]
                 pushed = [s for s in self.fsmm.observable_fsm.state_permutations if lock + 'pushed,' in s and 'l0:pushed,' in s]
             else:
@@ -132,8 +135,9 @@ class CommonCause3Scenario(object):
             lock = Lock(self.world_def, name, self.lever_configs[i], self.lever_opt_params[i])
             self.world_def.obj_map[name] = lock
 
-        self.world_def.lock_lever('l2') #initially lock l2
         self.world_def.lock_lever('l1') #initially lock l1
+        self.world_def.lock_lever('l2') #initially lock l2
+        self.world_def.lock_lever('l3') #initially lock l3
 
     def _update_env(self):
         '''
@@ -166,18 +170,24 @@ class CommonCause3Scenario(object):
             # ---------------------------------------------------------------
             # add code to change part of the environment based on the state of an observable variable here
             # ---------------------------------------------------------------
-            if observable_var == 'l2:':
-                # l2 unlocks if l0 is pushed
-                if 'l0:pushed,' in self.fsmm.observable_fsm.state:
-                    self.world_def.unlock_lever('l2')
-                else:
-                    self.world_def.lock_lever('l2')
             if observable_var == 'l1:':
                 # l1 unlocks if l0 is pushed
                 if 'l0:pushed,' in self.fsmm.observable_fsm.state:
                     self.world_def.unlock_lever('l1')
                 else:
                     self.world_def.lock_lever('l1')
+            if observable_var == 'l2:':
+                # l2 unlocks if l0 is pushed
+                if 'l0:pushed,' in self.fsmm.observable_fsm.state:
+                    self.world_def.unlock_lever('l2')
+                else:
+                    self.world_def.lock_lever('l2')
+            if observable_var == 'l3:':
+                # l3 unlocks if l0 is pushed
+                if 'l0:pushed,' in self.fsmm.observable_fsm.state:
+                    self.world_def.unlock_lever('l3')
+                else:
+                    self.world_def.lock_lever('l3')
 
     # @property
     # def actions(self):

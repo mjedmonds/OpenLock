@@ -1,4 +1,5 @@
 import gym
+import re
 from shapely.geometry import Polygon, Point
 from Box2D import b2Color, b2_kinematicBody, b2_staticBody, b2RayCastInput, b2Transform, b2Shape, b2Distance
 from gym import spaces
@@ -202,10 +203,12 @@ class ArmLockEnv(gym.Env):
         # setup renderer
         if not self.viewer:
             self.viewer = Box2DRenderer(self._action_grasp)
+
+            lock_regex = '^l[0-9]+$'
             # register clickable regions
             print 'register?'
             for b2_object_name, b2_object_data in self.world_def.obj_map.items():
-                if b2_object_name in {'l1', 'l2', 'l0'}:
+                if re.search(lock_regex, b2_object_name):
                     lock = b2_object_data
 
                     lock.create_clickable(self._step, self.action_map)
@@ -449,7 +452,8 @@ class ArmLockEnv(gym.Env):
         # succesfully reached target config
 
         # delete target arrow
-        del self.viewer.markers['targ_arrow']
+        if 'targ_arrow' in self.viewer.markers.keys():
+            del self.viewer.markers['targ_arrow']
 
         return True
 

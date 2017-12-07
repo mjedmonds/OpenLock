@@ -2,7 +2,7 @@ import numpy as np
 
 from gym_lock.common import TwoDConfig
 
-TRIAL = 'trial6'
+TRIAL = 'trial7'
 
 UPPER = TwoDConfig(0, 15, 0)
 LEFT = TwoDConfig(-15, 0, np.pi / 2)
