@@ -7,27 +7,32 @@ from gym_lock.scenarios.CC3 import CommonCause3Scenario
 from gym_lock.scenarios.CE4 import CommonEffect4Scenario
 from gym_lock.scenarios.CC4 import CommonCause4Scenario
 
+# this must be a global variable because main.py and arm_lock_env.py need access to the same object
 CURRENT_SCENARIO = None
 
 # used as the current scenario for the environment and world_def setup
 # SCENARIO = 'CE3'
 # SCENARIO = 'CC3'
 # SCENARIO = 'CE4'
-SCENARIO = 'CC4'
+# SCENARIO = 'CC4'
 # SCENARIO = 'multi-lock'
 
-if SCENARIO == 'CE3':
-    CURRENT_SCENARIO = CommonEffect3Scenario()
-elif SCENARIO == 'CC3':
-    CURRENT_SCENARIO = CommonCause3Scenario()
-elif SCENARIO == 'CE4':
-    CURRENT_SCENARIO = CommonEffect4Scenario()
-elif SCENARIO == 'CC4':
-    CURRENT_SCENARIO = CommonCause4Scenario()
-elif SCENARIO == 'multi-lock':
-    CURRENT_SCENARIO = MultiLockScenario()
-else:
-    raise ValueError('Invalid SCENARIO chosen in settings_render.py: %s' % SCENARIO)
+
+def select_scenario(scenario):
+    global CURRENT_SCENARIO
+    if scenario == 'CE3':
+        CURRENT_SCENARIO = CommonEffect3Scenario()
+    elif scenario == 'CC3':
+        CURRENT_SCENARIO = CommonCause3Scenario()
+    elif scenario == 'CE4':
+        CURRENT_SCENARIO = CommonEffect4Scenario()
+    elif scenario == 'CC4':
+        CURRENT_SCENARIO = CommonCause4Scenario()
+    elif scenario == 'multi-lock':
+        CURRENT_SCENARIO = MultiLockScenario()
+    else:
+        raise ValueError('Invalid scenario chosen in settings_render.py: %s' % scenario)
+
 
 RENDER_SETTINGS = {
     "RENDER_CLK_DIV": 25,

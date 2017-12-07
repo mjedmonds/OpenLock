@@ -1,7 +1,7 @@
 
 import gym
 import numpy as np
-from gym_lock.settings_render import CURRENT_SCENARIO
+from gym_lock.settings_render import CURRENT_SCENARIO, select_scenario
 
 
 def exit_handler(signum, frame):
@@ -11,6 +11,7 @@ def exit_handler(signum, frame):
 
 
 if __name__ == '__main__':
+    select_scenario('CC4')
     scenario = CURRENT_SCENARIO
     env = gym.make('arm_lock-v0')
 
