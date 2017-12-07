@@ -8,7 +8,7 @@ from gym_lock.scenarios.CE4 import CommonEffect4Scenario
 from gym_lock.scenarios.CC4 import CommonCause4Scenario
 
 # this must be a global variable because main.py and arm_lock_env.py need access to the same object
-CURRENT_SCENARIO = None
+# CURRENT_SCENARIO = None
 
 # used as the current scenario for the environment and world_def setup
 # SCENARIO = 'CE3'
@@ -19,7 +19,7 @@ CURRENT_SCENARIO = None
 
 
 def select_scenario(scenario):
-    global CURRENT_SCENARIO
+    CURRENT_SCENARIO = None
     if scenario == 'CE3':
         CURRENT_SCENARIO = CommonEffect3Scenario()
     elif scenario == 'CC3':
@@ -32,6 +32,7 @@ def select_scenario(scenario):
         CURRENT_SCENARIO = MultiLockScenario()
     else:
         raise ValueError('Invalid scenario chosen in settings_render.py: %s' % scenario)
+    return CURRENT_SCENARIO
 
 
 RENDER_SETTINGS = {

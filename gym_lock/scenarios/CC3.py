@@ -1,10 +1,9 @@
 
-from gym_lock.common import *
-from gym_lock.finite_state_machine import *
-from gym_lock.setttings_trial import *
+from gym_lock.finite_state_machine import FiniteStateMachineManager
+from gym_lock.scenarios.scenario import Scenario
 
 
-class CommonCause3Scenario(object):
+class CommonCause3Scenario(Scenario):
 
     name = 'CC3'
 
@@ -16,12 +15,6 @@ class CommonCause3Scenario(object):
     latent_states = ['unlocked,', 'locked,']     # '+' -> open, '-' -> closed
     latent_vars = ['door:']
     latent_initial_state = 'door:locked,'
-
-    lever_configs = CURRENT_LEVER_CONFIG
-
-    lever_opt_params = CURRENT_LEVER_OPT_PARAMS
-
-    assert(len(lever_opt_params) == len(lever_configs))
 
     actions = ['nothing'] \
                    + ['pull_{}'.format(lock) for lock in observable_vars] \
@@ -38,6 +31,9 @@ class CommonCause3Scenario(object):
                                               l_vars=self.latent_vars,
                                               l_initial=self.latent_initial_state,
                                               actions=self.actions)
+
+        self.lever_configs = None
+        self.lever_opt_params = None
 
         # define observable states that trigger changes in the latent space;
         # this is the clue between the two machines.
@@ -60,63 +56,28 @@ class CommonCause3Scenario(object):
                 self.fsmm.observable_fsm.machine.add_transition('pull_{}'.format(lock), pushed_state, pulled_state, after='update_manager')
                 self.fsmm.observable_fsm.machine.add_transition('push_{}'.format(lock), pulled_state, pushed_state, after='update_manager')
 
-        # add nothing transition
-        for state in self.fsmm.observable_fsm.state_permutations:
-            self.fsmm.observable_fsm.machine.add_transition('nothing', state, state)
-        for state in self.fsmm.latent_fsm.state_permutations:
-            self.fsmm.latent_fsm.machine.add_transition('nothing', state, state)
+        super(CommonCause3Scenario, self).add_nothing_transition()
 
-        for door in self.latent_vars:
-            #todo: only supports one door
-            self.fsmm.latent_fsm.machine.add_transition('lock_{}'.format(door), 'door:locked,', 'door:locked,')
-            self.fsmm.latent_fsm.machine.add_transition('lock_{}'.format(door), 'door:unlocked,', 'door:locked,')
-            self.fsmm.latent_fsm.machine.add_transition('unlock_{}'.format(door), 'door:locked,', 'door:unlocked,')
-            self.fsmm.latent_fsm.machine.add_transition('unlock_{}'.format(door), 'door:unlocked,', 'door:unlocked,')
+        super(CommonCause3Scenario, self).add_door_transitions()
+
 
     def update_latent(self):
         '''
         logic to transition in the latent state space based on the observable state space, if needed
         '''
-        observable_state = self.fsmm.observable_fsm.state
-        if observable_state in self.door_unlock_criteria:
-            # todo: currently this will unlock all doors, need to make it so each door has it's own connection to observable state
-            for door in self.latent_vars:
-                self.fsmm.latent_fsm.trigger('unlock_{}'.format(door))
-        else:
-            # todo: currently this will lock all doors, need to make it so each door has it's own connection to observable state
-            for door in self.latent_vars:
-                if self.fsmm._extract_entity_state(self.fsmm.latent_fsm.state, door) != 'locked,':
-                    self.fsmm.latent_fsm.trigger('lock_{}'.format(door))
+        super(CommonCause3Scenario, self).update_latent()
 
     def update_observable(self):
         '''
         updates observable fsm based on some change in the observable fsm, if needed
         '''
-        pass
+        super(CommonCause3Scenario, self).update_observable()
 
     def update_state_machine(self):
         '''
         Updates the finite state machines according to object status in the Box2D environment
         '''
-        prev_state = self.fsmm.observable_fsm.state
-
-        # execute state transitions
-        # check locks
-        for name, obj in self.world_def.obj_map.items():
-            fsm_name = name + ':'
-            if 'button' not in name and 'door' not in name:
-                if obj.int_test(obj.joint):
-                    if self.fsmm._extract_entity_state(self.fsmm.observable_fsm.state, fsm_name) != 'pushed,':
-                        # push lever
-                        action = 'push_{}'.format(fsm_name)
-                        self.fsmm.execute_action(action)
-                        self._update_env()
-                else:
-                    if self.fsmm._extract_entity_state(self.fsmm.observable_fsm.state, fsm_name) != 'pulled,':
-                        # push lever
-                        action = 'pull_{}'.format(fsm_name)
-                        self.fsmm.execute_action(action)
-                        self._update_env()
+        super(CommonCause3Scenario, self).update_state_machine()
 
     def init_scenario_env(self, world_def):
         '''
@@ -124,13 +85,7 @@ class CommonCause3Scenario(object):
         :return:
         '''
 
-        # todo: come up with a better way to set self.world_def without passing as an argument here
-        self.world_def = world_def
-
-        for i in range(0, len(self.lever_configs)):
-            name = 'l{}'.format(i)
-            lock = Lock(self.world_def, name, self.lever_configs[i], self.lever_opt_params[i])
-            self.world_def.obj_map[name] = lock
+        super(CommonCause3Scenario, self).init_scenario_env(world_def)
 
         self.world_def.lock_lever('l2') #initially lock l2
         self.world_def.lock_lever('l1') #initially lock l1
@@ -146,16 +101,7 @@ class CommonCause3Scenario(object):
         '''
         updates latent objects in the Box2D environment based on state of the latent finite state machine
         '''
-        latent_states = self.fsmm.get_latent_states()
-        for latent_var in latent_states.keys():
-            # ---------------------------------------------------------------
-            # Add code to change part of the environment corresponding to a latent variable here
-            # ---------------------------------------------------------------
-            if latent_var == 'door:':
-                if latent_states[latent_var] == 'locked,' and self.world_def.door_lock is None:
-                    self.world_def.lock_door()
-                elif latent_states[latent_var] == 'unlocked,' and self.world_def.door_lock is not None:
-                    self.world_def.unlock_door()
+        super(CommonCause3Scenario, self)._update_latent_objs()
 
     def _update_observable_objs(self):
         '''
@@ -179,23 +125,6 @@ class CommonCause3Scenario(object):
                 else:
                     self.world_def.lock_lever('l1')
 
-    # @property
-    # def actions(self):
-    #     return self.observable_fsm.machine.get_triggers(self.observable_fsm.state)
 
-    # @classmethod
-    # def _init_states(self):
-    #     assert len(self.observable_vars) > 0
-    #
-    #     observable_v_list = cartesian_product([self.observable_vars[0]], self.observable_states)
-    #     for i in range(1, len(self.observable_vars)):
-    #         observable_v_list = cartesian_product(observable_v_list, cartesian_product([self.observable_vars[i]], self.observable_states))
-    #
-    #     latent_v_list = cartesian_product([self.latent_vars[0]], self.latent_states)
-    #     for i in range(1, len(self.latent_vars)):
-    #         door_list = cartesian_product(latent_v_list, cartesian_product([self.latent_vars[i]], self.latent_states))
-    #
-    #     # return cartesian_product(observable_v_list, door_list)
-    #     return observable_v_list, latent_v_list
 
 

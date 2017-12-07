@@ -1,7 +1,7 @@
 
-from gym_lock.common import *
-from gym_lock.finite_state_machine import *
-
+import gym_lock.common as common
+from gym_lock.finite_state_machine import FiniteStateMachineManager
+from gym_lock.setttings_trial import LEVER_CONFIGS, LEVER_OPT_PARAMS
 
 class MultiLockScenario(object):
 
@@ -15,13 +15,6 @@ class MultiLockScenario(object):
     latent_states = ['unlocked,', 'locked,']     # '+' -> open, '-' -> closed
     latent_vars = ['door:']
     latent_initial_state = 'door:locked,'
-
-
-    lever_configs = [TwoDConfig(0, 15, 0), TwoDConfig(-15, 0, np.pi / 2), TwoDConfig(0, -15, -np.pi)]
-
-    lever_opt_params = [None, None, {'lower_lim': 0.0, 'upper_lim': 2.0}]
-
-    assert(len(lever_opt_params) == len(lever_configs))
 
     actions = ['nothing'] \
                    + ['pull_{}'.format(lock) for lock in observable_vars] \
@@ -38,6 +31,11 @@ class MultiLockScenario(object):
                                               l_vars=self.latent_vars,
                                               l_initial=self.latent_initial_state,
                                               actions=self.actions)
+
+        self.lever_configs = LEVER_CONFIGS['multi-lock']
+        self.lever_opt_params = LEVER_OPT_PARAMS['multi-lock']
+
+        assert (len(self.lever_opt_params) == len(self.lever_configs))
 
         # define observable states that trigger changes in the latent space;
         # this is the clue between the two machines.
@@ -66,6 +64,12 @@ class MultiLockScenario(object):
         for door in self.latent_vars:
             self.fsmm.latent_fsm.machine.add_transition('lock_{}'.format(door), 'door:unlocked,', 'door:locked,')
             self.fsmm.latent_fsm.machine.add_transition('unlock_{}'.format(door), 'door:locked,', 'door:unlocked,')
+
+    def set_lever_configs(self, lever_configs, lever_opt_params):
+        self.lever_configs = lever_configs
+        self.lever_opt_params = lever_opt_params
+
+        assert (len(self.lever_opt_params) == len(self.lever_configs))
 
     def update_latent(self):
         '''
@@ -123,7 +127,7 @@ class MultiLockScenario(object):
 
         for i in range(0, len(self.lever_configs)):
             name = 'l{}'.format(i)
-            lock = Lock(self.world_def, name, self.lever_configs[i], self.lever_opt_params[i])
+            lock = common.Lock(self.world_def, name, self.lever_configs[i], self.lever_opt_params[i])
             self.world_def.obj_map[name] = lock
 
         self.world_def.lock_lever('l2') #initially lock l2
@@ -185,21 +189,21 @@ class MultiLockScenario(object):
     #     # return cartesian_product(observable_v_list, door_list)
     #     return observable_v_list, latent_v_list
 
-action_script = [Action('push_', ('l2', 4)),  # try to unlock l2, but it doesn't budge!
-                 Action('pull_', ('l2', 4)),  # try pulling l2 instead, still won't budge
-                 Action('push_', ('l0', 4)),  # unlock l0
-                 Action('push_', ('l1', 4)),  # unlock l1
-                 Action('push_', ('l2', 4)),  # try to unlock l2, but it still doesn't budge!
-                 Action('pull_', ('l2', 4)),  # try pulling l2 instead, it works
-                 Action('push_', ('door', 4)),  # open the door
-                 Action('pull_', ('l1', 4)),  # lock l1 (door locks too!)
-                 Action('push_', ('l2', 4)),  # try to move l2 again
-                 Action('pull_', ('l2', 4)),  # and it now doesn't work because l1 is locked!
-                 Action('push_', ('l1', 4)),  # so let's re-unlock l1 (re-unlocks door!)
-                 Action('pull_', ('door', 1)),  # close the door
-                 Action('pull_', ('door', 1)),
-                 Action('pull_', ('door', 1)),
-                 Action('push_', ('l2', 4)),  # then re-lock l2
-                 Action('pull_', ('l1', 4)),  # re-lock l1
-                 Action('pull_', ('l0', 4))]  # re-lock l0
+action_script = [common.Action('push_', ('l2', 4)),  # try to unlock l2, but it doesn't budge!
+                 common.Action('pull_', ('l2', 4)),  # try pulling l2 instead, still won't budge
+                 common.Action('push_', ('l0', 4)),  # unlock l0
+                 common.Action('push_', ('l1', 4)),  # unlock l1
+                 common.Action('push_', ('l2', 4)),  # try to unlock l2, but it still doesn't budge!
+                 common.Action('pull_', ('l2', 4)),  # try pulling l2 instead, it works
+                 common.Action('push_', ('door', 4)),  # open the door
+                 common.Action('pull_', ('l1', 4)),  # lock l1 (door locks too!)
+                 common.Action('push_', ('l2', 4)),  # try to move l2 again
+                 common.Action('pull_', ('l2', 4)),  # and it now doesn't work because l1 is locked!
+                 common.Action('push_', ('l1', 4)),  # so let's re-unlock l1 (re-unlocks door!)
+                 common.Action('pull_', ('door', 1)),  # close the door
+                 common.Action('pull_', ('door', 1)),
+                 common.Action('pull_', ('door', 1)),
+                 common.Action('push_', ('l2', 4)),  # then re-lock l2
+                 common.Action('pull_', ('l1', 4)),  # re-lock l1
+                 common.Action('pull_', ('l0', 4))]  # re-lock l0
 

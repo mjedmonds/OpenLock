@@ -1,9 +1,7 @@
 import numpy as np
-from Box2D import *
+from Box2D import b2ContactListener, b2Vec2, b2World, b2FixtureDef, b2PolygonShape, b2CircleShape, b2Dot
 
-from gym_lock.common import Button, COLORS
-from gym_lock.common import TwoDConfig, Door
-from gym_lock.common import wrapToMinusPiToPi
+import gym_lock.common as common
 from gym_lock.pid_central import PIDController
 from gym_lock.settings_render import BOX2D_SETTINGS
 
@@ -229,17 +227,17 @@ class ArmLockDef(object):
         '''
         # TODO: better setup interface
 
-        door_config = TwoDConfig(18, 5, -np.pi / 2)
-        door = Door(self, 'door', door_config)
+        door_config = common.TwoDConfig(18, 5, -np.pi / 2)
+        door =  common.Door(self, 'door', door_config)
         self.obj_map['door'] = door
 
-        self.obj_map['door_right_button'] = Button(world_def=self, config=door_config, color=COLORS['static'], name='door_right_button', height=1.5, width=1.5, x_offset=3, y_offset=10)
+        self.obj_map['door_right_button'] = common.Button(world_def=self, config=door_config, color=common.COLORS['static'], name='door_right_button', height=1.5, width=1.5, x_offset=3, y_offset=10)
         # uncommend below to re-enable pulling on door
-        # self.obj_map['door_left_button'] = Button(world_def=self, config=door_config, color=COLORS['static'], name='door_left_button', height=1.5, width=1.5, x_offset=-3, y_offset=10)
+        # self.obj_map['door_left_button'] = common.Button(world_def=self, config=door_config, color=common.COLORS['static'], name='door_left_button', height=1.5, width=1.5, x_offset=-3, y_offset=10)
 
-        button_config = TwoDConfig(-25, -27, -np.pi / 2)
-        self.obj_map['save_button'] = Button(world_def=self, config=button_config, color=COLORS['save_button'], name='save_button', height=1.5, width=3)
-        self.obj_map['reset_button'] = Button(world_def=self, config=button_config, color=COLORS['reset_button'], name='reset_button', height=1.5, width=3, x_offset=7)
+        button_config = common.TwoDConfig(-25, -27, -np.pi / 2)
+        self.obj_map['save_button'] = common.Button(world_def=self, config=button_config, color=common.COLORS['save_button'], name='save_button', height=1.5, width=3)
+        self.obj_map['reset_button'] = common.Button(world_def=self, config=button_config, color=common.COLORS['reset_button'], name='reset_button', height=1.5, width=3, x_offset=7)
 
         # TODO: this is a bit of a hack to pass self to init_scenario_env, but there isn't a clean
         # TODO: to have dual references during intialization
@@ -253,7 +251,7 @@ class ArmLockDef(object):
                                             pts,
                                             self.timestep,
                                             max_out=1.5,
-                                            err_wrap_func=wrapToMinusPiToPi)
+                                            err_wrap_func=common.wrapToMinusPiToPi)
 
         # initialize with zero velocity
         self.vel_controller = PIDController([17000] * len(self.arm_joints),
@@ -273,7 +271,7 @@ class ArmLockDef(object):
 
     def set_controllers(self, setpoints):
         # make sure that angles are in [-pi, pi]
-        new = [wrapToMinusPiToPi(c) for c in setpoints]
+        new = [common.wrapToMinusPiToPi(c) for c in setpoints]
 
         # update position PID
         self.pos_controller.set_setpoint(new)
@@ -318,7 +316,7 @@ class ArmLockDef(object):
             y = self.arm_bodies[i].position[1]
             theta = self.arm_bodies[i].transform.angle
 
-            config.append(TwoDConfig(x, y, theta))
+            config.append(common.TwoDConfig(x, y, theta))
 
         return config
 
@@ -328,17 +326,17 @@ class ArmLockDef(object):
         for i in range(0, len(self.arm_bodies)):
             next_x = self.arm_bodies[i].position[0]
             next_y = self.arm_bodies[i].position[1]
-            next_theta = wrapToMinusPiToPi(self.arm_bodies[i].transform.angle)
+            next_theta = common.wrapToMinusPiToPi(self.arm_bodies[i].transform.angle)
 
             dx = next_x - x
             dy = next_y - y
-            dtheta = wrapToMinusPiToPi(next_theta - theta)
+            dtheta = common.wrapToMinusPiToPi(next_theta - theta)
 
             x = next_x
             y = next_y
             theta = next_theta
 
-            config.append(TwoDConfig(dx, dy, dtheta))
+            config.append(common.TwoDConfig(dx, dy, dtheta))
 
         return config
 

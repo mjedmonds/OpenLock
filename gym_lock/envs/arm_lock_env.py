@@ -1,16 +1,17 @@
 import gym
 import re
+import numpy as np
 from shapely.geometry import Polygon, Point
-from Box2D import b2Color, b2_kinematicBody, b2_staticBody, b2RayCastInput, b2Transform, b2Shape, b2Distance
+from Box2D import b2Color, b2_kinematicBody, b2_staticBody, b2RayCastInput, b2RayCastOutput, b2Transform, b2Shape, b2Distance
 from gym import spaces
 from gym.utils import seeding
 
 from gym_lock.box2d_renderer import Box2DRenderer
-from gym_lock.common import *
-from gym_lock.envs.world_defs.arm_lock_def import ArmLockDef, b2RayCastOutput
+import gym_lock.common as common
+from gym_lock.envs.world_defs.arm_lock_def import ArmLockDef
 from gym_lock.kine import KinematicChain, discretize_path, InverseKinematics, generate_five_arm, \
     TwoDKinematicTransform
-from gym_lock.settings_render import RENDER_SETTINGS, BOX2D_SETTINGS, ENV_SETTINGS, CURRENT_SCENARIO
+from gym_lock.settings_render import RENDER_SETTINGS, BOX2D_SETTINGS, ENV_SETTINGS
 from glob import glob
 
 
@@ -25,29 +26,18 @@ class ArmLockEnv(gym.Env):
     def __init__(self):
         self.viewer = None
 
-        self.scenario = CURRENT_SCENARIO # handle to the scenario, defined by the scenario
+        # handle to the scenario, defined by the scenario
+        self.scenario = None
 
-        init_obs = self._reset()
-
-        # setup .csv headers
-        self.col_label = []
-        self.col_label.append('frame')
-        for col_name in self.get_state()['OBJ_STATES']:
-            self.col_label.append(col_name)
-        self.col_label.append('agent')
-        for col_name in self.action_space:
-            self.col_label.append(col_name)
-        
-        self.index_map = {name : idx for idx, name in enumerate(self.col_label)}
-        self.results = [self.col_label]
-        
         self.i = 0
         self.save_path = '../../OpenLockResults/'
 
-        # append initial observation
-        self.results.append(self.create_state_entry(init_obs, self.i))
+        self.col_label = []
+        self.index_map = None
+        self.results = None
+        # self._reset()
 
-    def create_state_entry(self, state, i):
+    def _create_state_entry(self, state, i):
         entry = [0] * len(self.col_label)
         entry[0] = i
         for name, val in state['OBJ_STATES'].items():
@@ -60,8 +50,7 @@ class ArmLockEnv(gym.Env):
         b = 0
         theta_err = sum([e ** 2 for e in self.world_def.pos_controller.error])
         vel_err = sum([e ** 2 for e in self.world_def.vel_controller.error])
-        while (theta_err > ENV_SETTINGS['PID_POS_CONV_TOL'] \
-                       or vel_err > ENV_SETTINGS['PID_VEL_CONV_TOL']):
+        while (theta_err > ENV_SETTINGS['PID_POS_CONV_TOL'] or vel_err > ENV_SETTINGS['PID_VEL_CONV_TOL']):
 
             if b > ENV_SETTINGS['PID_CONV_MAX_STEPS']:
                 return False
@@ -106,7 +95,7 @@ class ArmLockEnv(gym.Env):
 
             self._render_world_at_frame_rate()
 
-            state = self.get_state()
+            state = self._get_state()
             state['SUCCESS'] = False
             return state, 0, False, {}
         else:
@@ -153,14 +142,14 @@ class ArmLockEnv(gym.Env):
             elif action.name == 'save':
                 success = self._action_save(action.params)
 
-            state = self.get_state()
+            state = self._get_state()
             state['SUCCESS'] = success
             self.i += 1
 
             if observable_action:
                 print state['OBJ_STATES']
                 print state['_FSM_STATE']
-                self.results.append(self.create_state_entry(state, self.i))
+                self.results.append(self._create_state_entry(state, self.i))
 
             return state, 0, False, {}
 
@@ -170,6 +159,10 @@ class ArmLockEnv(gym.Env):
         Returns: observation (object): the initial observation of the
                 space.
         """
+
+        if self.scenario is None:
+            print('WARNING: resetting environment with no scenario')
+
         # TODO: properly define these
         self.observation_space = spaces.Box(-np.inf, np.inf, [4])  # [x, y, vx, vy]
         self.reward_range = (-np.inf, np.inf)
@@ -187,18 +180,10 @@ class ArmLockEnv(gym.Env):
         # setup Box2D world
         self.world_def = ArmLockDef(self.invkine.kinematic_chain, 1.0 / BOX2D_SETTINGS['FPS'], 30, self.scenario)
 
-        self.action_space = []
-        self.action_map = dict()
-        for obj, val in self.world_def.obj_map.items():
-            if 'button' not in obj:
-                push = 'push_{}'.format(obj)
-                pull = 'pull_{}'.format(obj)
+        self._create_action_space()
 
-                self.action_space.append(pull)
-                self.action_space.append(push)
-
-                self.action_map[push] = Action('push', (obj, 4))
-                self.action_map[pull] = Action('pull', (obj, 4))
+        # reset results (must be after world_def exists
+        self._reset_results()
 
         # setup renderer
         if not self.viewer:
@@ -228,24 +213,58 @@ class ArmLockEnv(gym.Env):
                 elif b2_object_name == 'reset_button':
                     reset_button = b2_object_data
                     callback_action = 'reset'
-                    reset_button.create_clickable(self._step, self.action_map, Action(callback_action, (reset_button, 4)))
+                    reset_button.create_clickable(self._step, self.action_map, common.Action(callback_action, (reset_button, 4)))
                     self.viewer.register_clickable_region(reset_button.clickable)
                 elif b2_object_name == 'save_button':
                     save_button = b2_object_data
                     callback_action = 'save'
-                    save_button.create_clickable(self._step, self.action_map, Action(callback_action, (save_button, 4)))
+                    save_button.create_clickable(self._step, self.action_map, common.Action(callback_action, (save_button, 4)))
                     self.viewer.register_clickable_region(save_button.clickable)
 
 
         self.viewer.reset()
         self._render()
 
-        return self.get_state()
+        init_obs = self._get_state()
+        # append initial observation
+        self.results.append(self._create_state_entry(init_obs, self.i))
 
-    def get_state(self):
+        return init_obs
+
+    def _reset_results(self):
+        # setup .csv headers
+        self.col_label = []
+        self.col_label.append('frame')
+        for col_name in self._get_state()['OBJ_STATES']:
+            self.col_label.append(col_name)
+        self.col_label.append('agent')
+        for col_name in self.action_space:
+            self.col_label.append(col_name)
+
+        self.index_map = {name : idx for idx, name in enumerate(self.col_label)}
+
+        self.results = [self.col_label]
+
+    def _create_action_space(self):
+        self.action_space = []
+        self.action_map = dict()
+        for obj, val in self.world_def.obj_map.items():
+            if 'button' not in obj:
+                push = 'push_{}'.format(obj)
+                pull = 'pull_{}'.format(obj)
+
+                self.action_space.append(pull)
+                self.action_space.append(push)
+
+                self.action_map[push] = common.Action('push', (obj, 4))
+                self.action_map[pull] = common.Action('pull', (obj, 4))
+
+    def _get_state(self):
+        if self.world_def is None:
+            raise ValueError('world_def is None while trying to call get_state()')
         return {
             'END_EFFECTOR_POS': self.world_def.get_abs_config()[-1],
-            'END_EFFECTOR_FORCE': TwoDForce(self.world_def.contact_listener.norm_force, self.world_def.contact_listener.tan_force),
+            'END_EFFECTOR_FORCE': common.TwoDForce(self.world_def.contact_listener.norm_force, self.world_def.contact_listener.tan_force),
             # 'DOOR_ANGLE' : self.obj_map['door'][1].angle,
             # 'LOCK_TRANSLATIONS' : {name : val[1].translation for name, val in self.obj_map.items() if name != 'door'},
             'OBJ_STATES': {name: val.ext_test(val.joint) for name, val in self.world_def.obj_map.items() if 'button' not in name},  # ext state
@@ -392,7 +411,7 @@ class ArmLockEnv(gym.Env):
         targ_x, targ_y, targ_theta = config
 
         # draw arrow to show target location
-        args = (targ_x, targ_y, targ_theta, 0.5, 1, Color(0.8, 0.8, 0.8))
+        args = (targ_x, targ_y, targ_theta, 0.5, 1, common.Color(0.8, 0.8, 0.8))
         self.viewer.markers['targ_arrow'] = ('arrow', args)
 
         # update current config
@@ -400,7 +419,7 @@ class ArmLockEnv(gym.Env):
 
         # generate discretized waypoints
         waypoints = discretize_path(self.invkine.kinematic_chain.get_total_delta_config(),
-                                    TwoDConfig(targ_x, targ_y, targ_theta),
+                                    common.TwoDConfig(targ_x, targ_y, targ_theta),
                                     ENV_SETTINGS['PATH_INTERP_STEP_DELTA'])
 
         if len(waypoints) == 1:
@@ -435,7 +454,7 @@ class ArmLockEnv(gym.Env):
                 # new theta along convergence path
 
                 # TODO: this is messy
-                new_config = [cur_config[0]] + [TwoDConfig(cur.x, cur.y, cur.theta + delta) for cur, delta in
+                new_config = [cur_config[0]] + [common.TwoDConfig(cur.x, cur.y, cur.theta + delta) for cur, delta in
                                                 zip(cur_config[1:], d_theta)]
 
                 # update inverse kinematics model to reflect step along convergence path
@@ -466,21 +485,21 @@ class ArmLockEnv(gym.Env):
         Returns:
 
         """
-        object = self.world_def.obj_map[params].fixture
+        obj = self.world_def.obj_map[params].fixture
 
         # find face facing us by raycasting from end effector to center of fixture
         end_eff = self.world_def.end_effector_fixture
         end_eff_shape = end_eff.shape
         end_eff_mass_data = end_eff.massData
-        obj_mass_data = object.massData
+        obj_mass_data = obj.massData
 
-        object_center = object.body.GetWorldPoint(obj_mass_data.center)
+        obj_center = obj.body.GetWorldPoint(obj_mass_data.center)
         end_effector_center = end_eff.body.GetWorldPoint(end_eff_mass_data.center)
 
-        input = b2RayCastInput(p1=end_effector_center, p2=object_center, maxFraction=200)
+        input = b2RayCastInput(p1=end_effector_center, p2=obj_center, maxFraction=200)
         output = b2RayCastOutput()
 
-        hit = object.RayCast(output, input, 0)
+        hit = obj.RayCast(output, input, 0)
         if hit:
             hit_point = input.p1 + output.fraction * (input.p2 - input.p1)
             normal = output.normal
@@ -490,18 +509,18 @@ class ArmLockEnv(gym.Env):
 
             end_effector_offset = end_eff_shape.radius * normal # TODO: is this the right offset?
 
-            desired_config = TwoDConfig(hit_point[0] + end_effector_offset[0],
+            desired_config = common.TwoDConfig(hit_point[0] + end_effector_offset[0],
                                         hit_point[1] + end_effector_offset[1],
-                                        wrapToMinusPiToPi(angle))
+                                        common.wrapToMinusPiToPi(angle))
 
             self._action_go_to(desired_config)
 
-            # we way have gotten close to object, but lets move forward until we graze
+            # we way have gotten close to obj, but lets move forward until we graze
             # TODO: selective tolerance of INVK/PID controllers for rough/fine movement
             i = 0
-            while (len(self.world_def.arm_bodies[-1].contacts) == 0 and i < 5):
+            while len(self.world_def.arm_bodies[-1].contacts) == 0 and i < 5:
                 i += 1
-                self._action_move_end_frame(TwoDConfig(0.5, 0, 0))
+                self._action_move_end_frame(common.TwoDConfig(0.5, 0, 0))
             return True if len(self.world_def.arm_bodies[-1].contacts) > 0 else False
         else:
             # path is blocked
@@ -512,7 +531,7 @@ class ArmLockEnv(gym.Env):
         cur_theta = [cur.theta for cur in self.world_def.get_rel_config()[1:]]
 
         # calculate number of discretized steps
-        delta = [wrapToMinusPiToPi(t - c) for t, c in zip(self.theta0, cur_theta)]
+        delta = [common.wrapToMinusPiToPi(t - c) for t, c in zip(self.theta0, cur_theta)]
 
         num_steps = max([int(abs(d / ENV_SETTINGS['PATH_INTERP_STEP_DELTA'])) for d in delta])
 
@@ -525,13 +544,13 @@ class ArmLockEnv(gym.Env):
         # generate discretized path
         waypoints = []
         for i in range(0, num_steps + 1):
-            waypoints.append([wrapToMinusPiToPi(cur + i * d / num_steps) \
+            waypoints.append([common.wrapToMinusPiToPi(cur + i * d / num_steps) \
                               for cur, d in zip(cur_theta, delta)])
 
         # sanity check: we actually reach the target config
 
         # TODO: arbitrary double comparison
-        assert all([abs(wrapToMinusPiToPi(waypoints[-1][i] - self.theta0[i]))  < 0.01 for i in range(0, len(self.theta0))])
+        assert all([abs(common.wrapToMinusPiToPi(waypoints[-1][i] - self.theta0[i]))  < 0.01 for i in range(0, len(self.theta0))])
 
         for waypoint in waypoints:
             if not self.__update_and_converge_controllers(waypoint):
@@ -551,7 +570,7 @@ class ArmLockEnv(gym.Env):
         
         cur_x, cur_y, cur_theta = self.world_def.get_abs_config()[-1]
         neg_normal = (-np.cos(cur_theta), -np.sin(cur_theta))
-        new_config = TwoDConfig(cur_x + neg_normal[0] * distance,
+        new_config = common.TwoDConfig(cur_x + neg_normal[0] * distance,
                                 cur_y + neg_normal[1] * distance,
                                 cur_theta)
 
@@ -569,7 +588,7 @@ class ArmLockEnv(gym.Env):
         if not self._action_go_to_obj(name):
             return False
 
-        if not self._action_move_end_frame(TwoDConfig(distance, 0, 0)):
+        if not self._action_move_end_frame(common.TwoDConfig(distance, 0, 0)):
             return False
 
         return True
@@ -636,9 +655,9 @@ class ArmLockEnv(gym.Env):
 
         cur_x, cur_y, cur_theta = self.world_def.get_abs_config()[-1]
 
-        return self._action_go_to(TwoDConfig(cur_x + delta_x,
-                                             cur_y + delta_y,
-                                             cur_theta + delta_theta))
+        return self._action_go_to(common.TwoDConfig(cur_x + delta_x,
+                                                    cur_y + delta_y,
+                                                    cur_theta + delta_theta))
 
     def _action_move_end_frame(self, params):
         delta_x, delta_y, delta_theta = params
@@ -648,9 +667,9 @@ class ArmLockEnv(gym.Env):
         x_axis = (np.cos(cur_theta), np.sin(cur_theta))
         y_axis = (-x_axis[1], x_axis[0])
 
-        new_config = TwoDConfig(cur_x + x_axis[0] * delta_x + y_axis[0] * delta_y,
-                                cur_y + x_axis[1] * delta_x + y_axis[1] * delta_y,
-                                cur_theta + delta_theta)
+        new_config = common.TwoDConfig(cur_x + x_axis[0] * delta_x + y_axis[0] * delta_y,
+                                       cur_y + x_axis[1] * delta_x + y_axis[1] * delta_y,
+                                       cur_theta + delta_theta)
 
         return self._action_go_to(new_config)
 
