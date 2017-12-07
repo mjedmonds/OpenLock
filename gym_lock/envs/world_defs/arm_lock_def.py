@@ -234,7 +234,8 @@ class ArmLockDef(object):
         self.obj_map['door'] = door
 
         self.obj_map['door_right_button'] = Button(world_def=self, config=door_config, color=COLORS['static'], name='door_right_button', height=1.5, width=1.5, x_offset=3, y_offset=10)
-        self.obj_map['door_left_button'] = Button(world_def=self, config=door_config, color=COLORS['static'], name='door_left_button', height=1.5, width=1.5, x_offset=-3, y_offset=10)
+        # uncommend below to re-enable pulling on door
+        # self.obj_map['door_left_button'] = Button(world_def=self, config=door_config, color=COLORS['static'], name='door_left_button', height=1.5, width=1.5, x_offset=-3, y_offset=10)
 
         button_config = TwoDConfig(-25, -27, -np.pi / 2)
         self.obj_map['save_button'] = Button(world_def=self, config=button_config, color=COLORS['save_button'], name='save_button', height=1.5, width=3)
