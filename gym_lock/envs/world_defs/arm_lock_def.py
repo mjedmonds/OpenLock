@@ -231,7 +231,7 @@ class ArmLockDef(object):
         door =  common.Door(self, 'door', door_config)
         self.obj_map['door'] = door
 
-        self.obj_map['door_right_button'] = common.Button(world_def=self, config=door_config, color=common.COLORS['static'], name='door_right_button', height=1.5, width=1.5, x_offset=3, y_offset=10)
+        self.obj_map['door_right_button'] = common.Button(world_def=self, config=door_config, color=common.COLORS['static'], name='door_right_button', height=1.5, width=1.5, x_offset=3, y_offset=3)
         # uncommend below to re-enable pulling on door
         # self.obj_map['door_left_button'] = common.Button(world_def=self, config=door_config, color=common.COLORS['static'], name='door_left_button', height=1.5, width=1.5, x_offset=-3, y_offset=10)
 

@@ -39,18 +39,20 @@ def select_trial(trial):
     return trial, LEVER_CONFIGS[trial], LEVER_OPT_PARAMS[trial]
 
 
-def select_random_trial(completed_trials, min, max):
+def select_random_trial(completed_trials, min_idx, max_idx):
     '''
     sets a new random
     :param completed_trials: list of trials already selected
+    :param min: min value of trial index
+    :param max: max value of trial index
     :return:
     '''
     trial_base = 'trial'
-    rand = np.random.randint(min,max+1)
+    rand = np.random.randint(min_idx, max_idx+1)
     trial = trial_base + str(rand)
     while trial in completed_trials:
-        rand = np.random.randint(min,max+1)
+        rand = np.random.randint(min_idx, max_idx+1)
         trial = trial_base + str(rand)
 
-    return trial, LEVER_CONFIGS[trial], LEVER_OPT_PARAMS[trial]
+    return select_trial(trial)
 

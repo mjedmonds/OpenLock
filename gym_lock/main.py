@@ -11,6 +11,16 @@ def exit_handler(signum, frame):
    exit()
 
 
+def get_trial(name, completed_trials):
+    if name != 'CE4' and name != 'CC4':
+        # select a random trial and add it to the scenario
+        trial, configs, opt_params = select_random_trial(completed_trials, 1, 6)
+    else:
+        trial, configs, opt_params = select_trial('trial7')
+
+    return trial, configs, opt_params
+
+
 if __name__ == '__main__':
     scenario_name = 'CE4'
     scenario = select_scenario(scenario_name)
@@ -18,23 +28,23 @@ if __name__ == '__main__':
     # tell the environemnt what scenario is currently used
     env.scenario = scenario
 
+    num_trials = 6
+    attempt_limit = 10
+    action_limit = 3
     completed_trials = []
-    if scenario_name != 'CE4' and scenario_name != 'CC4':
-        # select a random trial and add it to the scenario
-        trial_selected, lever_configs, lever_opt_params = select_random_trial(completed_trials, 1, 6)
-    else:
-        trial_selected, lever_configs, lever_opt_params = select_trial('trial7')
-    scenario.set_lever_configs(lever_configs, lever_opt_params)
+    env.action_limit = action_limit
 
-    env.reset()
-    env.render()
+    for trial_num in range(0, num_trials):
+        env.attempt_count = 0
+        trial_selected, lever_configs, lever_opt_params = get_trial(scenario_name, completed_trials)
+        scenario.set_lever_configs(lever_configs, lever_opt_params)
 
-    obs = env.reset()
-    print obs['OBJ_STATES']
-    print obs['_FSM_STATE']
+        obs = env.reset()
 
-    while (True):
-        env.render()
+        while env.attempt_count < attempt_limit:
+            env.render()
+
+        # record results
 
     # simple.fsmm.observable_fsm.get_graph().draw('observable_diagram.png', prog='dot')
     # simple.fsmm.latent_fsm.get_graph().draw('latent_diagram.png', prog='dot')

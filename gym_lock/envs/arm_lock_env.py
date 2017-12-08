@@ -35,22 +35,48 @@ class ArmLockEnv(gym.Env):
         self.col_label = []
         self.index_map = None
         self.results = None
-        # self._reset()
 
-    def _create_state_entry(self, state, i):
+        self.attempt_count = 0  # keeps track of the number of attempts
+        self.action_count = 0   # keeps track of the number of actions executed
+        self.logger = None      # logs participant data
+        self.action_limit = None
+
+    def _create_state_entry(self, state, frame):
         entry = [0] * len(self.col_label)
-        entry[0] = i
+        entry[0] = frame
         for name, val in state['OBJ_STATES'].items():
             entry[self.index_map[name]] = int(val)
 
         return entry
+
+    def _create_pre_obs_entry(self, action):
+        # create pre-observation entry
+        entry = [0] * len(self.col_label)
+        entry[0] = self.action_count
+        # copy over previous state
+        entry[1:self.index_map['agent']] = self.results[-1][1:self.index_map['agent']]
+
+        # mark action idx
+        if type(action.params[0]) is str:
+            col = '{}_{}'.format(action.name, action.params[0])
+        else:
+            col = action.name
+
+        observable_action = col in self.index_map
+
+        if observable_action:
+            entry[self.index_map[col]] = 1
+            # append pre-observation entry
+            self.results.append(entry)
+
+        return observable_action
 
     def __update_and_converge_controllers(self, new_theta):
         self.world_def.set_controllers(new_theta)
         b = 0
         theta_err = sum([e ** 2 for e in self.world_def.pos_controller.error])
         vel_err = sum([e ** 2 for e in self.world_def.vel_controller.error])
-        while (theta_err > ENV_SETTINGS['PID_POS_CONV_TOL'] or vel_err > ENV_SETTINGS['PID_VEL_CONV_TOL']):
+        while theta_err > ENV_SETTINGS['PID_POS_CONV_TOL'] or vel_err > ENV_SETTINGS['PID_VEL_CONV_TOL']:
 
             if b > ENV_SETTINGS['PID_CONV_MAX_STEPS']:
                 return False
@@ -100,25 +126,7 @@ class ArmLockEnv(gym.Env):
             return state, 0, False, {}
         else:
             self.i += 1
-            # create pre-observation entry
-            entry = [0] * len(self.col_label)
-            entry[0] = self.i
-            # copy over previous state
-            entry[1:self.index_map['agent']] = self.results[-1][1:self.index_map['agent']]
-
-            # mark action idx
-            if type(action.params[0]) is str:
-                col = '{}_{}'.format(action.name, action.params[0])
-            else:
-                col = action.name
-
-            observable_action = col in self.index_map
-
-            if observable_action:
-                entry[self.index_map[col]] = 1
-
-                # append pre-observation entry
-                self.results.append(entry)
+            observable_action = self._create_pre_obs_entry(action)
 
             success = False
             if action.name == 'goto':
@@ -138,18 +146,29 @@ class ArmLockEnv(gym.Env):
             elif action.name == 'unlock':
                 success = self._action_unlock(action.params)
             elif action.name == 'reset':
-                success = self._action_reset(action.params)
+                success = self._action_reset()
             elif action.name == 'save':
-                success = self._action_save(action.params)
+                success = self._action_save()
+
+            self.i += 1
+            self.action_count += 1
 
             state = self._get_state()
             state['SUCCESS'] = success
-            self.i += 1
 
             if observable_action:
-                print state['OBJ_STATES']
-                print state['_FSM_STATE']
-                self.results.append(self._create_state_entry(state, self.i))
+                self._print_observation(state, self.action_count)
+                self.results.append(self._create_state_entry(state, self.action_count))
+
+            # above the allowed number of actions, need to increment the attempt count and reset the simulator
+            if self.action_limit is not None and self.action_count >= self.action_limit:
+                print "INFO: RESETING TRIAL DUE TO ACTION LIMIT"
+                self.attempt_count += 1
+                self.action_count = 0
+                # todo save results to file/subject
+                self._export_results()
+                self._reset()               # reset appends results and prints state
+                state = self._get_state()
 
             return state, 0, False, {}
 
@@ -182,7 +201,7 @@ class ArmLockEnv(gym.Env):
 
         self._create_action_space()
 
-        # reset results (must be after world_def exists
+        # reset results (must be after world_def exists and action space has been created)
         self._reset_results()
 
         # setup renderer
@@ -191,7 +210,6 @@ class ArmLockEnv(gym.Env):
 
             lock_regex = '^l[0-9]+$'
             # register clickable regions
-            print 'register?'
             for b2_object_name, b2_object_data in self.world_def.obj_map.items():
                 if re.search(lock_regex, b2_object_name):
                     lock = b2_object_data
@@ -221,15 +239,22 @@ class ArmLockEnv(gym.Env):
                     save_button.create_clickable(self._step, self.action_map, common.Action(callback_action, (save_button, 4)))
                     self.viewer.register_clickable_region(save_button.clickable)
 
-
         self.viewer.reset()
         self._render()
 
-        init_obs = self._get_state()
-        # append initial observation
-        self.results.append(self._create_state_entry(init_obs, self.i))
+        # reset the finite state machine
+        self.scenario.reset()
 
-        return init_obs
+        state = self._get_state()
+        # append initial observation
+        self._print_observation(state, self.action_count)
+        self.results.append(self._create_state_entry(state, self.action_count))
+
+        return state
+
+    def _print_observation(self, state, count):
+        print str(count) + ': ' + str(state['OBJ_STATES'])
+        print str(count) + ': ' + str(state['_FSM_STATE'])
 
     def _reset_results(self):
         # setup .csv headers
@@ -269,7 +294,7 @@ class ArmLockEnv(gym.Env):
             # 'LOCK_TRANSLATIONS' : {name : val[1].translation for name, val in self.obj_map.items() if name != 'door'},
             'OBJ_STATES': {name: val.ext_test(val.joint) for name, val in self.world_def.obj_map.items() if 'button' not in name},  # ext state
             # 'OBJ_STATES': {name: val[3](val[1]) for name, val in self.obj_map.items() if 'button' not in name},
-        # ext state
+            # ext state
             'LOCK_STATE': self.world_def.obj_map['door'].int_test(self.world_def.obj_map['door'].joint),
             # 'LOCK_STATE': self.obj_map['door'][2](self.obj_map['door'][1]),
             '_FSM_STATE': self.scenario.fsmm.observable_fsm.state + self.scenario.fsmm.latent_fsm.state if self.scenario is not None else ValueError('No Scenario set'),
@@ -344,6 +369,10 @@ class ArmLockEnv(gym.Env):
                         this won't be true if seed=None, for example.
             """
         pass
+
+    def _export_results(self):
+        save_count = len(glob(self.save_path + 'results[0-9]*.csv'))
+        np.savetxt(self.save_path + 'results{}.csv'.format(save_count), self.results, delimiter=',', fmt='%s')
 
     # TODO por the rest of this over
     # def manual_draw(self):
@@ -439,7 +468,7 @@ class ArmLockEnv(gym.Env):
             a = 0
             err = self.invkine.get_error()
             new_config = None
-            while (err > ENV_SETTINGS['INVK_CONV_TOL']):
+            while err > ENV_SETTINGS['INVK_CONV_TOL']:
 
                 if a > ENV_SETTINGS['INVK_CONV_MAX_STEPS']:
                     return False
@@ -685,13 +714,12 @@ class ArmLockEnv(gym.Env):
     #     lock, joint, _ = self.world_def.obj_map[name]
     #     self._action_pull_perp((lock, abs(joint.lowerLimit)))
 
-    def _action_reset(self, params):
+    def _action_reset(self):
         self._reset()
         return True
 
-    def _action_save(self, params):
-        save_count = len(glob(self.save_path + 'results[0-9]*.csv'))
-        np.savetxt(self.save_path + 'results{}.csv'.format(save_count), self.results, delimiter=',', fmt='%s')
+    def _action_save(self):
+        self._export_results()
         self._reset()
         return True
 

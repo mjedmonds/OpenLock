@@ -32,6 +32,9 @@ class FiniteStateMachine():
         # return cartesian_product(observable_v_list, door_list)
         return v_list
 
+    def reset(self):
+        self.machine.set_state(self.initial_state)
+
     def update_manager(self):
         '''
         tells FSM manager to update the other FSM (latent/observable) based on the changes this FSM (obserable/latent) made
@@ -69,6 +72,14 @@ class FiniteStateMachineManager():
                                              vars=self.latent_vars,
                                              states=self.latent_states,
                                              initial_state=self.latent_initial_state)
+
+    def reset(self):
+        '''
+        resets both the observable fsm and latent fsm
+        :return:
+        '''
+        self.observable_fsm.reset()
+        self.latent_fsm.reset()
 
     def get_latent_states(self):
         '''

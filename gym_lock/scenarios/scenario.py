@@ -42,6 +42,13 @@ class Scenario(object):
                 if self.fsmm._extract_entity_state(self.fsmm.latent_fsm.state, door) != 'locked,':
                     self.fsmm.latent_fsm.trigger('lock_{}'.format(door))
 
+    def reset(self):
+        '''
+        resets the FSM to the initial state for both FSMs
+        :return:
+        '''
+        self.fsmm.reset()
+
     def update_observable(self):
         '''
         updates observable fsm based on some change in the observable fsm, if needed
