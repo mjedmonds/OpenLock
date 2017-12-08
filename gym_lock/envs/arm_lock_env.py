@@ -30,7 +30,7 @@ class ArmLockEnv(gym.Env):
         self.scenario = None
 
         self.i = 0
-        self.save_path = '../../OpenLockResults/'
+        self.save_path = '../OpenLockResults/'
 
         self.col_label = []
         self.index_map = None
@@ -151,12 +151,12 @@ class ArmLockEnv(gym.Env):
                 success = self._action_save()
 
             self.i += 1
-            self.action_count += 1
 
             state = self._get_state()
             state['SUCCESS'] = success
 
             if observable_action:
+                self.action_count += 1
                 self._print_observation(state, self.action_count)
                 self.results.append(self._create_state_entry(state, self.action_count))
 
@@ -164,7 +164,6 @@ class ArmLockEnv(gym.Env):
             if self.action_limit is not None and self.action_count >= self.action_limit:
                 print "INFO: RESETING TRIAL DUE TO ACTION LIMIT"
                 self.attempt_count += 1
-                self.action_count = 0
                 # todo save results to file/subject
                 self._export_results()
                 self._reset()               # reset appends results and prints state
@@ -244,6 +243,7 @@ class ArmLockEnv(gym.Env):
 
         # reset the finite state machine
         self.scenario.reset()
+        self.action_count = 0
 
         state = self._get_state()
         # append initial observation
