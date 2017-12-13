@@ -52,7 +52,7 @@ BOX2D_SETTINGS = {
     "VEL_ITERS": 10,
     "POS_ITERS": 10,
     "POS_PID_CLK_DIV": 10,
-    "STATE_MACHINE_CLK_DIV" : 10,
+    "STATE_MACHINE_CLK_DIV" : 5,
 
     # Makes physics results more accurate (see Box2D wiki)
     "ENABLE_WARM_START": True,
