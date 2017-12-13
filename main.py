@@ -2,8 +2,7 @@
 import gym
 import numpy as np
 from gym_lock.settings_render import select_scenario
-from gym_lock.setttings_trial import select_random_trial, select_trial
-
+from gym_lock.session_manager import SessionManager
 
 def exit_handler(signum, frame):
    print 'saving results.csv'
@@ -11,40 +10,38 @@ def exit_handler(signum, frame):
    exit()
 
 
-def get_trial(name, completed_trials):
-    if name != 'CE4' and name != 'CC4':
-        # select a random trial and add it to the scenario
-        trial, configs, opt_params = select_random_trial(completed_trials, 1, 6)
-    else:
-        trial, configs, opt_params = select_trial('trial7')
-
-    return trial, configs, opt_params
-
-
 if __name__ == '__main__':
-    scenario_name = 'CE4'
-    scenario = select_scenario(scenario_name)
+
+    # PARAMETERS: todo: make these command-line arguments
+
+    # general params
+    # training params
+    params = {
+        'data_dir': '../OpenLockResults/subjects',
+        'num_trials': 6,
+        'scenario_name': 'CE3',
+        'attempt_limit': 10,
+        'action_limit': 3,
+        'test_scenario_name': 'CE4',
+        'test_attempt_limit': 10,
+        'test_action_limit': 4
+    }
+
+    scenario = select_scenario(params['scenario_name'])
     env = gym.make('arm_lock-v0')
-    # tell the environemnt what scenario is currently used
-    env.scenario = scenario
+    # create session/trial/experiment manager
+    manager = SessionManager(env, params)
+    manager.update_scenario(scenario)
 
-    num_trials = 6
-    attempt_limit = 10
-    action_limit = 3
-    completed_trials = []
-    env.action_limit = action_limit
+    for trial_num in range(0, params['num_trials']):
+        manager.run_trial(params['scenario_name'], params['action_limit'], params['attempt_limit'])
 
-    for trial_num in range(0, num_trials):
-        env.attempt_count = 0
-        trial_selected, lever_configs, lever_opt_params = get_trial(scenario_name, completed_trials)
-        scenario.set_lever_configs(lever_configs, lever_opt_params)
+    # testing trial
+    print "INFO: STARTING TESTING TRIAL"
+    scenario = select_scenario(params['test_scenario_name'])
+    manager.update_scenario(scenario)
+    manager.run_trial(params['test_scenario_name'], params['test_action_limit'], params['test_attempt_limit'])
 
-        obs = env.reset()
+    raw_input('Press space to continue')
+    # record results
 
-        while env.attempt_count < attempt_limit:
-            env.render()
-
-        # record results
-
-    # simple.fsmm.observable_fsm.get_graph().draw('observable_diagram.png', prog='dot')
-    # simple.fsmm.latent_fsm.get_graph().draw('latent_diagram.png', prog='dot')

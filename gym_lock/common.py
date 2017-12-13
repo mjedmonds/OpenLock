@@ -36,6 +36,7 @@ class Clickable(object):
     def call(self):
         return self.callback(*self.callback_args)
 
+
 class Object():
     def __init__(self, name, fixture=None, joint=None, color=None, int_test=None, ext_test=None):
         self.fixture = fixture
@@ -46,6 +47,7 @@ class Object():
 
         self.name = name
         self.color = color
+
 
 class Lock(Object):
     def __init__(self, world_def, name, config, opt_params=None):

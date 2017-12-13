@@ -1,6 +1,9 @@
 
 from gym_lock.finite_state_machine import FiniteStateMachineManager
 from gym_lock.scenarios.scenario import Scenario
+from logger import ActionLog
+
+
 
 
 class CommonEffect3Scenario(Scenario):
@@ -19,6 +22,12 @@ class CommonEffect3Scenario(Scenario):
     actions = ['nothing'] \
                    + ['pull_{}'.format(lock) for lock in observable_vars] \
                    + ['push_{}'.format(lock) for lock in observable_vars]
+
+    # lists of actions that represent solution sequences
+    solutions = [
+        [ActionLog('push_l0'), ActionLog('push_l2'), ActionLog('push_door')],
+        [ActionLog('push_l1'), ActionLog('push_l2'), ActionLog('push_door')],
+    ]
 
     def __init__(self):
         self.world_def = None # handle to the Box2D world

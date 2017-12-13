@@ -357,7 +357,7 @@ class ArmLockDef(object):
     def step(self, timestep, vel_iterations, pos_iterations):
         self.clock += 1
 
-        self._update_state_machine_at_frame_rate()
+        # self._update_state_machine_at_frame_rate()
 
         self._update_torques()
 
@@ -369,10 +369,10 @@ class ArmLockDef(object):
         for i in range(0, len(new_torque)):
             self.apply_torque(i + 1, new_torque[i])
 
-    def _update_state_machine_at_frame_rate(self):
-        ''''''
-        if self.clock % BOX2D_SETTINGS['STATE_MACHINE_CLK_DIV'] == 0:
-            self.scenario.update_state_machine()
+    # def _update_state_machine_at_frame_rate(self):
+    #     ''''''
+    #     if self.clock % BOX2D_SETTINGS['STATE_MACHINE_CLK_DIV'] == 0:
+    #         self.scenario.update_state_machine()
 
     # TODO: implement
     def reset_world(self):

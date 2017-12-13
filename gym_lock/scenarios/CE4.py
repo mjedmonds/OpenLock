@@ -1,6 +1,15 @@
 
 from gym_lock.finite_state_machine import FiniteStateMachineManager
 from gym_lock.scenarios.scenario import Scenario
+from logger import ActionLog
+
+# lists of actions that represent solution sequences
+SOLUTIONS = [
+    [ActionLog('push_l0'), ActionLog('push_l3'), ActionLog('push_door')],
+    [ActionLog('push_l1'), ActionLog('push_l3'), ActionLog('push_door')],
+    [ActionLog('push_l2'), ActionLog('push_l3'), ActionLog('push_door')],
+]
+
 
 class CommonEffect4Scenario(Scenario):
 

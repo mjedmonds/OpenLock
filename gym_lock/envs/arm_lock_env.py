@@ -40,12 +40,18 @@ class ArmLockEnv(gym.Env):
         self.action_count = 0   # keeps track of the number of actions executed
         self.logger = None      # logs participant data
         self.action_limit = None
+        self.attempt_limit = None
+
+        self.action_executing = False    # used to disable action preemption
 
     def _create_state_entry(self, state, frame):
         entry = [0] * len(self.col_label)
         entry[0] = frame
         for name, val in state['OBJ_STATES'].items():
             entry[self.index_map[name]] = int(val)
+
+        # add status of door lock
+        entry[self.index_map['door_lock']] = 1 if self.world_def.door_lock is not None else 0
 
         return entry
 
@@ -54,7 +60,7 @@ class ArmLockEnv(gym.Env):
         entry = [0] * len(self.col_label)
         entry[0] = self.action_count
         # copy over previous state
-        entry[1:self.index_map['agent']] = self.results[-1][1:self.index_map['agent']]
+        entry[1:self.index_map['door_lock']+1] = self.results[-1][1:self.index_map['door_lock']+1]
 
         # mark action idx
         if type(action.params[0]) is str:
@@ -100,6 +106,11 @@ class ArmLockEnv(gym.Env):
         if self.world_def.clock % RENDER_SETTINGS['RENDER_CLK_DIV'] == 0:
             self._render()
 
+    def _update_state_machine_at_frame_rate(self):
+        ''''''
+        if self.clock % BOX2D_SETTINGS['STATE_MACHINE_CLK_DIV'] == 0:
+            self.scenario.update_state_machine()
+
     def _step(self, action):
         """Run one __timestep of the environment's dynamics. When end of
         episode is reached, you are responsible for calling `reset()`
@@ -124,9 +135,13 @@ class ArmLockEnv(gym.Env):
             state = self._get_state()
             state['SUCCESS'] = False
             return state, 0, False, {}
-        else:
+        # change to simple "else:" to enable action preemption
+        elif self.action_executing is False:
+            self.action_executing = True
             self.i += 1
             observable_action = self._create_pre_obs_entry(action)
+            if observable_action:
+                self.logger.cur_trial.cur_attempt.add_action(action.name + '_' + action.params[0])
 
             success = False
             if action.name == 'goto':
@@ -159,15 +174,34 @@ class ArmLockEnv(gym.Env):
                 self.action_count += 1
                 self._print_observation(state, self.action_count)
                 self.results.append(self._create_state_entry(state, self.action_count))
+                self.logger.cur_trial.cur_attempt.finish_action()
 
             # above the allowed number of actions, need to increment the attempt count and reset the simulator
             if self.action_limit is not None and self.action_count >= self.action_limit:
-                print "INFO: RESETING TRIAL DUE TO ACTION LIMIT"
+
                 self.attempt_count += 1
                 # todo save results to file/subject
+                door_opened = state['OBJ_STATES']['door']
+                attempt_success = self.logger.cur_trial.finish_attempt(results=self.results)
                 self._export_results()
-                self._reset()               # reset appends results and prints state
+
+                # continue or end trial
+                if self.logger.cur_trial.success is True:
+                    print "INFO: You found all of the solutions. Ending trial."
+                elif self.attempt_count < self.attempt_limit:
+                    # alert user to the number of solutions remaining
+                    if attempt_success is True:
+                        print "INFO: You found a solution. There are {} unique solutions remaining.".format(self.logger.cur_trial.num_solutions_remaining)
+                    else:
+                        print "INFO: Ending attempt. Action limit reached. There are {} unique solutions remaining. You have {} attempts remaining.".format(self.logger.cur_trial.num_solutions_remaining, self.attempt_limit - self.attempt_count)
+                    self._reset()   # reset if we are not done with this trial
+                    self.logger.cur_trial.add_attempt()
+                else:
+                    print "INFO: Ending trial. Attempt limit reached. You found {} unique solutions".format(len(self.logger.cur_trial.solutions) - self.logger.cur_trial.num_solutions_remaining)
+
                 state = self._get_state()
+
+            self.action_executing = False
 
             return state, 0, False, {}
 
@@ -207,44 +241,15 @@ class ArmLockEnv(gym.Env):
         if not self.viewer:
             self.viewer = Box2DRenderer(self._action_grasp)
 
-            lock_regex = '^l[0-9]+$'
-            # register clickable regions
-            for b2_object_name, b2_object_data in self.world_def.obj_map.items():
-                if re.search(lock_regex, b2_object_name):
-                    lock = b2_object_data
-
-                    lock.create_clickable(self._step, self.action_map)
-                    self.viewer.register_clickable_region(lock.inner_clickable)
-                    self.viewer.register_clickable_region(lock.outer_clickable)
-
-                elif b2_object_name == 'door_right_button':
-                    door_button = b2_object_data
-                    callback_action = 'push_door'
-                    door_button.create_clickable(self._step, self.action_map, self.action_map[callback_action])
-                    self.viewer.register_clickable_region(door_button.clickable)
-                elif b2_object_name == 'door_left_button':
-                    door_button = b2_object_data
-                    callback_action = 'pull_door'
-                    door_button.create_clickable(self._step, self.action_map, self.action_map[callback_action])
-                    self.viewer.register_clickable_region(door_button.clickable)
-                elif b2_object_name == 'reset_button':
-                    reset_button = b2_object_data
-                    callback_action = 'reset'
-                    reset_button.create_clickable(self._step, self.action_map, common.Action(callback_action, (reset_button, 4)))
-                    self.viewer.register_clickable_region(reset_button.clickable)
-                elif b2_object_name == 'save_button':
-                    save_button = b2_object_data
-                    callback_action = 'save'
-                    save_button.create_clickable(self._step, self.action_map, common.Action(callback_action, (save_button, 4)))
-                    self.viewer.register_clickable_region(save_button.clickable)
-
         self.viewer.reset()
-        self._render()
+
+        self._create_clickable_regions()
 
         # reset the finite state machine
         self.scenario.reset()
         self.action_count = 0
 
+        self._render()
         state = self._get_state()
         # append initial observation
         self._print_observation(state, self.action_count)
@@ -262,7 +267,7 @@ class ArmLockEnv(gym.Env):
         self.col_label.append('frame')
         for col_name in self._get_state()['OBJ_STATES']:
             self.col_label.append(col_name)
-        self.col_label.append('agent')
+        self.col_label.append('door_lock')
         for col_name in self.action_space:
             self.col_label.append(col_name)
 
@@ -283,6 +288,40 @@ class ArmLockEnv(gym.Env):
 
                 self.action_map[push] = common.Action('push', (obj, 4))
                 self.action_map[pull] = common.Action('pull', (obj, 4))
+
+    def _create_clickable_regions(self):
+        lock_regex = '^l[0-9]+$'
+        # register clickable regions
+        for b2_object_name, b2_object_data in self.world_def.obj_map.items():
+            if re.search(lock_regex, b2_object_name):
+                lock = b2_object_data
+
+                lock.create_clickable(self._step, self.action_map)
+                self.viewer.register_clickable_region(lock.inner_clickable)
+                self.viewer.register_clickable_region(lock.outer_clickable)
+
+            elif b2_object_name == 'door_right_button':
+                door_button = b2_object_data
+                callback_action = 'push_door'
+                door_button.create_clickable(self._step, self.action_map, self.action_map[callback_action])
+                self.viewer.register_clickable_region(door_button.clickable)
+            elif b2_object_name == 'door_left_button':
+                door_button = b2_object_data
+                callback_action = 'pull_door'
+                door_button.create_clickable(self._step, self.action_map, self.action_map[callback_action])
+                self.viewer.register_clickable_region(door_button.clickable)
+            elif b2_object_name == 'reset_button':
+                reset_button = b2_object_data
+                callback_action = 'reset'
+                reset_button.create_clickable(self._step, self.action_map,
+                                              common.Action(callback_action, (reset_button, 4)))
+                self.viewer.register_clickable_region(reset_button.clickable)
+            elif b2_object_name == 'save_button':
+                save_button = b2_object_data
+                callback_action = 'save'
+                save_button.create_clickable(self._step, self.action_map,
+                                             common.Action(callback_action, (save_button, 4)))
+                self.viewer.register_clickable_region(save_button.clickable)
 
     def _get_state(self):
         if self.world_def is None:
@@ -350,7 +389,9 @@ class ArmLockEnv(gym.Env):
 #        if self.viewer is None:
 #            print 'legglo'
 #            self.viewer = Box2DRenderer(self._action_grasp)
-            
+
+        self._update_state_machine_at_frame_rate()
+
         self.viewer.render_multiple_worlds([self.world_def.background, self.world_def.world], mode='human')
 
     def _seed(self, seed=None):
@@ -604,6 +645,7 @@ class ArmLockEnv(gym.Env):
                                 cur_theta)
 
         if not self._action_go_to(new_config):
+            self._action_grasp() # remove connection
             return False
 
         if not self._action_grasp():

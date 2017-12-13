@@ -29,13 +29,11 @@ class Box2DRenderer():
                                          self.on_key_press)
 
         self.enter_key_callback = enter_key_callback
-        self.markers = dict()
 
-        self.cur_arrow_end = self.arrow_start = self.arrow_end = self.desired_config = None
+        self.reset()
 
         # TODO: registry decorator
         self.on_mouse_press_callbacks, self.on_mouse_release_callbacks = {self._detect_region_click}, {}
-        self.clickable_regions = set()
 
     def register_clickable_region(self, clickable_region):
         self.clickable_regions.add(clickable_region)
@@ -83,7 +81,7 @@ class Box2DRenderer():
 
     def reset(self):
         self.markers = dict()
-
+        self.clickable_regions = set()
         self.cur_arrow_end = self.arrow_start = self.arrow_end = self.desired_config = None
 
 

@@ -1,7 +1,7 @@
 
 import gym_lock.common as common
 from gym_lock.finite_state_machine import FiniteStateMachineManager
-from gym_lock.setttings_trial import LEVER_CONFIGS, LEVER_OPT_PARAMS
+from gym_lock.settings_trial import LEVER_CONFIGS, LEVER_OPT_PARAMS
 
 class MultiLockScenario(object):
 
