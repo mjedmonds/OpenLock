@@ -108,7 +108,7 @@ class ArmLockEnv(gym.Env):
 
     def _update_state_machine_at_frame_rate(self):
         ''''''
-        if self.clock % BOX2D_SETTINGS['STATE_MACHINE_CLK_DIV'] == 0:
+        if self.world_def.clock % BOX2D_SETTINGS['STATE_MACHINE_CLK_DIV'] == 0:
             self.scenario.update_state_machine()
 
     def _step(self, action):

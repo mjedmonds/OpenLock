@@ -106,7 +106,7 @@ class SessionManager():
                 continue
 
     @staticmethod
-    def prompt_subject(self):
+    def prompt_subject():
         print 'Welcome to OpenLock!'
         age = SessionManager.prompt_age()
         gender = SessionManager.prompt_gender()
