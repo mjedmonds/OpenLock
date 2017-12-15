@@ -3,11 +3,13 @@ import gym
 import numpy as np
 from gym_lock.settings_render import select_scenario
 from gym_lock.session_manager import SessionManager
+import time
 
-def exit_handler(signum, frame):
-   print 'saving results.csv'
-   np.savetxt('results.csv', env.results, delimiter=',', fmt='%s')
-   exit()
+
+# def exit_handler(signum, frame):
+#    print 'saving results.csv'
+#    np.savetxt('results.csv', env.results, delimiter=',', fmt='%s')
+#    exit()
 
 
 if __name__ == '__main__':
@@ -18,13 +20,13 @@ if __name__ == '__main__':
     # training params
     params = {
         'data_dir': '../OpenLockResults/subjects',
-        'num_trials': 6,
+        'num_trials': 1,
         'scenario_name': 'CE3',
-        'attempt_limit': 10,
+        'attempt_limit': 3,
         'action_limit': 3,
         'test_scenario_name': 'CE4',
-        'test_attempt_limit': 10,
-        'test_action_limit': 4
+        'test_attempt_limit': 3,
+        'test_action_limit': 3
     }
 
     scenario = select_scenario(params['scenario_name'])
@@ -42,6 +44,8 @@ if __name__ == '__main__':
     manager.update_scenario(scenario)
     manager.run_trial(params['test_scenario_name'], params['test_action_limit'], params['test_attempt_limit'])
 
-    raw_input('Press space to continue')
-    # record results
+    manager.finish_subject()
+    manager.write_results()
+    print "Thank you for participating."
+    time.sleep(5)
 

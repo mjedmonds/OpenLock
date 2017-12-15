@@ -4,8 +4,6 @@ from gym_lock.scenarios.scenario import Scenario
 from logger import ActionLog
 
 
-
-
 class CommonEffect3Scenario(Scenario):
 
     name = 'CE3'
@@ -25,8 +23,8 @@ class CommonEffect3Scenario(Scenario):
 
     # lists of actions that represent solution sequences
     solutions = [
-        [ActionLog('push_l0'), ActionLog('push_l2'), ActionLog('push_door')],
-        [ActionLog('push_l1'), ActionLog('push_l2'), ActionLog('push_door')],
+        [ActionLog('push_l0', None), ActionLog('push_l2', None), ActionLog('push_door', None)],
+        [ActionLog('push_l1', None), ActionLog('push_l2', None), ActionLog('push_door', None)],
     ]
 
     def __init__(self):

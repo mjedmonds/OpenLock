@@ -51,6 +51,12 @@ class SessionManager():
     def set_action_limit(self, action_limit):
         self.env.action_limit = action_limit
 
+    def write_results(self):
+        self.writer.write(self.env.logger)
+
+    def finish_subject(self):
+        self.env.logger.finish(time.time())
+
     @staticmethod
     def get_trial(name, completed_trials=None):
         if name != 'CE4' and name != 'CC4':
@@ -124,14 +130,14 @@ class SessionManager():
 
     @staticmethod
     def setup_subject(data_path):
-        # age, gender, handedness, eyewear = SessionManager.prompt_subject()
-        age, gender, handedness, eyewear = ['25', 'M', 'right', 'no']
+        age, gender, handedness, eyewear = SessionManager.prompt_subject()
+        # age, gender, handedness, eyewear = ['25', 'M', 'right', 'no']
         subject_id, subject_path = SessionManager.make_subject_dir(data_path)
         sub_logger = logger.SubjectLog(subject_id=subject_id,
-                                       start_time=time.time(),
                                        age=age,
                                        gender=gender,
                                        handedness=handedness,
-                                       eyewear=eyewear)
+                                       eyewear=eyewear,
+                                       start_time=time.time())
         sub_writer = logger.SubjectWriter(subject_path)
         return sub_logger, sub_writer

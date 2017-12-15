@@ -172,7 +172,7 @@ class ArmLockEnv(gym.Env):
 
             if observable_action:
                 self.action_count += 1
-                self._print_observation(state, self.action_count)
+                # self._print_observation(state, self.action_count)
                 self.results.append(self._create_state_entry(state, self.action_count))
                 self.logger.cur_trial.cur_attempt.finish_action()
 
@@ -183,7 +183,7 @@ class ArmLockEnv(gym.Env):
                 # todo save results to file/subject
                 door_opened = state['OBJ_STATES']['door']
                 attempt_success = self.logger.cur_trial.finish_attempt(results=self.results)
-                self._export_results()
+                # self._export_results()
 
                 # continue or end trial
                 if self.logger.cur_trial.success is True:
@@ -252,7 +252,7 @@ class ArmLockEnv(gym.Env):
         self._render()
         state = self._get_state()
         # append initial observation
-        self._print_observation(state, self.action_count)
+        # self._print_observation(state, self.action_count)
         self.results.append(self._create_state_entry(state, self.action_count))
 
         return state
