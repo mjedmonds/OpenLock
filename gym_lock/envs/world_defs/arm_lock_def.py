@@ -228,7 +228,7 @@ class ArmLockDef(object):
         # TODO: better setup interface
 
         door_config = common.TwoDConfig(18, 5, -np.pi / 2)
-        door =  common.Door(self, 'door', door_config)
+        door = common.Door(self, 'door', door_config, color=common.COLORS['active'])
         self.obj_map['door'] = door
 
         self.obj_map['door_right_button'] = common.Button(world_def=self, config=door_config, color=common.COLORS['static'], name='door_right_button', height=1.5, width=1.5, x_offset=3, y_offset=3)

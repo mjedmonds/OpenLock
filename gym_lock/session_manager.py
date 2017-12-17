@@ -28,8 +28,8 @@ class SessionManager():
         self.env.attempt_limit = attempt_limit
         self.set_action_limit(action_limit)
         # select trial
-        trial_selected, lever_configs, lever_opt_params = self.get_trial(scenario_name, self.completed_trials)
-        self.env.scenario.set_lever_configs(lever_configs, lever_opt_params)
+        trial_selected, lever_configs = self.get_trial(scenario_name, self.completed_trials)
+        self.env.scenario.set_lever_configs(lever_configs)
 
         self.env.logger.add_trial(trial_selected, scenario_name, self.env.scenario.solutions)
         self.env.logger.cur_trial.add_attempt()
@@ -61,11 +61,11 @@ class SessionManager():
     def get_trial(name, completed_trials=None):
         if name != 'CE4' and name != 'CC4':
             # select a random trial and add it to the scenario
-            trial, configs, opt_params = select_random_trial(completed_trials, 1, 6)
+            trial, configs = select_random_trial(completed_trials, 1, 6)
         else:
-            trial, configs, opt_params = select_trial('trial7')
+            trial, configs = select_trial('trial7')
 
-        return trial, configs, opt_params
+        return trial, configs
 
     @staticmethod
     def prompt_age():
@@ -130,8 +130,8 @@ class SessionManager():
 
     @staticmethod
     def setup_subject(data_path):
-        age, gender, handedness, eyewear = SessionManager.prompt_subject()
-        # age, gender, handedness, eyewear = ['25', 'M', 'right', 'no']
+        # age, gender, handedness, eyewear = SessionManager.prompt_subject()
+        age, gender, handedness, eyewear = ['25', 'M', 'right', 'no']
         subject_id, subject_path = SessionManager.make_subject_dir(data_path)
         sub_logger = logger.SubjectLog(subject_id=subject_id,
                                        age=age,

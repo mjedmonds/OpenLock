@@ -5,14 +5,28 @@ import numpy as np
 from shapely.geometry import Polygon, Point
 from Box2D import *
 
+
+class LeverRole:
+    inactive = 'inactive'
+    l0 = 'l0'
+    l1 = 'l1'
+    l2 = 'l2'
+    l3 = 'l3'
+    l4 = 'l4'
+    l5 = 'l5'
+    l6 = 'l6'
+
+
 TwoDConfig = namedtuple('Config', 'x y theta')
 TwoDForce = namedtuple('Force', 'norm tan')
 Action = namedtuple('action', 'name params') # params should be list-like or a single value
+LeverConfig = namedtuple('lever_config', 'TwoDConfig LeverRole, opt_params')    # role should be an enum indicating which lever this
 
 Color = namedtuple('Color', 'r g b')
 
 COLORS = {
-    'active': Color(0.5, 0.5, 0.3),
+    'active': Color(0.6, 0.6, 0.6),
+    'inactive': Color(0.9, 0.9, 0.9),
     'static': Color(0.5, 0.9, 0.5),
     'kinematic': Color(0.5, 0.5, 0.9),
     'asleep': Color(0.6, 0.6, 0.6),
@@ -50,7 +64,7 @@ class Object():
 
 
 class Lock(Object):
-    def __init__(self, world_def, name, config, opt_params=None):
+    def __init__(self, world_def, name, config, color, opt_params=None):
         Object.__init__(self, name)
 
         if opt_params:
@@ -69,6 +83,8 @@ class Lock(Object):
         self.inner_clickable = None
         self.outer_clickable = None
 
+        self.color = color
+
     def _create_lock(self, world_def, config, width=0.5, length=5, lower_lim=-2, upper_lim=0):
         x, y, theta = config
 
@@ -83,6 +99,8 @@ class Lock(Object):
             maskBits=0x1101
         )
 
+        # passing userData sets the color of the lock to the be same as the object
+        # used to set the color in box2drenderer
         lock_body = world_def.world.CreateDynamicBody(
             position=(x, y),
             angle=theta,
@@ -133,13 +151,17 @@ class Lock(Object):
         inner_vertices = [end1 + norm * width, end1 - norm * width, middle - norm * width, middle + norm * width]
         outer_vertices = [middle - norm * width, middle + norm * width, end2 - norm * width, end2 + norm * width]
 
+        # passing userData makes the color of the track the same as the lever
         inner_lock_track_body = world_def.background.CreateStaticBody(position=p2,
-                                                                 active=False,
-                                                                 shapes=b2PolygonShape(vertices=inner_vertices))
+                                                                      active=False,
+                                                                      shapes=b2PolygonShape(vertices=inner_vertices),
+                                                                      userData=self)
 
+        # passing userData makes the color of the track the same as the lever
         outer_lock_track_body = world_def.background.CreateStaticBody(position=p2,
-                                                                 active=False,
-                                                                 shapes=b2PolygonShape(vertices=outer_vertices))
+                                                                      active=False,
+                                                                      shapes=b2PolygonShape(vertices=outer_vertices),
+                                                                      userData=self)
         trans = b2Transform()
         trans.SetIdentity()
 
@@ -158,7 +180,7 @@ class Lock(Object):
 
 class Door(Object):
     # def __init__(self, door_fixture, door_joint, int_test, ext_test, name):
-    def __init__(self, world_def, name, config):
+    def __init__(self, world_def, name, config, color):
         # Object.__init__(self, name, door_fixture, joint=door_joint, int_test=int_test, ext_test=ext_test)
         Object.__init__(self, name)
         self.fixture, self.joint, self.lock = self._create_door(world_def, config)
@@ -171,6 +193,8 @@ class Door(Object):
         open_test = lambda door_hinge: abs(door_hinge.angle) > np.pi / 16
         self.int_test = open_test
         self.ext_test = open_test
+
+        self.color = color
 
     def _create_door(self, world_def, config, width=0.5, length=10, locked=True):
         # TODO: add relocking ability

@@ -6,11 +6,8 @@ import gym_lock.common as common
 
 class Scenario(object):
 
-    def set_lever_configs(self, lever_configs, lever_opt_params):
+    def set_lever_configs(self, lever_configs):
         self.lever_configs = lever_configs
-        self.lever_opt_params = lever_opt_params
-
-        assert (len(self.lever_opt_params) == len(self.lever_configs))
 
     def add_nothing_transition(self):
         # add nothing transition
@@ -65,7 +62,7 @@ class Scenario(object):
         # check locks
         for name, obj in self.world_def.obj_map.items():
             fsm_name = name + ':'
-            if 'button' not in name and 'door' not in name:
+            if 'button' not in name and 'door' not in name and 'inactive' not in name:
                 if obj.int_test(obj.joint):
                     if self.fsmm._extract_entity_state(self.fsmm.observable_fsm.state, fsm_name) != 'pushed,':
                         # push lever
@@ -83,10 +80,19 @@ class Scenario(object):
         # todo: come up with a better way to set self.world_def without passing as an argument here
         self.world_def = world_def
 
-        for i in range(0, len(self.lever_configs)):
-            name = 'l{}'.format(i)
-            lock = common.Lock(self.world_def, name, self.lever_configs[i], self.lever_opt_params[i])
-            self.world_def.obj_map[name] = lock
+        num_inactive = 0        # give inactive levers a unique name
+        for lever_config in self.lever_configs:
+            two_d_config, role, opt_params = lever_config
+            # give unique names to every inactive
+            if role == 'inactive':
+                role = 'inactive{}'.format(num_inactive)
+                num_inactive += 1
+                color = common.COLORS['inactive']
+            else:
+                color = common.COLORS['active']
+
+            lock = common.Lock(self.world_def, role, two_d_config, color, opt_params)
+            self.world_def.obj_map[role] = lock
 
     def _update_latent_objs(self):
         latent_states = self.fsmm.get_latent_states()

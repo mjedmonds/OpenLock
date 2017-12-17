@@ -22,10 +22,10 @@ if __name__ == '__main__':
         'data_dir': '../OpenLockResults/subjects',
         'num_trials': 1,
         'scenario_name': 'CE3',
-        'attempt_limit': 3,
+        'attempt_limit': 10,
         'action_limit': 3,
         'test_scenario_name': 'CE4',
-        'test_attempt_limit': 3,
+        'test_attempt_limit': 10,
         'test_action_limit': 3
     }
 
