@@ -13,7 +13,7 @@ To install:
 
 To run:
 
-1. Inside the gym-lock folder: `python test.py`
+1. Inside the gym-lock folder: `python main.py`
 
 2. Click around! Every click specifies a (x, y, theta) configuration of the end effector.
    After you click, the an arrow will appear specifying the current target. Sit back for a second
