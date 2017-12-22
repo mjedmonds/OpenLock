@@ -9,11 +9,11 @@ To install:
 
 3. Inside the gym-lock folder: `python setup.py install`
 
-4. You may run into problems with graphviz and future modules. Make sure before you run the previous setup step to `sudo apt-get graphviz-dev` and `sudo apt-get graphviz`, and if you run into "ImportError: No module named 'future'", run `pip install future`.
+4. You may run into problems with graphviz and future modules. Make sure before you run the previous setup step to `sudo apt-get install graphviz-dev` and `sudo apt-get install graphviz`, and if you run into "ImportError: No module named 'future'", run `pip install future`.
 
 To run:
 
-1. Inside the gym-lock folder: `python ./test.py`
+1. Inside the gym-lock folder: `python test.py`
 
 2. Click around! Every click specifies a (x, y, theta) configuration of the end effector.
    After you click, the an arrow will appear specifying the current target. Sit back for a second
