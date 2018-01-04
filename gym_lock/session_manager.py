@@ -130,9 +130,10 @@ class SessionManager():
 
     @staticmethod
     def setup_subject(data_path):
-        # age, gender, handedness, eyewear = SessionManager.prompt_subject()
-        age, gender, handedness, eyewear = ['25', 'M', 'right', 'no']
+        age, gender, handedness, eyewear = SessionManager.prompt_subject()
+        # age, gender, handedness, eyewear = ['25', 'M', 'right', 'no']
         subject_id, subject_path = SessionManager.make_subject_dir(data_path)
+        print "Starting trials for subject {}".format(subject_id)
         sub_logger = logger.SubjectLog(subject_id=subject_id,
                                        age=age,
                                        gender=gender,

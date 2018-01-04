@@ -78,7 +78,7 @@ LEVER_CONFIGS = {
                   LeverConfig(LEFT,         LeverRole.inactive, None),
                   LeverConfig(LOWERLEFT,    LeverRole.l3,       None),
                   LeverConfig(LOWER,        LeverRole.inactive, None),
-                  LeverConfig(LOWERRIGHT,   LeverRole.inactive, None)],
+                  LeverConfig(LOWERRIGHT,   LeverRole.l2, None)],
     # multi-lock. l0=UPPER, l1=LOWER, l2=LEFT,
     'multi-lock': [LeverConfig(UPPERRIGHT,  LeverRole.inactive, None),
                   LeverConfig(UPPER,        LeverRole.l0,       None),

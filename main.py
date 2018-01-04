@@ -20,7 +20,7 @@ if __name__ == '__main__':
     # training params
     params = {
         'data_dir': '../OpenLockResults/subjects',
-        'num_trials': 1,
+        'num_trials': 6,
         'scenario_name': 'CE3',
         'attempt_limit': 10,
         'action_limit': 3,

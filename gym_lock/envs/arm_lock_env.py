@@ -279,7 +279,7 @@ class ArmLockEnv(gym.Env):
         self.action_space = []
         self.action_map = dict()
         for obj, val in self.world_def.obj_map.items():
-            if 'button' not in obj:
+            if 'button' not in obj and 'inactive' not in obj:
                 push = 'push_{}'.format(obj)
                 pull = 'pull_{}'.format(obj)
 
@@ -331,7 +331,7 @@ class ArmLockEnv(gym.Env):
             'END_EFFECTOR_FORCE': common.TwoDForce(self.world_def.contact_listener.norm_force, self.world_def.contact_listener.tan_force),
             # 'DOOR_ANGLE' : self.obj_map['door'][1].angle,
             # 'LOCK_TRANSLATIONS' : {name : val[1].translation for name, val in self.obj_map.items() if name != 'door'},
-            'OBJ_STATES': {name: val.ext_test(val.joint) for name, val in self.world_def.obj_map.items() if 'button' not in name},  # ext state
+            'OBJ_STATES': {name: val.ext_test(val.joint) for name, val in self.world_def.obj_map.items() if 'button' not in name and 'inactive' not in name},  # ext state
             # 'OBJ_STATES': {name: val[3](val[1]) for name, val in self.obj_map.items() if 'button' not in name},
             # ext state
             'LOCK_STATE': self.world_def.obj_map['door'].int_test(self.world_def.obj_map['door'].joint),
