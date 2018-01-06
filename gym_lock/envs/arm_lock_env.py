@@ -203,7 +203,18 @@ class ArmLockEnv(gym.Env):
 
             self.action_executing = False
 
-            return state, 0, False, {}
+            # todo: this reward does not consider whether or not the action sequence has been completed before
+            # todo: success also has the same limitation
+            success = False
+            if self.world_def.door_lock is not None:
+                reward = 0
+            elif self.world_def.door_lock is None and action.name is 'push' and action.params[0] is 'door':
+                reward = 5
+                success = True
+            else:
+                reward = 1
+
+            return state, reward, success, {}
 
     def _reset(self):
         """Resets the state of the environment and returns an initial observation.
@@ -279,15 +290,22 @@ class ArmLockEnv(gym.Env):
         self.action_space = []
         self.action_map = dict()
         for obj, val in self.world_def.obj_map.items():
-            if 'button' not in obj:
+            if 'button' not in obj and 'door' not in obj:
                 push = 'push_{}'.format(obj)
                 pull = 'pull_{}'.format(obj)
 
                 self.action_space.append(pull)
                 self.action_space.append(push)
 
-                self.action_map[push] = common.Action('push', (obj, 4))
                 self.action_map[pull] = common.Action('pull', (obj, 4))
+                self.action_map[push] = common.Action('push', (obj, 4))
+            if 'door' in obj:
+                push = 'push_{}'.format(obj)
+
+                self.action_space.append(push)
+
+                self.action_map[push] = common.Action('push', (obj, 4))
+
 
     def _create_clickable_regions(self):
         lock_regex = '^l[0-9]+'
