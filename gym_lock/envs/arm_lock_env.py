@@ -279,7 +279,7 @@ class ArmLockEnv(gym.Env):
         self.action_space = []
         self.action_map = dict()
         for obj, val in self.world_def.obj_map.items():
-            if 'button' not in obj and 'inactive' not in obj:
+            if 'button' not in obj:
                 push = 'push_{}'.format(obj)
                 pull = 'pull_{}'.format(obj)
 
@@ -290,16 +290,19 @@ class ArmLockEnv(gym.Env):
                 self.action_map[pull] = common.Action('pull', (obj, 4))
 
     def _create_clickable_regions(self):
-        lock_regex = '^l[0-9]+$'
+        lock_regex = '^l[0-9]+'
+        inactive_lock_regex = '^inactive[0-9]+$'
         # register clickable regions
         for b2_object_name, b2_object_data in self.world_def.obj_map.items():
-            if re.search(lock_regex, b2_object_name):
+            if re.search(lock_regex, b2_object_name) or re.search(inactive_lock_regex, b2_object_name):
                 lock = b2_object_data
 
                 lock.create_clickable(self._step, self.action_map)
                 self.viewer.register_clickable_region(lock.inner_clickable)
                 self.viewer.register_clickable_region(lock.outer_clickable)
-
+                # lock inactive levers
+                if re.search(inactive_lock_regex, b2_object_name):
+                    self.world_def.lock_lever(lock.name)
             elif b2_object_name == 'door_right_button':
                 door_button = b2_object_data
                 callback_action = 'push_door'
@@ -331,7 +334,7 @@ class ArmLockEnv(gym.Env):
             'END_EFFECTOR_FORCE': common.TwoDForce(self.world_def.contact_listener.norm_force, self.world_def.contact_listener.tan_force),
             # 'DOOR_ANGLE' : self.obj_map['door'][1].angle,
             # 'LOCK_TRANSLATIONS' : {name : val[1].translation for name, val in self.obj_map.items() if name != 'door'},
-            'OBJ_STATES': {name: val.ext_test(val.joint) for name, val in self.world_def.obj_map.items() if 'button' not in name and 'inactive' not in name},  # ext state
+            'OBJ_STATES': {name: val.ext_test(val.joint) for name, val in self.world_def.obj_map.items() if 'button' not in name},  # ext state
             # 'OBJ_STATES': {name: val[3](val[1]) for name, val in self.obj_map.items() if 'button' not in name},
             # ext state
             'LOCK_STATE': self.world_def.obj_map['door'].int_test(self.world_def.obj_map['door'].joint),

@@ -24,7 +24,7 @@ if __name__ == '__main__':
         'scenario_name': 'CE3',
         'attempt_limit': 10,
         'action_limit': 3,
-        'test_scenario_name': 'CE4',
+        'test_scenario_name': 'CC4',
         'test_attempt_limit': 10,
         'test_action_limit': 3
     }
