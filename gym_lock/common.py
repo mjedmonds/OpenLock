@@ -20,7 +20,7 @@ class LeverRole:
 TwoDConfig = namedtuple('Config', 'x y theta')
 TwoDForce = namedtuple('Force', 'norm tan')
 Action = namedtuple('action', 'name params') # params should be list-like or a single value
-LeverConfig = namedtuple('lever_config', 'TwoDConfig LeverRole, opt_params')    # role should be an enum indicating which lever this
+LeverConfig = namedtuple('lever_config', 'TwoDConfig LeverRole opt_params')    # role should be an enum indicating which lever this
 
 Color = namedtuple('Color', 'r g b')
 
@@ -84,6 +84,8 @@ class Lock(Object):
         self.outer_clickable = None
 
         self.color = color
+
+        self.config = config
 
     def _create_lock(self, world_def, config, width=0.5, length=5, lower_lim=-2, upper_lim=0):
         x, y, theta = config
@@ -177,6 +179,13 @@ class Lock(Object):
         self.outer_clickable = Clickable(lambda xy, poly: poly.contains(Point(xy)), step,
                                          callback_args=[action_map[push]], test_args=[self.outer_poly])
 
+    def determine_active(self):
+        if self.color == COLORS['active']:
+            return True
+        elif self.color == COLORS['inactive']:
+            return False
+        else:
+            raise ValueError('Expected lever to be active or inactive, different color set')
 
 class Door(Object):
     # def __init__(self, door_fixture, door_joint, int_test, ext_test, name):

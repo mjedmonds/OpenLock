@@ -1,5 +1,6 @@
 import numpy as np
 from Box2D import b2ContactListener, b2Vec2, b2World, b2FixtureDef, b2PolygonShape, b2CircleShape, b2Dot
+import re
 
 import gym_lock.common as common
 from gym_lock.pid_central import PIDController
@@ -242,7 +243,8 @@ class ArmLockDef(object):
 
         # TODO: this is a bit of a hack to pass self to init_scenario_env, but there isn't a clean
         # TODO: to have dual references during intialization
-        self.scenario.init_scenario_env(self)
+        if self.scenario is not None:
+            self.scenario.init_scenario_env(self)
 
     def __init_cascade_controller(self):
         pts = [c.theta for c in self.chain.get_rel_config()[1:]]
@@ -340,6 +342,35 @@ class ArmLockDef(object):
             config.append(common.TwoDConfig(dx, dy, dtheta))
 
         return config
+
+    def get_locks(self):
+        locks = []
+        lock_regex = '^l[0-9]+'
+        inactive_lock_regex = '^inactive[0-9]+$'
+        for obj, val in self.obj_map.items():
+            if re.search(lock_regex, obj) or re.search(inactive_lock_regex, obj):
+                locks.append(val)
+        return locks
+
+    def get_state(self):
+        end_effector_position = self.get_abs_config()[-1]
+        end_effector_force = common.TwoDForce(self.contact_listener.norm_force, self.contact_listener.tan_force)
+        obj_states = {name: val.ext_test(val.joint) for name, val in self.obj_map.items() if 'button' not in name}
+        lock_state = self.obj_map['door'].int_test(self.obj_map['door'].joint)
+        fsm_state = self.scenario.fsmm.observable_fsm.state + self.scenario.fsmm.latent_fsm.state if self.scenario is not None else ValueError('No Scenario set')
+        state = {
+            'END_EFFECTOR_POS': end_effector_position,
+            'END_EFFECTOR_FORCE': end_effector_force,
+            # 'DOOR_ANGLE' : self.obj_map['door'][1].angle,
+            # 'LOCK_TRANSLATIONS' : {name : val[1].translation for name, val in self.obj_map.items() if name != 'door'},
+            'OBJ_STATES': obj_states,
+            # ext state
+            'LOCK_STATE': lock_state,
+            # 'LOCK_STATE': self.obj_map['door'][2](self.obj_map['door'][1]),
+            '_FSM_STATE': fsm_state,
+        }
+        state['OBJ_STATES']['door_lock'] = True if self.door_lock is not None else False
+        return state
 
     def apply_torque(self, idx, torque):
 

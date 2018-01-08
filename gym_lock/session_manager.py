@@ -14,15 +14,16 @@ class SessionManager():
     params = None
     completed_trials = []
 
-    def __init__(self, env, params):
+    def __init__(self, env, params, computer=False):
         self.env = env
         self.params = params
 
         self.set_action_limit(params['action_limit'])
         # logger is stored in the environment - change if possible
-        self.env.logger, self.writer = self.setup_subject(params['data_dir'])
+        self.env.logger, self.writer = self.setup_subject(params['data_dir'], computer)
 
-    def run_trial(self, scenario_name, action_limit, attempt_limit):
+    # code to run before human and computer trials
+    def run_trial_common_setup(self, scenario_name, action_limit, attempt_limit):
         # setup trial
         self.env.attempt_count = 0
         self.env.attempt_limit = attempt_limit
@@ -38,12 +39,27 @@ class SessionManager():
 
         self.env.reset()
 
-        while self.env.attempt_count < attempt_limit and self.env.logger.cur_trial.success is False:
-            self.env.render()
+        return trial_selected
 
+    # code to run after both human and computer trials
+    def run_trial_common_finish(self, trial_selected):
         # todo: detect whether or not all possible successful paths were uncovered
         self.env.logger.finish_trial()
         self.completed_trials.append(copy.deepcopy(trial_selected))
+
+    # code to run a human subject
+    def run_trial_human(self, scenario_name, action_limit, attempt_limit):
+        trial_selected = self.run_trial_common_setup(scenario_name, action_limit, attempt_limit)
+
+        while self.env.attempt_count < attempt_limit and self.env.logger.cur_trial.success is False:
+            self.env.render()
+
+        self.run_trial_common_finish(trial_selected)
+
+    # code to run a computer trial
+    def run_trial_computer(self, scenario_name, action_limit, attempt_limit):
+
+        self.run_trial_common_finish(trial_selected)
 
     def update_scenario(self, scenario):
         self.env.scenario = scenario
@@ -129,10 +145,20 @@ class SessionManager():
                 continue
 
     @staticmethod
-    def setup_subject(data_path):
-        age, gender, handedness, eyewear = SessionManager.prompt_subject()
-        # age, gender, handedness, eyewear = ['25', 'M', 'right', 'no']
-        subject_id, subject_path = SessionManager.make_subject_dir(data_path)
+    def setup_subject(data_path, computer=False):
+        # human agent
+        if not computer:
+            age, gender, handedness, eyewear = SessionManager.prompt_subject()
+            # age, gender, handedness, eyewear = ['25', 'M', 'right', 'no']
+            subject_id, subject_path = SessionManager.make_subject_dir(data_path)
+        # robot agent
+        else:
+            age = -1
+            gender = 'robot'
+            handedness = 'none'
+            eyewear = 'no'
+            subject_id, subject_path = SessionManager.make_subject_dir(data_path)
+
         print "Starting trials for subject {}".format(subject_id)
         sub_logger = logger.SubjectLog(subject_id=subject_id,
                                        age=age,

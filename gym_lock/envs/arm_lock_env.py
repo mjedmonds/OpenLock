@@ -9,9 +9,11 @@ from gym.utils import seeding
 from gym_lock.box2d_renderer import Box2DRenderer
 import gym_lock.common as common
 from gym_lock.envs.world_defs.arm_lock_def import ArmLockDef
-from gym_lock.kine import KinematicChain, discretize_path, InverseKinematics, generate_five_arm, \
-    TwoDKinematicTransform
+from gym_lock.kine import KinematicChain, discretize_path, InverseKinematics, generate_five_arm, TwoDKinematicTransform
 from gym_lock.settings_render import RENDER_SETTINGS, BOX2D_SETTINGS, ENV_SETTINGS
+from gym_lock.settings_trial import REWARD_NONE, REWARD_OPEN, REWARD_UNLOCK
+from gym_lock.space_manager import ActionSpace, ObservationSpace
+
 from glob import glob
 
 
@@ -49,9 +51,6 @@ class ArmLockEnv(gym.Env):
         entry[0] = frame
         for name, val in state['OBJ_STATES'].items():
             entry[self.index_map[name]] = int(val)
-
-        # add status of door lock
-        entry[self.index_map['door_lock']] = 1 if self.world_def.door_lock is not None else 0
 
         return entry
 
@@ -176,45 +175,73 @@ class ArmLockEnv(gym.Env):
                 self.results.append(self._create_state_entry(state, self.action_count))
                 self.logger.cur_trial.cur_attempt.finish_action()
 
+            # must update reward before potentially reset env (env may reset based on trial status)
+            reward, success = self.deteremine_reward(action)
+
             # above the allowed number of actions, need to increment the attempt count and reset the simulator
             if self.action_limit is not None and self.action_count >= self.action_limit:
 
                 self.attempt_count += 1
-                # todo save results to file/subject
-                door_opened = state['OBJ_STATES']['door']
                 attempt_success = self.logger.cur_trial.finish_attempt(results=self.results)
-                # self._export_results()
 
-                # continue or end trial
-                if self.logger.cur_trial.success is True:
-                    print "INFO: You found all of the solutions. Ending trial."
-                elif self.attempt_count < self.attempt_limit:
-                    # alert user to the number of solutions remaining
-                    if attempt_success is True:
-                        print "INFO: You found a solution. There are {} unique solutions remaining.".format(self.logger.cur_trial.num_solutions_remaining)
-                    else:
-                        print "INFO: Ending attempt. Action limit reached. There are {} unique solutions remaining. You have {} attempts remaining.".format(self.logger.cur_trial.num_solutions_remaining, self.attempt_limit - self.attempt_count)
-                    self._reset()   # reset if we are not done with this trial
+                # update the user about their progress
+                trial_finished = self.update_user(attempt_success)
+
+                if not trial_finished:
+                    self._reset()  # reset if we are not done with this trial
                     self.logger.cur_trial.add_attempt()
-                else:
-                    print "INFO: Ending trial. Attempt limit reached. You found {} unique solutions".format(len(self.logger.cur_trial.solutions) - self.logger.cur_trial.num_solutions_remaining)
-
-                state = self._get_state()
 
             self.action_executing = False
-
-            # todo: this reward does not consider whether or not the action sequence has been completed before
-            # todo: success also has the same limitation
-            success = False
-            if self.world_def.door_lock is not None:
-                reward = 0
-            elif self.world_def.door_lock is None and action.name is 'push' and action.params[0] is 'door':
-                reward = 5
-                success = True
-            else:
-                reward = 1
+            state = self._get_state()
 
             return state, reward, success, {}
+        else:
+            state = self._get_state()
+            return state, 0, False, {}
+
+    def update_user(self, attempt_success):
+        # continue or end trial
+        if self.logger.cur_trial.success is True:
+            print "INFO: You found all of the solutions. Ending trial."
+            trial_finished = True
+        elif self.attempt_count < self.attempt_limit:
+            # alert user to the number of solutions remaining
+            if attempt_success is True:
+                print "INFO: You found a solution. There are {} unique solutions remaining.".format(
+                    self.logger.cur_trial.num_solutions_remaining)
+            else:
+                print "INFO: Ending attempt. Action limit reached. There are {} unique solutions remaining. You have {} attempts remaining.".format(
+                    self.logger.cur_trial.num_solutions_remaining, self.attempt_limit - self.attempt_count)
+            trial_finished = False
+        else:
+            print "INFO: Ending trial. Attempt limit reached. You found {} unique solutions".format(
+                len(self.logger.cur_trial.solutions) - self.logger.cur_trial.num_solutions_remaining)
+            trial_finished = True
+
+        return trial_finished
+
+    def deteremine_reward(self, action, attempt_success=False):
+        # todo: this reward does not consider whether or not the action sequence has been finished before
+        # todo: success also has the same limitation
+        success = False
+        if self.world_def.door_lock is not None:
+            reward = REWARD_NONE
+        elif self.world_def.door_lock is None and action.name is 'push' and action.params[0] is 'door':
+            reward = REWARD_OPEN
+            success = True
+        else:
+            reward = REWARD_UNLOCK
+
+        return reward, success
+
+    def init_inverse_kine(self):
+        # initialize inverse kinematics module with chain==target
+        self.theta0 = BOX2D_SETTINGS['INITIAL_THETA_VECTOR']
+        self.base0 = BOX2D_SETTINGS['INITIAL_BASE_CONFIG']
+        initial_config = generate_five_arm(self.theta0[0], self.theta0[1], self.theta0[2], self.theta0[3], self.theta0[4])
+        self.base = TwoDKinematicTransform(x=self.base0.x, y=self.base0.y, theta=self.base0.theta)
+        self.invkine = InverseKinematics(KinematicChain(self.base, initial_config),
+                                         KinematicChain(self.base, initial_config))
 
     def _reset(self):
         """Resets the state of the environment and returns an initial observation.
@@ -227,23 +254,18 @@ class ArmLockEnv(gym.Env):
             print('WARNING: resetting environment with no scenario')
 
         # TODO: properly define these
-        self.observation_space = spaces.Box(-np.inf, np.inf, [4])  # [x, y, vx, vy]
-        self.reward_range = (-np.inf, np.inf)
+        self.observation_space = None
+        self.reward_range = (0, 5)
         self.clock = 0
         self._seed()
 
-        # initialize inverse kinematics module with chain==target
-        self.theta0 = BOX2D_SETTINGS['INITIAL_THETA_VECTOR']
-        self.base0 = BOX2D_SETTINGS['INITIAL_BASE_CONFIG']
-        initial_config = generate_five_arm(self.theta0[0], self.theta0[1], self.theta0[2], self.theta0[3], self.theta0[4])
-        self.base = TwoDKinematicTransform(x=self.base0.x, y=self.base0.y, theta=self.base0.theta)
-        self.invkine = InverseKinematics(KinematicChain(self.base, initial_config),
-                                         KinematicChain(self.base, initial_config))
+        self.init_inverse_kine()
 
         # setup Box2D world
         self.world_def = ArmLockDef(self.invkine.kinematic_chain, 1.0 / BOX2D_SETTINGS['FPS'], 30, self.scenario)
 
-        self._create_action_space()
+        self.action_space, self.action_map = ActionSpace.create_action_space(self.world_def.obj_map)
+        self.obs_space = ObservationSpace(len(self.world_def.get_locks()))
 
         # reset results (must be after world_def exists and action space has been created)
         self._reset_results()
@@ -286,27 +308,6 @@ class ArmLockEnv(gym.Env):
 
         self.results = [self.col_label]
 
-    def _create_action_space(self):
-        self.action_space = []
-        self.action_map = dict()
-        for obj, val in self.world_def.obj_map.items():
-            if 'button' not in obj and 'door' not in obj:
-                push = 'push_{}'.format(obj)
-                pull = 'pull_{}'.format(obj)
-
-                self.action_space.append(pull)
-                self.action_space.append(push)
-
-                self.action_map[pull] = common.Action('pull', (obj, 4))
-                self.action_map[push] = common.Action('push', (obj, 4))
-            if 'door' in obj:
-                push = 'push_{}'.format(obj)
-
-                self.action_space.append(push)
-
-                self.action_map[push] = common.Action('push', (obj, 4))
-
-
     def _create_clickable_regions(self):
         lock_regex = '^l[0-9]+'
         inactive_lock_regex = '^inactive[0-9]+$'
@@ -347,18 +348,7 @@ class ArmLockEnv(gym.Env):
     def _get_state(self):
         if self.world_def is None:
             raise ValueError('world_def is None while trying to call get_state()')
-        return {
-            'END_EFFECTOR_POS': self.world_def.get_abs_config()[-1],
-            'END_EFFECTOR_FORCE': common.TwoDForce(self.world_def.contact_listener.norm_force, self.world_def.contact_listener.tan_force),
-            # 'DOOR_ANGLE' : self.obj_map['door'][1].angle,
-            # 'LOCK_TRANSLATIONS' : {name : val[1].translation for name, val in self.obj_map.items() if name != 'door'},
-            'OBJ_STATES': {name: val.ext_test(val.joint) for name, val in self.world_def.obj_map.items() if 'button' not in name},  # ext state
-            # 'OBJ_STATES': {name: val[3](val[1]) for name, val in self.obj_map.items() if 'button' not in name},
-            # ext state
-            'LOCK_STATE': self.world_def.obj_map['door'].int_test(self.world_def.obj_map['door'].joint),
-            # 'LOCK_STATE': self.obj_map['door'][2](self.obj_map['door'][1]),
-            '_FSM_STATE': self.scenario.fsmm.observable_fsm.state + self.scenario.fsmm.latent_fsm.state if self.scenario is not None else ValueError('No Scenario set'),
-        }
+        return self.world_def.get_state()
 
     def _render(self, mode='human', close=False):
         """Renders the environment.

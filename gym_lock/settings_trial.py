@@ -2,6 +2,8 @@ import numpy as np
 
 from gym_lock.common import TwoDConfig, LeverConfig, LeverRole
 
+NUM_LEVERS = 7
+
 UPPER = TwoDConfig(0, 15, 0)
 LEFT = TwoDConfig(-15, 0, np.pi / 2)
 LOWER = TwoDConfig(0, -15, -np.pi)
@@ -9,6 +11,10 @@ UPPERLEFT = TwoDConfig(-11, 11, np.pi/4)
 UPPERRIGHT = TwoDConfig(11, 11, -np.pi/4)
 LOWERLEFT = TwoDConfig(-11, -11, 3*np.pi / 4)
 LOWERRIGHT = TwoDConfig(11, -11, 5*np.pi/4)
+
+REWARD_NONE = 0
+REWARD_UNLOCK = 1
+REWARD_OPEN = 5
 
 OLD_LEVER_CONFIGS = {
     'trial1' : [UPPERLEFT, LOWERLEFT, UPPERRIGHT],
@@ -20,6 +26,16 @@ OLD_LEVER_CONFIGS = {
     'trial7' : [UPPERLEFT, UPPERRIGHT, LOWERRIGHT, LOWERLEFT],
     'multi-lock' : [UPPER, LOWER, LEFT],
     'full'   : [UPPERRIGHT, UPPER, UPPERLEFT, LEFT, LOWERLEFT, LOWER, LOWERRIGHT]
+}
+
+CONFIG_TO_IDX = {
+    UPPERRIGHT: 0,
+    UPPER: 1,
+    UPPERLEFT: 2,
+    LEFT: 3,
+    LOWERLEFT: 4,
+    LOWER: 5,
+    LOWERRIGHT: 6
 }
 
 LEVER_CONFIGS = {
@@ -95,18 +111,6 @@ LEVER_CONFIGS = {
                   LeverConfig(LOWERLEFT,    LeverRole.l4,       None),
                   LeverConfig(LOWER,        LeverRole.l5,       None),
                   LeverConfig(LOWERRIGHT,   LeverRole.l6,       None)],
-}
-
-OLD_LEVER_OPT_PARAMS = {
-    'trial1' : [None, None, None],
-    'trial2' : [None, None, None],
-    'trial3' : [None, None, None],
-    'trial4' : [None, None, None],
-    'trial5' : [None, None, None],
-    'trial6' : [None, None, None],
-    'trial7' : [None, None, None, None],
-    'full'   : [None, None, None, None, None, None],
-    'multi-lock' : [None, None, {'lower_lim': 0.0, 'upper_lim': 2.0}]
 }
 
 
