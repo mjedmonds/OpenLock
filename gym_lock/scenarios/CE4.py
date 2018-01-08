@@ -23,9 +23,9 @@ class CommonEffect4Scenario(Scenario):
 
     # lists of actions that represent solution sequences
     solutions = [
-        [ActionLog('push_l0', None), ActionLog('push_l3', None), ActionLog('push_door', None)],
-        [ActionLog('push_l1', None), ActionLog('push_l3', None), ActionLog('push_door', None)],
-        [ActionLog('push_l2', None), ActionLog('push_l3', None), ActionLog('push_door', None)],
+        [ActionLog('push_l1', None), ActionLog('push_l0', None), ActionLog('push_door', None)],
+        [ActionLog('push_l2', None), ActionLog('push_l0', None), ActionLog('push_door', None)],
+        [ActionLog('push_l3', None), ActionLog('push_l0', None), ActionLog('push_door', None)],
     ]
 
     def __init__(self):
@@ -46,7 +46,7 @@ class CommonEffect4Scenario(Scenario):
         # define observable states that trigger changes in the latent space;
         # this is the clue between the two machines.
         # Here we assume if the observable case is in any criteria than those listed, the door is locked
-        self.door_unlock_criteria = [s for s in self.fsmm.observable_fsm.state_permutations if 'l3:pushed,' in s]
+        self.door_unlock_criteria = [s for s in self.fsmm.observable_fsm.state_permutations if 'l0:pushed,' in s]
 
         # add unlock/lock transition for every lock
         for lock in self.fsmm.observable_fsm.vars:
@@ -95,7 +95,7 @@ class CommonEffect4Scenario(Scenario):
 
         super(CommonEffect4Scenario, self).init_scenario_env(world_def)
 
-        self.world_def.lock_lever('l3') #initially lock l3
+        self.world_def.lock_lever('l0') #initially lock l3
 
     def _update_env(self):
         '''
@@ -120,12 +120,12 @@ class CommonEffect4Scenario(Scenario):
             # ---------------------------------------------------------------
             # add code to change part of the environment based on the state of an observable variable here
             # ---------------------------------------------------------------
-            if observable_var == 'l3:':
-                # unlock l2 based on status of l0, l1, part of multi-lock FSM
-                if 'l0:pushed,' in self.fsmm.observable_fsm.state or 'l1:pushed,' in self.fsmm.observable_fsm.state or 'l2:pushed,' in self.fsmm.observable_fsm.state:
-                    self.world_def.unlock_lever('l3')
+            if observable_var == 'l0:':
+                # unlock l0 based on status of l1, l3, l3 part of multi-lock FSM
+                if 'l1:pushed,' in self.fsmm.observable_fsm.state or 'l2:pushed,' in self.fsmm.observable_fsm.state or 'l3:pushed,' in self.fsmm.observable_fsm.state:
+                    self.world_def.unlock_lever('l0')
                 else:
-                    self.world_def.lock_lever('l3')
+                    self.world_def.lock_lever('l0')
 
     # @property
     # def actions(self):

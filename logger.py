@@ -67,6 +67,7 @@ class TrialLog(object):
     solutions = []
     completed_solutions = []
     num_solutions_remaining = None
+    solution_found = []
 
     def __init__(self, name, scenario_name, solutions, start_time):
         self.name = name
@@ -77,6 +78,7 @@ class TrialLog(object):
         self.success = False
         self.completed_solutions = []
         self.attempt_seq = []
+        self.solution_found = []
 
     def add_attempt(self):
         self.cur_attempt = AttemptLog(len(self.attempt_seq), time.time())
@@ -90,6 +92,7 @@ class TrialLog(object):
             self.num_solutions_remaining -= 1
         else:
             success = False
+        self.solution_found.append(success)
         self.cur_attempt.finish(success, results, time.time())
         self.attempt_seq.append(copy.deepcopy(self.cur_attempt))
         self.success = len(self.solutions) == len(self.completed_solutions)

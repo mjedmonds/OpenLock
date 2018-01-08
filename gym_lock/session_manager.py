@@ -18,18 +18,20 @@ class SessionManager():
         self.env = env
         self.params = params
 
-        self.set_action_limit(params['action_limit'])
         # logger is stored in the environment - change if possible
         self.env.logger, self.writer = self.setup_subject(params['data_dir'], computer)
 
     # code to run before human and computer trials
-    def run_trial_common_setup(self, scenario_name, action_limit, attempt_limit):
+    def run_trial_common_setup(self, scenario_name, action_limit, attempt_limit, specified_trial=None):
         # setup trial
         self.env.attempt_count = 0
         self.env.attempt_limit = attempt_limit
         self.set_action_limit(action_limit)
         # select trial
-        trial_selected, lever_configs = self.get_trial(scenario_name, self.completed_trials)
+        if specified_trial is None:
+            trial_selected, lever_configs = self.get_trial(scenario_name, self.completed_trials)
+        else:
+            trial_selected, lever_configs = select_trial(specified_trial)
         self.env.scenario.set_lever_configs(lever_configs)
 
         self.env.logger.add_trial(trial_selected, scenario_name, self.env.scenario.solutions)
@@ -48,8 +50,8 @@ class SessionManager():
         self.completed_trials.append(copy.deepcopy(trial_selected))
 
     # code to run a human subject
-    def run_trial_human(self, scenario_name, action_limit, attempt_limit):
-        trial_selected = self.run_trial_common_setup(scenario_name, action_limit, attempt_limit)
+    def run_trial_human(self, scenario_name, action_limit, attempt_limit, specified_trial=None):
+        trial_selected = self.run_trial_common_setup(scenario_name, action_limit, attempt_limit, specified_trial)
 
         while self.env.attempt_count < attempt_limit and self.env.logger.cur_trial.success is False:
             self.env.render()

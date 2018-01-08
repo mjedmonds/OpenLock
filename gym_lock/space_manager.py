@@ -1,10 +1,6 @@
 import numpy as np
 
-from gym_lock.common import TwoDConfig, LeverConfig, LeverRole
 from gym_lock.settings_trial import UPPER, LEFT, LOWER, UPPERLEFT, UPPERRIGHT, LOWERLEFT, LOWERRIGHT, CONFIG_TO_IDX, NUM_LEVERS
-from gym_lock.settings_trial import select_trial
-from gym_lock.kine import KinematicChain, discretize_path, InverseKinematics, generate_five_arm, TwoDKinematicTransform
-from gym_lock.settings_render import RENDER_SETTINGS, BOX2D_SETTINGS, ENV_SETTINGS, select_scenario
 import gym_lock.common as common
 from gym.spaces import MultiDiscrete
 

@@ -59,7 +59,7 @@ class ArmLockEnv(gym.Env):
         entry = [0] * len(self.col_label)
         entry[0] = self.action_count
         # copy over previous state
-        entry[1:self.index_map['door_lock']+1] = self.results[-1][1:self.index_map['door_lock']+1]
+        entry[1:self.index_map['agent']+1] = self.results[-1][1:self.index_map['agent']+1]
 
         # mark action idx
         if type(action.params[0]) is str:
@@ -300,7 +300,7 @@ class ArmLockEnv(gym.Env):
         self.col_label.append('frame')
         for col_name in self._get_state()['OBJ_STATES']:
             self.col_label.append(col_name)
-        self.col_label.append('door_lock')
+        self.col_label.append('agent')
         for col_name in self.action_space:
             self.col_label.append(col_name)
 

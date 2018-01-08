@@ -28,7 +28,7 @@ def select_scenario(scenario):
     elif scenario == 'multi-lock':
         scenario_selected = MultiLockScenario()
     else:
-        raise ValueError('Invalid scenario chosen in settings_render.py: %s' % scenario)
+        raise ValueError('Invalid scenario chosen in settings_scenario.py: %s' % scenario)
     return scenario_selected
 
 
