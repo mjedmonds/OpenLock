@@ -16,16 +16,71 @@ REWARD_NONE = 0
 REWARD_UNLOCK = 1
 REWARD_OPEN = 5
 
-OLD_LEVER_CONFIGS = {
-    'trial1' : [UPPERLEFT, LOWERLEFT, UPPERRIGHT],
-    'trial2' : [UPPER, LOWER, LEFT],
-    'trial3' : [UPPERLEFT, LOWERLEFT, LOWERRIGHT],
-    'trial4' : [UPPER, UPPERLEFT, UPPERRIGHT],
-    'trial5' : [UPPERLEFT, LOWERLEFT, LEFT],
-    'trial6' : [LOWERLEFT, LOWER, LOWERRIGHT],
-    'trial7' : [UPPERLEFT, UPPERRIGHT, LOWERRIGHT, LOWERLEFT],
-    'multi-lock' : [UPPER, LOWER, LEFT],
-    'full'   : [UPPERRIGHT, UPPER, UPPERLEFT, LEFT, LOWERLEFT, LOWER, LOWERRIGHT]
+ATTEMPT_LIMIT = 30
+ACTION_LIMIT = 3
+DATA_DIR = '../OpenLockResults/subjects'
+
+PARAMS = {
+    'CE3-CE4': {
+        'data_dir': DATA_DIR,
+        'num_train_trials': 6,
+        'train_scenario_name': 'CE3',
+        'train_attempt_limit': ATTEMPT_LIMIT,
+        'train_action_limit': ACTION_LIMIT,
+        'test_scenario_name': 'CE4',
+        'test_attempt_limit': ATTEMPT_LIMIT,
+        'test_action_limit': ACTION_LIMIT
+    },
+    'CE3-CC4': {
+        'data_dir': DATA_DIR,
+        'num_train_trials': 6,
+        'train_scenario_name': 'CE3',
+        'train_attempt_limit': ATTEMPT_LIMIT,
+        'train_action_limit': ACTION_LIMIT,
+        'test_scenario_name': 'CC4',
+        'test_attempt_limit': ATTEMPT_LIMIT,
+        'test_action_limit': ACTION_LIMIT
+    },
+    'CC3-CE4': {
+        'data_dir': DATA_DIR,
+        'num_train_trials': 6,
+        'train_scenario_name': 'CC3',
+        'train_attempt_limit': ATTEMPT_LIMIT,
+        'train_action_limit': ACTION_LIMIT,
+        'test_scenario_name': 'CE4',
+        'test_attempt_limit': ATTEMPT_LIMIT,
+        'test_action_limit': ACTION_LIMIT
+    },
+    'CC3-CC4': {
+        'data_dir': DATA_DIR,
+        'num_train_trials': 6,
+        'train_scenario_name': 'CC3',
+        'train_attempt_limit': ATTEMPT_LIMIT,
+        'train_action_limit': ACTION_LIMIT,
+        'test_scenario_name': 'CC4',
+        'test_attempt_limit': ATTEMPT_LIMIT,
+        'test_action_limit': ACTION_LIMIT
+    },
+    'CC4' : {
+        'data_dir': DATA_DIR,
+        'num_train_trials': 5,
+        'train_scenario_name': 'CC4',
+        'train_attempt_limit': ATTEMPT_LIMIT,
+        'train_action_limit': ACTION_LIMIT,
+        'test_scenario_name': None,
+        'test_attempt_limit': ATTEMPT_LIMIT,
+        'test_action_limit': ACTION_LIMIT
+    },
+    'CE4': {
+        'data_dir': DATA_DIR,
+        'num_train_trials': 5,
+        'train_scenario_name': 'CE4',
+        'train_attempt_limit': ATTEMPT_LIMIT,
+        'train_action_limit': ACTION_LIMIT,
+        'test_scenario_name': None,
+        'test_attempt_limit': ATTEMPT_LIMIT,
+        'test_action_limit': ACTION_LIMIT
+    }
 }
 
 CONFIG_TO_IDX = {
@@ -95,6 +150,39 @@ LEVER_CONFIGS = {
                   LeverConfig(LOWERLEFT,    LeverRole.l0,       None),
                   LeverConfig(LOWER,        LeverRole.inactive, None),
                   LeverConfig(LOWERRIGHT,   LeverRole.l2,       None)],
+    # Trial 8. l0=UPPERRIGHT, l1=UPPER, l2=UPPERLEFT, l3=LEFT
+    'trial8'   : [LeverConfig(UPPERRIGHT,   LeverRole.l0,       None),
+                  LeverConfig(UPPER,        LeverRole.l1,       None),
+                  LeverConfig(UPPERLEFT,    LeverRole.l2,       None),
+                  LeverConfig(LEFT,         LeverRole.l3,       None),
+                  LeverConfig(LOWERLEFT,    LeverRole.inactive, None),
+                  LeverConfig(LOWER,        LeverRole.inactive, None),
+                  LeverConfig(LOWERRIGHT,   LeverRole.inactive, None)],
+    # Trial 9. l0=UPPERLEFT, l1=UPPER, l2=LEFT, l3=LOWERLEFT
+    'trial9'   : [LeverConfig(UPPERRIGHT,   LeverRole.inactive, None),
+                  LeverConfig(UPPER,        LeverRole.l1,       None),
+                  LeverConfig(UPPERLEFT,    LeverRole.l0,       None),
+                  LeverConfig(LEFT,         LeverRole.l2,       None),
+                  LeverConfig(LOWERLEFT,    LeverRole.l3,       None),
+                  LeverConfig(LOWER,        LeverRole.inactive, None),
+                  LeverConfig(LOWERRIGHT,   LeverRole.inactive, None)],
+    # Trial 10. l0=LOWERLEFT, l1=UPPERLEFT, l2=LEFT, l3=LOWER
+    'trial10'  : [LeverConfig(UPPERRIGHT,   LeverRole.inactive, None),
+                  LeverConfig(UPPER,        LeverRole.inactive, None),
+                  LeverConfig(UPPERLEFT,    LeverRole.l1,       None),
+                  LeverConfig(LEFT,         LeverRole.l2,       None),
+                  LeverConfig(LOWERLEFT,    LeverRole.l0,       None),
+                  LeverConfig(LOWER,        LeverRole.l3,       None),
+                  LeverConfig(LOWERRIGHT,   LeverRole.inactive, None)],
+    # Trial 11. l0=LOWERRIGHT, l1=LEFT, l2=LOWERLEFT, l3=LOWER
+    'trial11'  : [LeverConfig(UPPERRIGHT,   LeverRole.inactive, None),
+                  LeverConfig(UPPER,        LeverRole.inactive, None),
+                  LeverConfig(UPPERLEFT,    LeverRole.inactive, None),
+                  LeverConfig(LEFT,         LeverRole.l1,       None),
+                  LeverConfig(LOWERLEFT,    LeverRole.l2,       None),
+                  LeverConfig(LOWER,        LeverRole.l3,       None),
+                  LeverConfig(LOWERRIGHT,   LeverRole.l0,       None)],
+
     # multi-lock. l0=UPPER, l1=LOWER, l2=LEFT,
     'multi-lock': [LeverConfig(UPPERRIGHT,  LeverRole.inactive, None),
                   LeverConfig(UPPER,        LeverRole.l2,       None),

@@ -50,9 +50,9 @@ class CommonEffect4Scenario(Scenario):
 
         # add unlock/lock transition for every lock
         for lock in self.fsmm.observable_fsm.vars:
-            if lock == 'l3:':
-                pulled = [s for s in self.fsmm.observable_fsm.state_permutations if lock + 'pulled,' in s and ('l0:pushed,' in s or 'l1:pushed,' in s or 'l2:pushed,' in s)]
-                pushed = [s for s in self.fsmm.observable_fsm.state_permutations if lock + 'pushed,' in s and ('l0:pushed,' in s or 'l1:pushed,' in s or 'l2:pulled,' in s)]
+            if lock == 'l0:':
+                pulled = [s for s in self.fsmm.observable_fsm.state_permutations if lock + 'pulled,' in s and ('l1:pushed,' in s or 'l2:pushed,' in s or 'l3:pushed,' in s)]
+                pushed = [s for s in self.fsmm.observable_fsm.state_permutations if lock + 'pushed,' in s and ('l1:pushed,' in s or 'l2:pushed,' in s or 'l3:pulled,' in s)]
             else:
                 pulled = [s for s in self.fsmm.observable_fsm.state_permutations if lock + 'pulled,' in s]
                 pushed = [s for s in self.fsmm.observable_fsm.state_permutations if lock + 'pushed,' in s]

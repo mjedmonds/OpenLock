@@ -51,6 +51,7 @@ class SessionManager():
 
     # code to run a human subject
     def run_trial_human(self, scenario_name, action_limit, attempt_limit, specified_trial=None):
+        self.env.human_agent = True
         trial_selected = self.run_trial_common_setup(scenario_name, action_limit, attempt_limit, specified_trial)
 
         while self.env.attempt_count < attempt_limit and self.env.logger.cur_trial.success is False:
@@ -60,6 +61,7 @@ class SessionManager():
 
     # code to run a computer trial
     def run_trial_computer(self, scenario_name, action_limit, attempt_limit):
+        self.env.human_agent = False
 
         self.run_trial_common_finish(trial_selected)
 
@@ -77,11 +79,13 @@ class SessionManager():
 
     @staticmethod
     def get_trial(name, completed_trials=None):
+        # select a random trial and add it to the scenario
         if name != 'CE4' and name != 'CC4':
-            # select a random trial and add it to the scenario
+            # trials 1-6 have 3 levers for CC3/CE3
             trial, configs = select_random_trial(completed_trials, 1, 6)
         else:
-            trial, configs = select_trial('trial7')
+            # trials 7-11 have 4 levers for CC4/CE4
+            trial, configs = select_random_trial(completed_trials, 7, 11)
 
         return trial, configs
 
@@ -124,13 +128,19 @@ class SessionManager():
                 continue
 
     @staticmethod
+    def prompt_major():
+        major = raw_input('Please enter your major: ')
+        return major
+
+    @staticmethod
     def prompt_subject():
         print 'Welcome to OpenLock!'
         age = SessionManager.prompt_age()
         gender = SessionManager.prompt_gender()
         handedness = SessionManager.prompt_handedness()
         eyewear = SessionManager.prompt_eyewear()
-        return age, gender, handedness, eyewear
+        major = SessionManager.prompt_major()
+        return age, gender, handedness, eyewear, major
 
     @staticmethod
     def make_subject_dir(data_path):
@@ -150,7 +160,7 @@ class SessionManager():
     def setup_subject(data_path, computer=False):
         # human agent
         if not computer:
-            age, gender, handedness, eyewear = SessionManager.prompt_subject()
+            age, gender, handedness, eyewear, major = SessionManager.prompt_subject()
             # age, gender, handedness, eyewear = ['25', 'M', 'right', 'no']
             subject_id, subject_path = SessionManager.make_subject_dir(data_path)
         # robot agent
@@ -167,6 +177,7 @@ class SessionManager():
                                        gender=gender,
                                        handedness=handedness,
                                        eyewear=eyewear,
+                                       major=major,
                                        start_time=time.time())
         sub_writer = logger.SubjectWriter(subject_path)
         return sub_logger, sub_writer

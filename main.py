@@ -5,7 +5,7 @@ import sys
 
 from gym_lock.settings_scenario import select_scenario, select_random_scenarios
 from gym_lock.session_manager import SessionManager
-
+from gym_lock.settings_trial import PARAMS
 
 # def exit_handler(signum, frame):
 #    print 'saving results.csv'
@@ -27,20 +27,12 @@ if __name__ == '__main__':
 
     # general params
     # training params
-    params = {
-        'data_dir': '../OpenLockResults/subjects',
-        'num_train_trials': 6,
-        'train_attempt_limit': 10,
-        'train_action_limit': 3,
-        'test_attempt_limit': 20,
-        'test_action_limit': 3
-    }
+    params = PARAMS['CE4']
 
-    train_scenario_name, test_scenario_name = select_random_scenarios()
-    params['train_scenario_name'] = train_scenario_name
-    params['test_scenario_name'] = test_scenario_name
-
-    params['train_scenario_name'] = 'CC3'
+    # this section randomly selects a testing and training scenario
+    # train_scenario_name, test_scenario_name = select_random_scenarios()
+    # params['train_scenario_name'] = train_scenario_name
+    # params['test_scenario_name'] = test_scenario_name
 
     scenario = select_scenario(params['train_scenario_name'])
     env = gym.make('arm_lock-v0')
@@ -57,10 +49,12 @@ if __name__ == '__main__':
 
     # testing trial
     # print "INFO: STARTING TESTING TRIAL"
-    scenario = select_scenario(params['test_scenario_name'])
-    manager.update_scenario(scenario)
-    manager.set_action_limit(params['test_action_limit'])
-    manager.run_trial_human(params['test_scenario_name'], params['test_action_limit'], params['test_attempt_limit'])
+    if params['test_scenario_name'] is not None:
+        scenario = select_scenario(params['test_scenario_name'])
+        manager.update_scenario(scenario)
+        manager.set_action_limit(params['test_action_limit'])
+        # run testing trial with specified trial7
+        manager.run_trial_human(params['test_scenario_name'], params['test_action_limit'], params['test_attempt_limit'], specified_trial='trial7')
 
     manager.finish_subject()
     manager.write_results()

@@ -1,5 +1,6 @@
 import gym
 import re
+import time
 import numpy as np
 from shapely.geometry import Polygon, Point
 from Box2D import b2Color, b2_kinematicBody, b2_staticBody, b2RayCastInput, b2RayCastOutput, b2Transform, b2Shape, b2Distance
@@ -45,6 +46,8 @@ class ArmLockEnv(gym.Env):
         self.attempt_limit = None
 
         self.action_executing = False    # used to disable action preemption
+
+        self.human_agent = True
 
     def _create_state_entry(self, state, frame):
         entry = [0] * len(self.col_label)
@@ -131,7 +134,7 @@ class ArmLockEnv(gym.Env):
 
             self._render_world_at_frame_rate()
 
-            state = self._get_state()
+            state = self.get_state()
             state['SUCCESS'] = False
             return state, 0, False, {}
         # change to simple "else:" to enable action preemption
@@ -166,7 +169,7 @@ class ArmLockEnv(gym.Env):
 
             self.i += 1
 
-            state = self._get_state()
+            state = self.get_state()
             state['SUCCESS'] = success
 
             if observable_action:
@@ -185,21 +188,26 @@ class ArmLockEnv(gym.Env):
                 attempt_success = self.logger.cur_trial.finish_attempt(results=self.results)
 
                 # update the user about their progress
-                trial_finished = self.update_user(attempt_success)
+                trial_finished, pause = self._update_user(attempt_success)
+
+                # pauses if the user unlocked the door but didn't push on the door
+                if pause:
+                    time.sleep(2)
 
                 if not trial_finished:
                     self._reset()  # reset if we are not done with this trial
                     self.logger.cur_trial.add_attempt()
 
             self.action_executing = False
-            state = self._get_state()
+            state = self.get_state()
 
             return state, reward, success, {}
         else:
-            state = self._get_state()
+            state = self.get_state()
             return state, 0, False, {}
 
-    def update_user(self, attempt_success):
+    def _update_user(self, attempt_success):
+        pause = False
         # continue or end trial
         if self.logger.cur_trial.success is True:
             print "INFO: You found all of the solutions. Ending trial."
@@ -207,18 +215,19 @@ class ArmLockEnv(gym.Env):
         elif self.attempt_count < self.attempt_limit:
             # alert user to the number of solutions remaining
             if attempt_success is True:
-                print "INFO: You found a solution. There are {} unique solutions remaining.".format(
-                    self.logger.cur_trial.num_solutions_remaining)
+                print "INFO: You found a solution. There are {} unique solutions remaining.".format(self.logger.cur_trial.num_solutions_remaining)
             else:
-                print "INFO: Ending attempt. Action limit reached. There are {} unique solutions remaining. You have {} attempts remaining.".format(
-                    self.logger.cur_trial.num_solutions_remaining, self.attempt_limit - self.attempt_count)
+                print "INFO: Ending attempt. Action limit reached. There are {} unique solutions remaining. You have {} attempts remaining.".format(self.logger.cur_trial.num_solutions_remaining, self.attempt_limit - self.attempt_count)
+                # pause if the door lock is missing and the agent is a human
+                if self.human_agent and self.get_state()['OBJ_STATES']['door_lock'] is False:
+                    pause = True
             trial_finished = False
         else:
             print "INFO: Ending trial. Attempt limit reached. You found {} unique solutions".format(
                 len(self.logger.cur_trial.solutions) - self.logger.cur_trial.num_solutions_remaining)
             trial_finished = True
 
-        return trial_finished
+        return trial_finished, pause
 
     def deteremine_reward(self, action, attempt_success=False):
         # todo: this reward does not consider whether or not the action sequence has been finished before
@@ -283,7 +292,7 @@ class ArmLockEnv(gym.Env):
         self.action_count = 0
 
         self._render()
-        state = self._get_state()
+        state = self.get_state()
         # append initial observation
         # self._print_observation(state, self.action_count)
         self.results.append(self._create_state_entry(state, self.action_count))
@@ -298,7 +307,7 @@ class ArmLockEnv(gym.Env):
         # setup .csv headers
         self.col_label = []
         self.col_label.append('frame')
-        for col_name in self._get_state()['OBJ_STATES']:
+        for col_name in self.get_state()['OBJ_STATES']:
             self.col_label.append(col_name)
         self.col_label.append('agent')
         for col_name in self.action_space:
@@ -345,7 +354,7 @@ class ArmLockEnv(gym.Env):
                                              common.Action(callback_action, (save_button, 4)))
                 self.viewer.register_clickable_region(save_button.clickable)
 
-    def _get_state(self):
+    def get_state(self):
         if self.world_def is None:
             raise ValueError('world_def is None while trying to call get_state()')
         return self.world_def.get_state()

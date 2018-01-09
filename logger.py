@@ -112,6 +112,7 @@ class SubjectLog(object):
     gender = None
     handedness = None
     eyewear = None
+    major = None
 
     trial_seq = []
     cur_trial = None
@@ -120,13 +121,14 @@ class SubjectLog(object):
 
     cur_scenario_name = None
 
-    def __init__(self, subject_id, age, gender, handedness, eyewear, start_time):
+    def __init__(self, subject_id, age, gender, handedness, eyewear, major, start_time):
         self.subject_id = subject_id
         self.start_time = start_time
         self.age = age
         self.gender = gender
         self.handedness = handedness
         self.eyewear = eyewear
+        self.major = major
 
     def add_trial(self, trial_name, scenario_name, solutions):
         self.cur_trial = TrialLog(trial_name, scenario_name, solutions, time.time())
