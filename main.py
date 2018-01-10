@@ -27,7 +27,7 @@ if __name__ == '__main__':
 
     # general params
     # training params
-    params = PARAMS['CE4']
+    params = PARAMS['testing']
 
     # this section randomly selects a testing and training scenario
     # train_scenario_name, test_scenario_name = select_random_scenarios()
@@ -56,10 +56,10 @@ if __name__ == '__main__':
         # run testing trial with specified trial7
         manager.run_trial_human(params['test_scenario_name'], params['test_action_limit'], params['test_attempt_limit'], specified_trial='trial7')
 
-    manager.finish_subject()
-    manager.write_results()
-    print "Thank you for participating."
-    time.sleep(3)
+    print 'The experiment is over. Thank you for participating.'
+    print 'Please answer the following questions:'
+    env = None
+    manager.finish_subject(manager.env.logger, manager.writer)
 
 
 

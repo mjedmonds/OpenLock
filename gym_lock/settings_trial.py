@@ -80,6 +80,16 @@ PARAMS = {
         'test_scenario_name': None,
         'test_attempt_limit': ATTEMPT_LIMIT,
         'test_action_limit': ACTION_LIMIT
+    },
+    'testing': {
+        'data_dir': DATA_DIR,
+        'num_train_trials': 1,
+        'train_scenario_name': 'CE4',
+        'train_attempt_limit': ATTEMPT_LIMIT,
+        'train_action_limit': ACTION_LIMIT,
+        'test_scenario_name': None,
+        'test_attempt_limit': ATTEMPT_LIMIT,
+        'test_action_limit': ACTION_LIMIT
     }
 }
 

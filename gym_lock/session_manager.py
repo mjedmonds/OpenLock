@@ -14,12 +14,12 @@ class SessionManager():
     params = None
     completed_trials = []
 
-    def __init__(self, env, params, computer=False):
+    def __init__(self, env, params, human=True):
         self.env = env
         self.params = params
 
         # logger is stored in the environment - change if possible
-        self.env.logger, self.writer = self.setup_subject(params['data_dir'], computer)
+        self.env.logger, self.writer = self.setup_subject(params['data_dir'], human)
 
     # code to run before human and computer trials
     def run_trial_common_setup(self, scenario_name, action_limit, attempt_limit, specified_trial=None):
@@ -60,8 +60,9 @@ class SessionManager():
         self.run_trial_common_finish(trial_selected)
 
     # code to run a computer trial
-    def run_trial_computer(self, scenario_name, action_limit, attempt_limit):
+    def run_trial_computer(self, agent, scenario_name, action_limit, attempt_limit, specified_trial=None):
         self.env.human_agent = False
+        trial_selected = self.run_trial_common_setup(scenario_name, action_limit, attempt_limit, specified_trial)
 
         self.run_trial_common_finish(trial_selected)
 
@@ -71,11 +72,19 @@ class SessionManager():
     def set_action_limit(self, action_limit):
         self.env.action_limit = action_limit
 
-    def write_results(self):
-        self.writer.write(self.env.logger)
+    @staticmethod
+    def write_results(logger, writer):
+        writer.write(logger)
 
-    def finish_subject(self):
-        self.env.logger.finish(time.time())
+    @staticmethod
+    def finish_subject(logger, writer):
+        logger.finish(time.time())
+        strategy = SessionManager.prompt_strategy()
+        transfer_strategy = SessionManager.prompt_transfer_strategy()
+        logger.strategy = strategy
+        logger.transfer_strategy = transfer_strategy
+
+        SessionManager.write_results(logger, writer)
 
     @staticmethod
     def get_trial(name, completed_trials=None):
@@ -143,6 +152,16 @@ class SessionManager():
         return age, gender, handedness, eyewear, major
 
     @staticmethod
+    def prompt_strategy():
+        strategy = raw_input('Did you develop any particular technique or strategy to solve the problem? If so, what was your technique/strategy? ')
+        return strategy
+
+    @staticmethod
+    def prompt_transfer_strategy():
+        transfer_strategy = raw_input('If you used a particular technique/strategy, did you find that it also worked when the number of colored levers increased from 3 to 4? ')
+        return transfer_strategy
+
+    @staticmethod
     def make_subject_dir(data_path):
         subject_id = str(hash(time.time()))
         subject_path = data_path + '/' + subject_id
@@ -157,19 +176,20 @@ class SessionManager():
                 continue
 
     @staticmethod
-    def setup_subject(data_path, computer=False):
+    def setup_subject(data_path, human=True):
         # human agent
-        if not computer:
+        if human:
             age, gender, handedness, eyewear, major = SessionManager.prompt_subject()
             # age, gender, handedness, eyewear = ['25', 'M', 'right', 'no']
-            subject_id, subject_path = SessionManager.make_subject_dir(data_path)
         # robot agent
         else:
             age = -1
             gender = 'robot'
             handedness = 'none'
             eyewear = 'no'
-            subject_id, subject_path = SessionManager.make_subject_dir(data_path)
+            major='robotics'
+
+        subject_id, subject_path = SessionManager.make_subject_dir(data_path)
 
         print "Starting trials for subject {}".format(subject_id)
         sub_logger = logger.SubjectLog(subject_id=subject_id,
@@ -181,3 +201,5 @@ class SessionManager():
                                        start_time=time.time())
         sub_writer = logger.SubjectWriter(subject_path)
         return sub_logger, sub_writer
+
+
