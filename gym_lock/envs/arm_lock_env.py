@@ -49,69 +49,51 @@ class ArmLockEnv(gym.Env):
 
         self.human_agent = True
 
-    def _create_state_entry(self, state, frame):
-        entry = [0] * len(self.col_label)
-        entry[0] = frame
-        for name, val in state['OBJ_STATES'].items():
-            entry[self.index_map[name]] = int(val)
+    def _reset(self):
+        """Resets the state of the environment and returns an initial observation.
 
-        return entry
+        Returns: observation (object): the initial observation of the
+                space.
+        """
+        if self.scenario is None:
+            print('WARNING: resetting environment with no scenario')
 
-    def _create_pre_obs_entry(self, action):
-        # create pre-observation entry
-        entry = [0] * len(self.col_label)
-        entry[0] = self.action_count
-        # copy over previous state
-        entry[1:self.index_map['agent']+1] = self.results[-1][1:self.index_map['agent']+1]
+        # TODO: properly define these
+        self.observation_space = None
+        self.reward_range = (0, 5)
+        self.clock = 0
+        self._seed()
 
-        # mark action idx
-        if type(action.params[0]) is str:
-            col = '{}_{}'.format(action.name, action.params[0])
-        else:
-            col = action.name
+        self.init_inverse_kine()
 
-        observable_action = col in self.index_map
+        # setup Box2D world
+        self.world_def = ArmLockDef(self.invkine.kinematic_chain, 1.0 / BOX2D_SETTINGS['FPS'], 30, self.scenario)
 
-        if observable_action:
-            entry[self.index_map[col]] = 1
-            # append pre-observation entry
-            self.results.append(entry)
+        self.action_space, self.action_map = ActionSpace.create_action_space(self.world_def.obj_map)
+        self.obs_space = ObservationSpace(len(self.world_def.get_locks()))
 
-        return observable_action
+        # reset results (must be after world_def exists and action space has been created)
+        self._reset_results()
 
-    def __update_and_converge_controllers(self, new_theta):
-        self.world_def.set_controllers(new_theta)
-        b = 0
-        theta_err = sum([e ** 2 for e in self.world_def.pos_controller.error])
-        vel_err = sum([e ** 2 for e in self.world_def.vel_controller.error])
-        while theta_err > ENV_SETTINGS['PID_POS_CONV_TOL'] or vel_err > ENV_SETTINGS['PID_VEL_CONV_TOL']:
+        # setup renderer
+        if not self.viewer:
+            self.viewer = Box2DRenderer(self._action_grasp)
 
-            if b > ENV_SETTINGS['PID_CONV_MAX_STEPS']:
-                return False
+        self.viewer.reset()
 
-            b += 1
-            self.world_def.step(1.0 / BOX2D_SETTINGS['FPS'],
-                                BOX2D_SETTINGS['VEL_ITERS'],
-                                BOX2D_SETTINGS['POS_ITERS'])
+        self._create_clickable_regions()
 
-            self._render_world_at_frame_rate()
+        # reset the finite state machine
+        self.scenario.reset()
+        self.action_count = 0
 
-            # update error values
-            theta_err = sum([e ** 2 for e in self.world_def.pos_controller.error])
-            vel_err = sum([e ** 2 for e in self.world_def.vel_controller.error])
-        return True
+        self._render()
+        state = self.get_state()
+        # append initial observation
+        # self._print_observation(state, self.action_count)
+        self.results.append(self._create_state_entry(state, self.action_count))
 
-    def _render_world_at_frame_rate(self):
-        '''
-        render at desired frame rate
-        '''
-        if self.world_def.clock % RENDER_SETTINGS['RENDER_CLK_DIV'] == 0:
-            self._render()
-
-    def _update_state_machine_at_frame_rate(self):
-        ''''''
-        if self.world_def.clock % BOX2D_SETTINGS['STATE_MACHINE_CLK_DIV'] == 0:
-            self.scenario.update_state_machine()
+        return state
 
     def _step(self, action):
         """Run one __timestep of the environment's dynamics. When end of
@@ -127,6 +109,7 @@ class ArmLockEnv(gym.Env):
                 done (boolean): whether the episode has ended, in which case further step() calls will return undefined results
                 info (dict): CONVERGED : whether algorithm succesfully coverged on action
         """
+
         if not action:
             self.world_def.step(1.0 / BOX2D_SETTINGS['FPS'],
                                 BOX2D_SETTINGS['VEL_ITERS'],
@@ -136,6 +119,7 @@ class ArmLockEnv(gym.Env):
 
             state = self.get_state()
             state['SUCCESS'] = False
+            self._update_state_machine_at_frame_rate()
             return state, 0, False, {}
         # change to simple "else:" to enable action preemption
         elif self.action_executing is False:
@@ -201,11 +185,148 @@ class ArmLockEnv(gym.Env):
             self.action_executing = False
             state = self.get_state()
 
+            self._update_state_machine_at_frame_rate()
             return state, reward, success, {}
         else:
             state = self.get_state()
+            self._update_state_machine_at_frame_rate()
             return state, 0, False, {}
 
+    def _render(self, mode='human', close=False):
+        """Renders the environment.
+
+        The set of supported modes varies per environment. (And some
+        environments do not support rendering at all.) By convention,
+        if mode is:
+
+        - human: render to the current display or terminal and
+            return nothing. Usually for human consumption.
+        - rgb_array: Return an numpy.ndarray with shape (x, y, 3),
+            representing RGB values for an x-by-y pixel image, suitable
+            for turning into a video.
+        - ansi: Return a string (str) or StringIO.StringIO containing a
+            terminal-style text representation. The text can include newlines
+            and ANSI escape sequences (e.g. for colors).
+
+        Note:
+                Make sure that your class's metadata 'render.modes' key includes
+                    the list of supported modes. It's recommended to call super()
+                    in implementations to use the functionality of this method.
+
+        Args:
+                mode (str): the mode to render with
+                close (bool): close all open renderings
+
+        Example:
+
+        class MyEnv(Env):
+                metadata = {'render.modes': ['human', 'rgb_array']}
+
+                def render(self, mode='human'):
+                        if mode == 'rgb_array':
+                                return np.array(...) # return RGB frame suitable for video
+                        elif mode is 'human':
+                                ... # pop up a window and render
+                        else:
+                                super(MyEnv, self).render(mode=mode) # just raise an exception
+        """
+
+        def printer(x):
+            print x
+        if close:
+            if self.viewer is not None:
+                self.viewer.close()
+                self.viewer = None
+                return
+
+#        if self.viewer is None:
+#            print 'legglo'
+#            self.viewer = Box2DRenderer(self._action_grasp)
+
+        self.viewer.render_multiple_worlds([self.world_def.background, self.world_def.world], mode='human')
+
+    def _seed(self, seed=None):
+        """Sets the seed for this env's random number generator(s).
+
+            Note:
+                    Some environments use multiple pseudorandom number generators.
+                    We want to capture all such seeds used in order to ensure that
+                    there aren't accidental correlations between multiple generators.
+
+            Returns:
+                    list<bigint>: Returns the list of seeds used in this env's random
+                        number generators. The first value in the list should be the
+                        "main" seed, or the value which a reproducer should pass to
+                        'seed'. Often, the main seed equals the provided 'seed', but
+                        this won't be true if seed=None, for example.
+            """
+        pass
+
+    def _create_state_entry(self, state, frame):
+        entry = [0] * len(self.col_label)
+        entry[0] = frame
+        for name, val in state['OBJ_STATES'].items():
+            entry[self.index_map[name]] = int(val)
+
+        return entry
+
+    def _create_pre_obs_entry(self, action):
+        # create pre-observation entry
+        entry = [0] * len(self.col_label)
+        entry[0] = self.action_count
+        # copy over previous state
+        entry[1:self.index_map['agent']+1] = self.results[-1][1:self.index_map['agent']+1]
+
+        # mark action idx
+        if type(action.params[0]) is str:
+            col = '{}_{}'.format(action.name, action.params[0])
+        else:
+            col = action.name
+
+        observable_action = col in self.index_map
+
+        if observable_action:
+            entry[self.index_map[col]] = 1
+            # append pre-observation entry
+            self.results.append(entry)
+
+        return observable_action
+
+    def __update_and_converge_controllers(self, new_theta):
+        self.world_def.set_controllers(new_theta)
+        b = 0
+        theta_err = sum([e ** 2 for e in self.world_def.pos_controller.error])
+        vel_err = sum([e ** 2 for e in self.world_def.vel_controller.error])
+        while theta_err > ENV_SETTINGS['PID_POS_CONV_TOL'] or vel_err > ENV_SETTINGS['PID_VEL_CONV_TOL']:
+
+            if b > ENV_SETTINGS['PID_CONV_MAX_STEPS']:
+                return False
+
+            b += 1
+            self.world_def.step(1.0 / BOX2D_SETTINGS['FPS'],
+                                BOX2D_SETTINGS['VEL_ITERS'],
+                                BOX2D_SETTINGS['POS_ITERS'])
+
+            self._render_world_at_frame_rate()
+
+            # update error values
+            theta_err = sum([e ** 2 for e in self.world_def.pos_controller.error])
+            vel_err = sum([e ** 2 for e in self.world_def.vel_controller.error])
+        return True
+
+    def _render_world_at_frame_rate(self):
+        '''
+        render at desired frame rate
+        '''
+        if self.world_def.clock % RENDER_SETTINGS['RENDER_CLK_DIV'] == 0:
+            self._render()
+
+    def _update_state_machine_at_frame_rate(self):
+        ''''''
+        # if self.world_def.clock % BOX2D_SETTINGS['STATE_MACHINE_CLK_DIV'] == 0:
+            # self.scenario.update_state_machine()
+        self.scenario.update_state_machine()
+   
     def _update_user(self, attempt_success):
         pause = False
         # continue or end trial
@@ -252,53 +373,7 @@ class ArmLockEnv(gym.Env):
         self.invkine = InverseKinematics(KinematicChain(self.base, initial_config),
                                          KinematicChain(self.base, initial_config))
 
-    def _reset(self):
-        """Resets the state of the environment and returns an initial observation.
-
-        Returns: observation (object): the initial observation of the
-                space.
-        """
-
-        if self.scenario is None:
-            print('WARNING: resetting environment with no scenario')
-
-        # TODO: properly define these
-        self.observation_space = None
-        self.reward_range = (0, 5)
-        self.clock = 0
-        self._seed()
-
-        self.init_inverse_kine()
-
-        # setup Box2D world
-        self.world_def = ArmLockDef(self.invkine.kinematic_chain, 1.0 / BOX2D_SETTINGS['FPS'], 30, self.scenario)
-
-        self.action_space, self.action_map = ActionSpace.create_action_space(self.world_def.obj_map)
-        self.obs_space = ObservationSpace(len(self.world_def.get_locks()))
-
-        # reset results (must be after world_def exists and action space has been created)
-        self._reset_results()
-
-        # setup renderer
-        if not self.viewer:
-            self.viewer = Box2DRenderer(self._action_grasp)
-
-        self.viewer.reset()
-
-        self._create_clickable_regions()
-
-        # reset the finite state machine
-        self.scenario.reset()
-        self.action_count = 0
-
-        self._render()
-        state = self.get_state()
-        # append initial observation
-        # self._print_observation(state, self.action_count)
-        self.results.append(self._create_state_entry(state, self.action_count))
-
-        return state
-
+    
     def _print_observation(self, state, count):
         print str(count) + ': ' + str(state['OBJ_STATES'])
         print str(count) + ': ' + str(state['_FSM_STATE'])
@@ -359,142 +434,9 @@ class ArmLockEnv(gym.Env):
             raise ValueError('world_def is None while trying to call get_state()')
         return self.world_def.get_state()
 
-    def _render(self, mode='human', close=False):
-        """Renders the environment.
-
-        The set of supported modes varies per environment. (And some
-        environments do not support rendering at all.) By convention,
-        if mode is:
-
-        - human: render to the current display or terminal and
-            return nothing. Usually for human consumption.
-        - rgb_array: Return an numpy.ndarray with shape (x, y, 3),
-            representing RGB values for an x-by-y pixel image, suitable
-            for turning into a video.
-        - ansi: Return a string (str) or StringIO.StringIO containing a
-            terminal-style text representation. The text can include newlines
-            and ANSI escape sequences (e.g. for colors).
-
-        Note:
-                Make sure that your class's metadata 'render.modes' key includes
-                    the list of supported modes. It's recommended to call super()
-                    in implementations to use the functionality of this method.
-
-        Args:
-                mode (str): the mode to render with
-                close (bool): close all open renderings
-
-        Example:
-
-        class MyEnv(Env):
-                metadata = {'render.modes': ['human', 'rgb_array']}
-
-                def render(self, mode='human'):
-                        if mode == 'rgb_array':
-                                return np.array(...) # return RGB frame suitable for video
-                        elif mode is 'human':
-                                ... # pop up a window and render
-                        else:
-                                super(MyEnv, self).render(mode=mode) # just raise an exception
-        """
-
-        def printer(x):
-            print x
-        if close:
-            if self.viewer is not None:
-                self.viewer.close()
-                self.viewer = None
-                return
-
-#        if self.viewer is None:
-#            print 'legglo'
-#            self.viewer = Box2DRenderer(self._action_grasp)
-
-        self._update_state_machine_at_frame_rate()
-
-        self.viewer.render_multiple_worlds([self.world_def.background, self.world_def.world], mode='human')
-
-    def _seed(self, seed=None):
-        """Sets the seed for this env's random number generator(s).
-
-            Note:
-                    Some environments use multiple pseudorandom number generators.
-                    We want to capture all such seeds used in order to ensure that
-                    there aren't accidental correlations between multiple generators.
-
-            Returns:
-                    list<bigint>: Returns the list of seeds used in this env's random
-                        number generators. The first value in the list should be the
-                        "main" seed, or the value which a reproducer should pass to
-                        'seed'. Often, the main seed equals the provided 'seed', but
-                        this won't be true if seed=None, for example.
-            """
-        pass
-
     def _export_results(self):
         save_count = len(glob(self.save_path + 'results[0-9]*.csv'))
         np.savetxt(self.save_path + 'results{}.csv'.format(save_count), self.results, delimiter=',', fmt='%s')
-
-    # TODO por the rest of this over
-    # def manual_draw(self):
-    #     """
-    #     This implements code normally present in the C++ version, which calls
-    #     the callbacks that you see in this class (DrawSegment, DrawSolidCircle,
-    #     etc.).
-    #
-    #     This is implemented in Python as an example of how to do it, and also a
-    #     test.
-    #     """
-    #     colors = RENDER_SETTINGS['COLORS']
-    #
-    #     world = self.world_def.world
-    #
-    #     # if self.test.selected_shapebody:
-    #     #     sel_shape, sel_body = self.test.selected_shapebody
-    #     # else:
-    #     #     sel_shape = None
-    #
-    #     if RENDER_SETTINGS['DRAW_SHAPES']:
-    #         for body in world.bodies:
-    #             transform = body.transform
-    #             for fixture in body.fixtures:
-    #                 shape = fixture.shape
-    #
-    #                 if not body.active:
-    #                     color = colors['active']
-    #                 elif body.type == b2_staticBody:
-    #                     color = colors['static']
-    #                 elif body.type == b2_kinematicBody:
-    #                     color = colors['kinematic']
-    #                 elif not body.awake:
-    #                     color = colors['asleep']
-    #                 else:
-    #                     color = colors['default']
-    #
-    #                 # self.DrawShape(fixture, transform,
-    #                 #                color)
-    #
-    #                 # if settings.drawJoints:
-    #                 #     for joint in world.joints:
-    #                 #         self.DrawJoint(joint)
-    #                 #
-    #                 # # if settings.drawPairs
-    #                 # #   pass
-    #                 #
-    #                 # if settings.drawAABBs:
-    #                 #     color = b2Color(0.9, 0.3, 0.9)
-    #                 #     # cm = world.contactManager
-    #                 #     for body in world.bodies:
-    #                 #         if not body.active:
-    #                 #             continue
-    #                 #         transform = body.transform
-    #                 #         for fixture in body.fixtures:
-    #                 #             shape = fixture.shape
-    #                 #             for childIndex in range(shape.childCount):
-    #                 #                 self.DrawAABB(shape.getAABB(
-    #                 #                     transform, childIndex), color)
-
-    # TODO: return states
 
     def _action_go_to(self, config):
         # get configuatin of end effector

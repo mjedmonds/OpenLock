@@ -33,8 +33,7 @@ class DQNAgent:
         model.add(Dense(24, input_dim=self.state_size, activation='relu'))
         model.add(Dense(24, activation='relu'))
         model.add(Dense(self.action_size, activation='linear'))
-        model.compile(loss='mse',
-                      optimizer=Adam(lr=self.learning_rate))
+        model.compile(loss='mse', optimizer=Adam(lr=self.learning_rate))
         return model
 
     def remember(self, state, action, reward, next_state, done):
@@ -82,7 +81,7 @@ if __name__ == "__main__":
     env = gym.make('arm_lock-v0')
 
     # create session/trial/experiment manager
-    manager = SessionManager(env, params, computer=True)
+    manager = SessionManager(env, params, human=False)
     manager.update_scenario(scenario)
     trial_selected = manager.run_trial_common_setup(params['train_scenario_name'], params['train_action_limit'], params['train_attempt_limit'])
 
@@ -92,9 +91,10 @@ if __name__ == "__main__":
     state_size = pow(4, len(env.world_def.get_locks())) + 2 + 2
     action_size = len(env.action_space)
     agent = DQNAgent(state_size, action_size)
+    env.reset()
 
     for trial_num in range(0, params['num_train_trials']):
-        agent = manager.run_trial_computer(agent, params['train_scenario_name'], params['train_action_limit'], params['train_attempt_limit'])
+        agent = manager.run_trial_computer(agent, obs_space, params['train_scenario_name'], params['train_action_limit'], params['train_attempt_limit'])
 
     # agent.load("./save/cartpole-dqn.h5")
     done = False

@@ -60,9 +60,21 @@ class SessionManager():
         self.run_trial_common_finish(trial_selected)
 
     # code to run a computer trial
-    def run_trial_computer(self, agent, scenario_name, action_limit, attempt_limit, specified_trial=None):
+    def run_trial_computer(self, agent, obs_space, scenario_name, action_limit, attempt_limit, specified_trial=None):
         self.env.human_agent = False
         trial_selected = self.run_trial_common_setup(scenario_name, action_limit, attempt_limit, specified_trial)
+
+        prev_state = None
+        while self.env.attempt_count < attempt_limit and self.env.logger.cur_trial.suaccess is False:
+            self.env.render()
+            state = obs_space.create_discrete_observation_from_state(self.env.world_def)
+
+            # only allow agent to act after discrete state change
+            if state is not prev_state:
+                action_idx = agent.act(state)
+                action = self.env.action_space[action_idx]
+                self.env.action
+
 
         self.run_trial_common_finish(trial_selected)
 

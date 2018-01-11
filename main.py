@@ -56,10 +56,10 @@ if __name__ == '__main__':
         # run testing trial with specified trial7
         manager.run_trial_human(params['test_scenario_name'], params['test_action_limit'], params['test_attempt_limit'], specified_trial='trial7')
 
+    env.render(close=True)          # close the window
     print 'The experiment is over. Thank you for participating.'
     print 'Please answer the following questions:'
-    env = None
     manager.finish_subject(manager.env.logger, manager.writer)
-
+    print 'You are finished. Please alert the RA. Thank you!'
 
 
