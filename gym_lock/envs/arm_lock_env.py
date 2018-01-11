@@ -92,6 +92,8 @@ class ArmLockEnv(gym.Env):
         # append initial observation
         # self._print_observation(state, self.action_count)
         self.results.append(self._create_state_entry(state, self.action_count))
+        
+        self._update_state_machine()
 
         return state
 
@@ -119,7 +121,7 @@ class ArmLockEnv(gym.Env):
 
             state = self.get_state()
             state['SUCCESS'] = False
-            self._update_state_machine_at_frame_rate()
+            self._update_state_machine()
             # no action, return nothing to indicate no reward possible
             return None
         # change to simple "else:" to enable action preemption
@@ -155,7 +157,7 @@ class ArmLockEnv(gym.Env):
             self.i += 1
 
             # update state machine after executing a action
-            self._update_state_machine_at_frame_rate()
+            self._update_state_machine()
             state = self.get_state()
             state['SUCCESS'] = success
 
@@ -179,11 +181,11 @@ class ArmLockEnv(gym.Env):
 
                 # pauses if the user unlocked the door but didn't push on the door
                 if pause:
-                    # pause for 2 sec
-                    t_end = time.time() + 2
+                    # pause for 4 sec to allow user to view lock
+                    t_end = time.time() + 4
                     while time.time() < t_end:
                         self._render()
-                        self._update_state_machine_at_frame_rate()
+                        self._update_state_machine()
 
                 if not trial_finished:
                     self._reset()  # reset if we are not done with this trial
@@ -193,11 +195,11 @@ class ArmLockEnv(gym.Env):
             state = self.get_state()
 
             # update state machine in case there was a reset
-            self._update_state_machine_at_frame_rate()
+            self._update_state_machine()
             return state, reward, success, {}
         else:
             state = self.get_state()
-            self._update_state_machine_at_frame_rate()
+            self._update_state_machine()
             return None
             return state, 0, False, {}
 
@@ -240,19 +242,14 @@ class ArmLockEnv(gym.Env):
                                 super(MyEnv, self).render(mode=mode) # just raise an exception
         """
 
-        def printer(x):
-            print x
         if close:
             if self.viewer is not None:
                 self.viewer.close()
                 self.viewer = None
                 return
 
-#        if self.viewer is None:
-#            print 'legglo'
-#            self.viewer = Box2DRenderer(self._action_grasp)
-
-        self.viewer.render_multiple_worlds([self.world_def.background, self.world_def.world], mode='human')
+        if self.viewer is not None:
+            self.viewer.render_multiple_worlds([self.world_def.background, self.world_def.world], mode='human')
 
     def _seed(self, seed=None):
         """Sets the seed for this env's random number generator(s).
@@ -316,6 +313,7 @@ class ArmLockEnv(gym.Env):
                                 BOX2D_SETTINGS['VEL_ITERS'],
                                 BOX2D_SETTINGS['POS_ITERS'])
 
+            # this needs to render to update the arm on the screen
             self._render_world_at_frame_rate()
 
             # update error values
@@ -332,8 +330,10 @@ class ArmLockEnv(gym.Env):
 
     def _update_state_machine_at_frame_rate(self):
         ''''''
-        # if self.world_def.clock % BOX2D_SETTINGS['STATE_MACHINE_CLK_DIV'] == 0:
-            # self.scenario.update_state_machine()
+        if self.world_def.clock % BOX2D_SETTINGS['STATE_MACHINE_CLK_DIV'] == 0:
+            self._update_state_machine()
+
+    def _update_state_machine(self):
         self.scenario.update_state_machine()
    
     def _update_user(self, attempt_success):

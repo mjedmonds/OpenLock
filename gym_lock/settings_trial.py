@@ -152,7 +152,7 @@ LEVER_CONFIGS = {
                   LeverConfig(LOWERLEFT,    LeverRole.l2,       None),
                   LeverConfig(LOWER,        LeverRole.l1,       None),
                   LeverConfig(LOWERRIGHT,   LeverRole.l0,       None)],
-    # Trial 7. l0=UPPERLEFT, l1=UPPERRIGHT, l2=LOWERRIGHT, l3=LOWERLEFT
+    # Trial 7. l0=LOWERLEFT, l1=UPPERRIGHT, l2=LOWERRIGHT, l3=UPPERLEFT
     'trial7'   : [LeverConfig(UPPERRIGHT,   LeverRole.l1,       None),
                   LeverConfig(UPPER,        LeverRole.inactive, None),
                   LeverConfig(UPPERLEFT,    LeverRole.l3,       None),
