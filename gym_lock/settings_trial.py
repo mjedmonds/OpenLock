@@ -61,7 +61,7 @@ PARAMS = {
         'test_attempt_limit': ATTEMPT_LIMIT,
         'test_action_limit': ACTION_LIMIT
     },
-    'CC4' : {
+    'CC4': {
         'data_dir': DATA_DIR,
         'num_train_trials': 5,
         'train_scenario_name': 'CC4',

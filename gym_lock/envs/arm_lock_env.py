@@ -342,10 +342,12 @@ class ArmLockEnv(gym.Env):
         if self.logger.cur_trial.success is True:
             print "INFO: You found all of the solutions. Ending trial."
             trial_finished = True
+            pause = True            # pause if they open the door
         elif self.attempt_count < self.attempt_limit:
             # alert user to the number of solutions remaining
             if attempt_success is True:
                 print "INFO: You found a solution. There are {} unique solutions remaining.".format(self.logger.cur_trial.num_solutions_remaining)
+                pause = True            # pause if they open the door
             else:
                 print "INFO: Ending attempt. Action limit reached. There are {} unique solutions remaining. You have {} attempts remaining.".format(self.logger.cur_trial.num_solutions_remaining, self.attempt_limit - self.attempt_count)
                 # pause if the door lock is missing and the agent is a human
