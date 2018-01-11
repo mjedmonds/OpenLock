@@ -71,10 +71,14 @@ class SessionManager():
 
             # only allow agent to act after discrete state change
             if state is not prev_state:
+                prev_state = state
                 action_idx = agent.act(state)
                 action = self.env.action_space[action_idx]
-                self.env.action
-
+                state, reward, done, _ = env.step(action)
+                agent.remember(prev_state, action, reward, state, done)
+                if done:
+                    print("episode: {}/{}, score: {}, e: {:.2}".format(e, EPISODES, time, agent.epsilon))
+                    # break 
 
         self.run_trial_common_finish(trial_selected)
 

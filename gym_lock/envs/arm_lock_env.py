@@ -120,7 +120,8 @@ class ArmLockEnv(gym.Env):
             state = self.get_state()
             state['SUCCESS'] = False
             self._update_state_machine_at_frame_rate()
-            return state, 0, False, {}
+            # no action, return nothing to indicate no reward possible
+            return None
         # change to simple "else:" to enable action preemption
         elif self.action_executing is False:
             self.action_executing = True
@@ -153,6 +154,8 @@ class ArmLockEnv(gym.Env):
 
             self.i += 1
 
+            # update state machine after executing a action
+            self._update_state_machine_at_frame_rate()
             state = self.get_state()
             state['SUCCESS'] = success
 
@@ -163,7 +166,7 @@ class ArmLockEnv(gym.Env):
                 self.logger.cur_trial.cur_attempt.finish_action()
 
             # must update reward before potentially reset env (env may reset based on trial status)
-            reward, success = self.deteremine_reward(action)
+            reward, success = self._determine_reward(action)
 
             # above the allowed number of actions, need to increment the attempt count and reset the simulator
             if self.action_limit is not None and self.action_count >= self.action_limit:
@@ -176,7 +179,11 @@ class ArmLockEnv(gym.Env):
 
                 # pauses if the user unlocked the door but didn't push on the door
                 if pause:
-                    time.sleep(2)
+                    # pause for 2 sec
+                    t_end = time.time() + 2
+                    while time.time() < t_end:
+                        self._render()
+                        self._update_state_machine_at_frame_rate()
 
                 if not trial_finished:
                     self._reset()  # reset if we are not done with this trial
@@ -185,11 +192,13 @@ class ArmLockEnv(gym.Env):
             self.action_executing = False
             state = self.get_state()
 
+            # update state machine in case there was a reset
             self._update_state_machine_at_frame_rate()
             return state, reward, success, {}
         else:
             state = self.get_state()
             self._update_state_machine_at_frame_rate()
+            return None
             return state, 0, False, {}
 
     def _render(self, mode='human', close=False):
@@ -350,7 +359,7 @@ class ArmLockEnv(gym.Env):
 
         return trial_finished, pause
 
-    def deteremine_reward(self, action, attempt_success=False):
+    def _determine_reward(self, action, attempt_success=False):
         # todo: this reward does not consider whether or not the action sequence has been finished before
         # todo: success also has the same limitation
         success = False

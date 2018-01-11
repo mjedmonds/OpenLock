@@ -27,7 +27,7 @@ if __name__ == '__main__':
 
     # general params
     # training params
-    params = PARAMS['testing']
+    params = PARAMS['CC3-CE4']
 
     # this section randomly selects a testing and training scenario
     # train_scenario_name, test_scenario_name = select_random_scenarios()
