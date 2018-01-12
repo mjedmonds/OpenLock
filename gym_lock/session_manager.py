@@ -118,7 +118,7 @@ class SessionManager():
     def prompt_participant_id():
         while True:
             try: 
-                participant_id = int(raw_input('Please enter the participant ID: '))
+                participant_id = int(raw_input('Please enter the participant ID (ask the RA for this): '))
             except ValueError:
                 print 'Please enter an integer for the participant ID'
                 continue
