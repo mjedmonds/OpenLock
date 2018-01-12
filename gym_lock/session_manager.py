@@ -65,7 +65,7 @@ class SessionManager():
         trial_selected = self.run_trial_common_setup(scenario_name, action_limit, attempt_limit, specified_trial)
 
         prev_state = None
-        while self.env.attempt_count < attempt_limit and self.env.logger.cur_trial.suaccess is False:
+        while self.env.attempt_count < attempt_limit and self.env.logger.cur_trial.success is False:
             self.env.render()
             state = obs_space.create_discrete_observation_from_state(self.env.world_def)
 
@@ -73,14 +73,17 @@ class SessionManager():
             if state is not prev_state:
                 prev_state = state
                 action_idx = agent.act(state)
-                action = self.env.action_space[action_idx]
-                state, reward, done, _ = env.step(action)
+                # convert idx to Action object (idx -> str -> Action)
+                action = self.env.action_map[self.env.action_space[action_idx]]
+                state, reward, done, _ = self.env.step(action)
                 agent.remember(prev_state, action, reward, state, done)
                 if done:
-                    print("episode: {}/{}, score: {}, e: {:.2}".format(e, EPISODES, time, agent.epsilon))
+                    print("episode: {}/{}, e: {:.2}".format(self.env.attempt_count, self.env.attempt_limit, agent.epsilon))
                     # break 
 
         self.run_trial_common_finish(trial_selected)
+
+        return agent
 
     def update_scenario(self, scenario):
         self.env.scenario = scenario
@@ -203,7 +206,7 @@ class SessionManager():
             gender = 'robot'
             handedness = 'none'
             eyewear = 'no'
-            major='robotics'
+            major = 'robotics'
 
         subject_id, subject_path = SessionManager.make_subject_dir(data_path)
 

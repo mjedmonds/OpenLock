@@ -87,7 +87,8 @@ class ArmLockEnv(gym.Env):
         self.scenario.reset()
         self.action_count = 0
 
-        self._render()
+        if self.human_agent:
+            self._render()
         state = self.get_state()
         # append initial observation
         # self._print_observation(state, self.action_count)
@@ -179,8 +180,8 @@ class ArmLockEnv(gym.Env):
                 # update the user about their progress
                 trial_finished, pause = self._update_user(attempt_success)
 
-                # pauses if the user unlocked the door but didn't push on the door
-                if pause:
+                # pauses if the human user unlocked the door but didn't push on the door
+                if self.human_agent and pause:
                     # pause for 4 sec to allow user to view lock
                     t_end = time.time() + 4
                     while time.time() < t_end:
@@ -314,7 +315,8 @@ class ArmLockEnv(gym.Env):
                                 BOX2D_SETTINGS['POS_ITERS'])
 
             # this needs to render to update the arm on the screen
-            self._render_world_at_frame_rate()
+            if self.human_agent:
+                self._render_world_at_frame_rate()
 
             # update error values
             theta_err = sum([e ** 2 for e in self.world_def.pos_controller.error])
