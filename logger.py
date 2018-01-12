@@ -123,8 +123,9 @@ class SubjectLog(object):
 
     strategy = None
 
-    def __init__(self, subject_id, age, gender, handedness, eyewear, major, start_time, human=True):
+    def __init__(self, subject_id, participant_id, age, gender, handedness, eyewear, major, start_time, human=True):
         self.subject_id = subject_id
+        self.participant_id = participant_id
         self.start_time = start_time
         self.age = age
         self.gender = gender

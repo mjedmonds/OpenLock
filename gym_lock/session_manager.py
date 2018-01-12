@@ -115,6 +115,17 @@ class SessionManager():
         return trial, configs
 
     @staticmethod
+    def prompt_participant_id():
+        while True:
+            try: 
+                participant_id = int(raw_input('Please enter the participant ID: '))
+            except ValueError:
+                print 'Please enter an integer for the participant ID'
+                continue
+            else:
+                return participant_id
+
+    @staticmethod
     def prompt_age():
         while True:
             try:
@@ -160,12 +171,13 @@ class SessionManager():
     @staticmethod
     def prompt_subject():
         print 'Welcome to OpenLock!'
+        participant_id = SessionManager.prompt_participant_id()
         age = SessionManager.prompt_age()
         gender = SessionManager.prompt_gender()
         handedness = SessionManager.prompt_handedness()
         eyewear = SessionManager.prompt_eyewear()
         major = SessionManager.prompt_major()
-        return age, gender, handedness, eyewear, major
+        return participant_id, age, gender, handedness, eyewear, major
 
     @staticmethod
     def prompt_strategy():
@@ -195,7 +207,7 @@ class SessionManager():
     def setup_subject(data_path, human=True):
         # human agent
         if human:
-            age, gender, handedness, eyewear, major = SessionManager.prompt_subject()
+            participant_id, age, gender, handedness, eyewear, major = SessionManager.prompt_subject()
             # age, gender, handedness, eyewear = ['25', 'M', 'right', 'no']
         # robot agent
         else:
@@ -209,6 +221,7 @@ class SessionManager():
 
         print "Starting trials for subject {}".format(subject_id)
         sub_logger = logger.SubjectLog(subject_id=subject_id,
+                                       participant_id=participant_id,
                                        age=age,
                                        gender=gender,
                                        handedness=handedness,

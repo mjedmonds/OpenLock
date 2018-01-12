@@ -5,7 +5,7 @@ import sys
 
 from gym_lock.settings_scenario import select_scenario, select_random_scenarios
 from gym_lock.session_manager import SessionManager
-from gym_lock.settings_trial import PARAMS
+from gym_lock.settings_trial import PARAMS, IDX_TO_PARAMS
 
 # def exit_handler(signum, frame):
 #    print 'saving results.csv'
@@ -25,15 +25,19 @@ if __name__ == '__main__':
 
     # PARAMETERS: todo: make these command-line arguments
 
-    # general params
-    # training params
-    # PICK ONE and comment others
-    params = PARAMS['CE3-CE4']
-    # params = PARAMS['CE3-CC4']
-    # params = PARAMS['CC3-CE4']
-    # params = PARAMS['CC3-CC4']
-    # params = PARAMS['CE4']
-    # params = PARAMS['CC4']
+    if len(sys.argv) < 2:
+        # general params
+        # training params
+        # PICK ONE and comment others
+        params = PARAMS['CE3-CE4']
+        # params = PARAMS['CE3-CC4']
+        # params = PARAMS['CC3-CE4']
+        # params = PARAMS['CC3-CC4']
+        # params = PARAMS['CE4']
+        # params = PARAMS['CC4']
+    else:
+        setting = sys.argv[1]
+        params = PARAMS[IDX_TO_PARAMS[int(setting)-1]]
 
     # this section randomly selects a testing and training scenario
     # train_scenario_name, test_scenario_name = select_random_scenarios()
