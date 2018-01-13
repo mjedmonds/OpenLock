@@ -12,8 +12,8 @@ import gym_lock.common as common
 from gym_lock.envs.world_defs.arm_lock_def import ArmLockDef
 from gym_lock.kine import KinematicChain, discretize_path, InverseKinematics, generate_five_arm, TwoDKinematicTransform
 from gym_lock.settings_render import RENDER_SETTINGS, BOX2D_SETTINGS, ENV_SETTINGS
-from gym_lock.settings_trial import REWARD_NONE, REWARD_OPEN, REWARD_UNLOCK
 from gym_lock.space_manager import ActionSpace, ObservationSpace
+from gym_lock.rewards import determine_reward
 
 from glob import glob
 
@@ -48,6 +48,7 @@ class ArmLockEnv(gym.Env):
         self.action_executing = False    # used to disable action preemption
 
         self.human_agent = True
+        self.reward_mode = 'basic'
 
     def _reset(self):
         """Resets the state of the environment and returns an initial observation.
@@ -89,14 +90,14 @@ class ArmLockEnv(gym.Env):
 
         if self.human_agent:
             self._render()
-        state = self.get_state()
+        self.state = self.get_state()
         # append initial observation
         # self._print_observation(state, self.action_count)
-        self.results.append(self._create_state_entry(state, self.action_count))
+        self.results.append(self._create_state_entry(self.state, self.action_count))
         
         self._update_state_machine()
 
-        return state
+        return self.state
 
     def _step(self, action):
         """Run one __timestep of the environment's dynamics. When end of
@@ -112,6 +113,8 @@ class ArmLockEnv(gym.Env):
                 done (boolean): whether the episode has ended, in which case further step() calls will return undefined results
                 info (dict): CONVERGED : whether algorithm succesfully coverged on action
         """
+        # save a copy of the current state
+        self.prev_state = self.get_state()
 
         if not action:
             self.world_def.step(1.0 / BOX2D_SETTINGS['FPS'],
@@ -120,8 +123,8 @@ class ArmLockEnv(gym.Env):
 
             self._render_world_at_frame_rate()
 
-            state = self.get_state()
-            state['SUCCESS'] = False
+            self.state = self.get_state()
+            self.state['SUCCESS'] = False
             self._update_state_machine()
             # no action, return nothing to indicate no reward possible
             return None
@@ -159,17 +162,17 @@ class ArmLockEnv(gym.Env):
 
             # update state machine after executing a action
             self._update_state_machine()
-            state = self.get_state()
-            state['SUCCESS'] = success
+            self.state = self.get_state()
+            self.state['SUCCESS'] = success
 
             if observable_action:
                 self.action_count += 1
                 # self._print_observation(state, self.action_count)
-                self.results.append(self._create_state_entry(state, self.action_count))
+                self.results.append(self._create_state_entry(self.state, self.action_count))
                 self.logger.cur_trial.cur_attempt.finish_action()
 
             # must update reward before potentially reset env (env may reset based on trial status)
-            reward, success = self._determine_reward(action)
+            reward, success = determine_reward(self, action, self.reward_mode)
 
             # above the allowed number of actions, need to increment the attempt count and reset the simulator
             if self.action_limit is not None and self.action_count >= self.action_limit:
@@ -193,16 +196,16 @@ class ArmLockEnv(gym.Env):
                     self.logger.cur_trial.add_attempt()
 
             self.action_executing = False
-            state = self.get_state()
+            self.state = self.get_state()
 
             # update state machine in case there was a reset
             self._update_state_machine()
-            return state, reward, success, {}
+            return self.state, reward, success, {}
         else:
-            state = self.get_state()
+            self.state = self.get_state()
             self._update_state_machine()
             return None
-            return state, 0, False, {}
+            return self.state, 0, False, {}
 
     def _render(self, mode='human', close=False):
         """Renders the environment.
@@ -363,20 +366,6 @@ class ArmLockEnv(gym.Env):
 
         return trial_finished, pause
 
-    def _determine_reward(self, action, attempt_success=False):
-        # todo: this reward does not consider whether or not the action sequence has been finished before
-        # todo: success also has the same limitation
-        success = False
-        if self.world_def.door_lock is not None:
-            reward = REWARD_NONE
-        elif self.world_def.door_lock is None and action.name is 'push' and action.params[0] is 'door':
-            reward = REWARD_OPEN
-            success = True
-        else:
-            reward = REWARD_UNLOCK
-
-        return reward, success
-
     def init_inverse_kine(self):
         # initialize inverse kinematics module with chain==target
         self.theta0 = BOX2D_SETTINGS['INITIAL_THETA_VECTOR']
@@ -446,6 +435,11 @@ class ArmLockEnv(gym.Env):
         if self.world_def is None:
             raise ValueError('world_def is None while trying to call get_state()')
         return self.world_def.get_state()
+
+    def determine_fluent_change(self):
+        prev_fluent_state = self.prev_state['OBJ_STATES']
+        cur_fluent = self.state['OBJ_STATES']
+        return prev_fluent_state != cur_fluent
 
     def _export_results(self):
         save_count = len(glob(self.save_path + 'results[0-9]*.csv'))

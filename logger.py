@@ -86,7 +86,7 @@ class TrialLog(object):
 
     def finish_attempt(self, results):
         # check to see if this attempt is a solution that has not been completed already
-        if self.cur_attempt.action_seq in self.solutions and self.cur_attempt.action_seq not in self.completed_solutions:
+        if self.determine_unique_solution():
             self.completed_solutions.append(self.cur_attempt.action_seq)
             success = True
             self.num_solutions_remaining -= 1
@@ -104,6 +104,28 @@ class TrialLog(object):
         self.success = len(self.solutions) == len(self.completed_solutions)
         self.end_time = end_time
         return self.success
+
+    def determine_unique_solution(self):
+        return len(self.cur_attempt.action_seq) == len(self.solutions[0]) and self.determine_unique()
+
+    # this function also determines if the action sequence is a duplicate to unlock the door, not just open the door
+    def determine_unique(self):
+        num_actions = len(self.cur_attempt.action_seq)
+        # if this is a complete action sequence and it is not a solution, return false
+        # full action sequence
+        if num_actions == len(self.solutions[0]):
+            # solution is unique if it is in the list of solutions and not in the solutions found
+            if self.cur_attempt.action_seq in self.solutions and self.cur_attempt.action_seq not in self.completed_solutions:
+                return True
+            else:
+                return False
+        # partial action sequence
+        else:
+            for solution in self.completed_solutions:
+                if solution[:num_actions] == self.cur_attempt.action_seq:
+                    return False
+            # doesn't match any solution found,
+            return True
 
 
 class SubjectLog(object):

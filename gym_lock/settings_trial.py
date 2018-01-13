@@ -12,10 +12,6 @@ UPPERRIGHT = TwoDConfig(11, 11, -np.pi/4)
 LOWERLEFT = TwoDConfig(-11, -11, 3*np.pi / 4)
 LOWERRIGHT = TwoDConfig(11, -11, 5*np.pi/4)
 
-REWARD_NONE = 0
-REWARD_UNLOCK = 1
-REWARD_OPEN = 5
-
 ATTEMPT_LIMIT = 30
 ACTION_LIMIT = 3
 DATA_DIR = '../OpenLockResults/subjects'

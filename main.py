@@ -47,6 +47,8 @@ if __name__ == '__main__':
     manager.update_scenario(scenario)
     manager.set_action_limit(params['train_action_limit'])
 
+    env.reward_mode = 'change_state_unique_solutions'
+
     # used for debugging, runs a specific scenario & trial
     # run_specific_trial_and_scenario(manager, 'CC3', 'trial5', params['train_action_limit'], params['train_attempt_limit'])
 
