@@ -66,6 +66,7 @@ class SessionManager():
 
         prev_state = None
         cum_reward = 0
+        agent_save_dir = '../OpenLockRLAgents'
         while self.env.attempt_count < attempt_limit and self.env.logger.cur_trial.success is False:
             # self.env.render()
             state = obs_space.create_discrete_observation_from_state(self.env.world_def)[0]
@@ -85,6 +86,12 @@ class SessionManager():
                     print(self.env.logger.cur_trial.attempt_seq[-1].action_seq)
                     cum_reward = 0
                     # break
+                # save agent every 10000 attempts
+                if self.env.attempt_count % 10000 == 0:
+                    save_dir = self.writer.subject_path + '/models'
+                    if not os.path.exists(save_dir):
+                        os.makedirs(save_dir)
+                    agent.save(save_dir + '/agent_t' + str(trial_count) + '_a' + str(self.env.attempt_count) + '.h5')
 
         self.run_trial_common_finish(trial_selected)
 
