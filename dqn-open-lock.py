@@ -2,13 +2,14 @@
 import random
 import gym
 import numpy as np
+import sys
 from collections import deque
 from keras.models import Sequential
 from keras.layers import Dense
 from keras.optimizers import Adam
 # MUST IMPORT FROM gym_lock to properly register the environment
 from gym_lock.session_manager import SessionManager
-from gym_lock.settings_trial import PARAMS
+from gym_lock.settings_trial import PARAMS, IDX_TO_PARAMS
 from gym_lock.settings_scenario import select_scenario
 from gym_lock.space_manager import ObservationSpace, ActionSpace
 
@@ -67,14 +68,29 @@ class DQNAgent:
 
 if __name__ == "__main__":
 
+    reward_mode = 'basic'
     # general params
     # training params
-    params = PARAMS['CE3-CC4']
+    if len(sys.argv) < 2:
+        # general params
+        # training params
+        # PICK ONE and comment others
+        params = PARAMS['CE3-CE4']
+        # params = PARAMS['CE3-CC4']
+        # params = PARAMS['CC3-CE4']
+        # params = PARAMS['CC3-CC4']
+        # params = PARAMS['CE4']
+        # params = PARAMS['CC4']
+    else:
+        setting = sys.argv[1]
+        params = PARAMS[IDX_TO_PARAMS[int(setting)-1]]
+        reward_mode = sys.argv[2]
+
 
     # RL specific settings
     params['data_dir'] = '../OpenLockRLResults/subjects'
-    params['train_attempt_limit'] = 3000
-    params['test_attempt_limit'] = 3000
+    params['train_attempt_limit'] = 30000
+    params['test_attempt_limit'] = 30000
 
     scenario = select_scenario(params['train_scenario_name'])
 
@@ -86,37 +102,42 @@ if __name__ == "__main__":
     trial_selected = manager.run_trial_common_setup(params['train_scenario_name'], params['train_action_limit'], params['train_attempt_limit'])
 
     obs_space = ObservationSpace(len(env.world_def.get_locks()))
+    env.observation_space = obs_space.multi_discrete
+
+    env.reward_mode = reward_mode
+    print 'Reward mode: {}'.format(env.reward_mode)
 
     # each lever has 4 possible configurations, plus 2 possible states for the door lock, plus 2 possible states for the door
-    state_size = pow(4, len(env.world_def.get_locks())) + 2 + 2
+    state_size = obs_space.multi_discrete.shape
     action_size = len(env.action_space)
     agent = DQNAgent(state_size, action_size)
     env.reset()
 
     for trial_num in range(0, params['num_train_trials']):
-        agent = manager.run_trial_computer(agent, obs_space, params['train_scenario_name'], params['train_action_limit'], params['train_attempt_limit'])
+        agent = manager.run_trial_computer(agent, obs_space, params['train_scenario_name'], params['train_action_limit'], params['train_attempt_limit'], trial_num)
 
+    sys.exit(0)
     # agent.load("./save/cartpole-dqn.h5")
-    done = False
-    batch_size = 32
-
-    for e in range(EPISODES):
-        env.reset()
-        state = obs_space.create_discrete_observation_from_state(env.world_def)
-        state = np.reshape(state, [1, state_size])
-        for time in range(500):
-            # env.render()
-            action = agent.act(state)
-            next_state, reward, done, _ = env.step(action)
-            reward = reward if not done else -10
-            next_state = np.reshape(next_state, [1, state_size])
-            agent.remember(state, action, reward, next_state, done)
-            state = next_state
-            if done:
-                print("episode: {}/{}, score: {}, e: {:.2}"
-                      .format(e, EPISODES, time, agent.epsilon))
-                break
-        if len(agent.memory) > batch_size:
-            agent.replay(batch_size)
-        # if e % 10 == 0:
-        #     agent.save("./save/cartpole-dqn.h5")
+    # done = False
+    # batch_size = 32
+    #
+    # for e in range(EPISODES):
+    #     env.reset()
+    #     state = obs_space.create_discrete_observation_from_state(env.world_def)
+    #     state = np.reshape(state, [1, state_size])
+    #     for time in range(500):
+    #         # env.render()
+    #         action = agent.act(state)
+    #         next_state, reward, done, _ = env.step(action)
+    #         reward = reward if not done else -10
+    #         next_state = np.reshape(next_state, [1, state_size])
+    #         agent.remember(state, action, reward, next_state, done)
+    #         state = next_state
+    #         if done:
+    #             print("episode: {}/{}, score: {}, e: {:.2}"
+    #                   .format(e, EPISODES, time, agent.epsilon))
+    #             break
+    #     if len(agent.memory) > batch_size:
+    #         agent.replay(batch_size)
+    #     # if e % 10 == 0:
+    #     #     agent.save("./save/cartpole-dqn.h5")

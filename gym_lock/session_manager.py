@@ -60,14 +60,15 @@ class SessionManager():
         self.run_trial_common_finish(trial_selected)
 
     # code to run a computer trial
-    def run_trial_computer(self, agent, obs_space, scenario_name, action_limit, attempt_limit, specified_trial=None):
+    def run_trial_computer(self, agent, obs_space, scenario_name, action_limit, attempt_limit, trial_count, specified_trial=None):
         self.env.human_agent = False
         trial_selected = self.run_trial_common_setup(scenario_name, action_limit, attempt_limit, specified_trial)
 
         prev_state = None
+        cum_reward = 0
         while self.env.attempt_count < attempt_limit and self.env.logger.cur_trial.success is False:
-            self.env.render()
-            state = obs_space.create_discrete_observation_from_state(self.env.world_def)
+            # self.env.render()
+            state = obs_space.create_discrete_observation_from_state(self.env.world_def)[0]
 
             # only allow agent to act after discrete state change
             if state is not prev_state:
@@ -76,10 +77,14 @@ class SessionManager():
                 # convert idx to Action object (idx -> str -> Action)
                 action = self.env.action_map[self.env.action_space[action_idx]]
                 state, reward, done, _ = self.env.step(action)
+                state = obs_space.create_discrete_observation_from_state(self.env.world_def)[0]
                 agent.remember(prev_state, action, reward, state, done)
+                cum_reward += reward
                 if done:
-                    print("episode: {}/{}, e: {:.2}".format(self.env.attempt_count, self.env.attempt_limit, agent.epsilon))
-                    # break 
+                    print("trial {}, scenario {}, episode: {}/{}, reward {}, e: {:.2}".format(trial_count, scenario_name, self.env.attempt_count, self.env.attempt_limit, cum_reward, agent.epsilon))
+                    print(self.env.logger.cur_trial.attempt_seq[-1].action_seq)
+                    cum_reward = 0
+                    # break
 
         self.run_trial_common_finish(trial_selected)
 

@@ -13,7 +13,7 @@ from gym_lock.envs.world_defs.arm_lock_def import ArmLockDef
 from gym_lock.kine import KinematicChain, discretize_path, InverseKinematics, generate_five_arm, TwoDKinematicTransform
 from gym_lock.settings_render import RENDER_SETTINGS, BOX2D_SETTINGS, ENV_SETTINGS
 from gym_lock.space_manager import ActionSpace, ObservationSpace
-from gym_lock.rewards import determine_reward
+from gym_lock.rewards import determine_reward, REWARD_NONE, REWARD_OPEN
 
 from glob import glob
 
@@ -50,6 +50,9 @@ class ArmLockEnv(gym.Env):
         self.human_agent = True
         self.reward_mode = 'basic'
 
+        self.observation_space = None
+        self.reward_range = (REWARD_NONE, REWARD_OPEN)
+
     def _reset(self):
         """Resets the state of the environment and returns an initial observation.
 
@@ -59,9 +62,6 @@ class ArmLockEnv(gym.Env):
         if self.scenario is None:
             print('WARNING: resetting environment with no scenario')
 
-        # TODO: properly define these
-        self.observation_space = None
-        self.reward_range = (0, 5)
         self.clock = 0
         self._seed()
 
@@ -132,6 +132,7 @@ class ArmLockEnv(gym.Env):
         elif self.action_executing is False:
             self.action_executing = True
             self.i += 1
+            reset = False
             observable_action = self._create_pre_obs_entry(action)
             if observable_action:
                 self.logger.cur_trial.cur_attempt.add_action(action.name + '_' + action.params[0])
@@ -194,18 +195,19 @@ class ArmLockEnv(gym.Env):
                 if not trial_finished:
                     self._reset()  # reset if we are not done with this trial
                     self.logger.cur_trial.add_attempt()
+                    reset = True
 
             self.action_executing = False
             self.state = self.get_state()
 
             # update state machine in case there was a reset
             self._update_state_machine()
-            return self.state, reward, success, {}
+            return self.state, reward, reset, {'action_success': success}
         else:
             self.state = self.get_state()
             self._update_state_machine()
             return None
-            return self.state, 0, False, {}
+            # return self.state, 0, False, {}
 
     def _render(self, mode='human', close=False):
         """Renders the environment.

@@ -89,6 +89,15 @@ PARAMS = {
     }
 }
 
+IDX_TO_PARAMS = [
+    'CE3-CE4',
+    'CE3-CC4',
+    'CC3-CE4',
+    'CC3-CC4',
+    'CE4',
+    'CC4'
+]
+
 CONFIG_TO_IDX = {
     UPPERRIGHT: 0,
     UPPER: 1,
