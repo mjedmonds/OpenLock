@@ -64,34 +64,38 @@ class SessionManager():
         self.env.human_agent = False
         trial_selected = self.run_trial_common_setup(scenario_name, action_limit, attempt_limit, specified_trial)
 
+        print('scenario_name: {}, trial_count: {}, trial_name: {}'.format(scenario_name, trial_count, trial_selected))
+
         prev_state = None
         cum_reward = 0
-        agent_save_dir = '../OpenLockRLAgents'
         while self.env.attempt_count < attempt_limit and self.env.logger.cur_trial.success is False:
             # self.env.render()
-            state = obs_space.create_discrete_observation_from_state(self.env.world_def)[0]
+            state, labels = obs_space.create_discrete_observation_from_state(self.env.world_def)
 
-            # only allow agent to act after discrete state change
-            if state is not prev_state:
-                prev_state = state
-                action_idx = agent.act(state)
-                # convert idx to Action object (idx -> str -> Action)
-                action = self.env.action_map[self.env.action_space[action_idx]]
-                state, reward, done, _ = self.env.step(action)
-                state = obs_space.create_discrete_observation_from_state(self.env.world_def)[0]
-                agent.remember(prev_state, action, reward, state, done)
-                cum_reward += reward
-                if done:
-                    print("trial {}, scenario {}, episode: {}/{}, reward {}, e: {:.2}".format(trial_count, scenario_name, self.env.attempt_count, self.env.attempt_limit, cum_reward, agent.epsilon))
-                    print(self.env.logger.cur_trial.attempt_seq[-1].action_seq)
-                    cum_reward = 0
-                    # break
-                # save agent every 10000 attempts
-                if self.env.attempt_count % 10000 == 0:
-                    save_dir = self.writer.subject_path + '/models'
-                    if not os.path.exists(save_dir):
-                        os.makedirs(save_dir)
-                    agent.save(save_dir + '/agent_t' + str(trial_count) + '_a' + str(self.env.attempt_count) + '.h5')
+            action_idx = agent.act(state)
+            # convert idx to Action object (idx -> str -> Action)
+            action = self.env.action_map[self.env.action_space[action_idx]]
+            next_state, reward, done, _ = self.env.step(action)
+
+            next_state, next_labels = obs_space.create_discrete_observation_from_state(self.env.world_def)
+
+            if labels != next_labels:
+                raise ValueError('Column labels are different between state and next state')
+
+            agent.remember(state, action, reward, next_state, done)
+            # self.env.render()
+            cum_reward += reward
+            if done:
+                print("trial {}, scenario {}, episode: {}/{}, reward {}, e: {:.2}".format(trial_count, scenario_name, self.env.attempt_count, self.env.attempt_limit, cum_reward, agent.epsilon))
+                print(self.env.logger.cur_trial.attempt_seq[-1].action_seq)
+                cum_reward = 0
+                # break
+            # save agent every 10000 attempts
+            if self.env.attempt_count % 10000 == 0:
+                save_dir = self.writer.subject_path + '/models'
+                if not os.path.exists(save_dir):
+                    os.makedirs(save_dir)
+                agent.save(save_dir + '/agent_t' + str(trial_count) + '_a' + str(self.env.attempt_count) + '.h5')
 
         self.run_trial_common_finish(trial_selected)
 

@@ -142,6 +142,7 @@ class ArmLockDef(object):
         self.contact_listener = ArmLockContactListener(self.end_effector_fixture, self.timestep)
         self.world.contactListener = self.contact_listener
 
+        self.torque = []
         # for body in self.world.bodies:
         #     body.bullet = True
 
@@ -204,6 +205,8 @@ class ArmLockDef(object):
                 linearDamping=0.5,
                 angularDamping=1)
 
+            arm_body.gravityScale = 0
+
             self.arm_bodies.append(arm_body)
         self.end_effector_fixture = self.arm_bodies[-1].CreateFixture(end_effector_fixture_def)
 
@@ -263,6 +266,8 @@ class ArmLockDef(object):
                                             [0] * len(self.arm_joints),
                                             self.timestep,
                                             max_out=30000)
+
+        self.torque = self.update_cascade_controller()
 
     def update_cascade_controller(self):
         if self.clock % BOX2D_SETTINGS['POS_PID_CLK_DIV'] == 0:
@@ -350,6 +355,7 @@ class ArmLockDef(object):
         for obj, val in self.obj_map.items():
             if re.search(lock_regex, obj) or re.search(inactive_lock_regex, obj):
                 locks.append(val)
+        locks = sorted(locks, key=lambda lock: lock.name)
         return locks
 
     def get_state(self):
@@ -392,14 +398,16 @@ class ArmLockDef(object):
         # self._update_state_machine_at_frame_rate()
 
         self._update_torques()
+        # self._update_torques_at_frame_rate()
 
         self.world.Step(timestep, vel_iterations, pos_iterations)
 
     def _update_torques(self):
         # update torques
-        new_torque = self.update_cascade_controller()
-        for i in range(0, len(new_torque)):
-            self.apply_torque(i + 1, new_torque[i])
+        if self.clock % BOX2D_SETTINGS['VEL_PID_CLK_DIV'] == 0:
+            self.torque = self.update_cascade_controller()
+        for i in range(0, len(self.torque)):
+            self.apply_torque(i + 1, self.torque[i])
 
     # def _update_state_machine_at_frame_rate(self):
     #     ''''''

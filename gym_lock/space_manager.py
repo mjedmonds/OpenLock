@@ -75,8 +75,8 @@ class ObservationSpace:
             # convert to index based on lever position
             lever_idx = CONFIG_TO_IDX[lock.config]
 
-            lever_state = world_state['OBJ_STATES'][lock.name]
-            lever_active = lock.determine_active()
+            lever_state = np.int8(world_state['OBJ_STATES'][lock.name])
+            lever_active = np.int8(lock.determine_active())
 
             observation_labels[lever_idx] = lock.name
             observation[lever_idx] = lever_state
@@ -84,9 +84,9 @@ class ObservationSpace:
             observation[lever_idx + self.num_levers] = lever_active
 
         observation_labels[-1] = 'door'
-        observation[-1] = world_state['OBJ_STATES']['door']
+        observation[-1] = np.int8(world_state['OBJ_STATES']['door'])
         observation_labels[-2] = 'door_lock'
-        observation[-2] = world_state['OBJ_STATES']['door_lock']
+        observation[-2] = np.int8(world_state['OBJ_STATES']['door_lock'])
 
         return observation, observation_labels
 

@@ -87,6 +87,12 @@ class Lock(Object):
 
         self.config = config
 
+    def __str__(self):
+        return self.name
+
+    def __repr__(self):
+        return str(self)
+
     def _create_lock(self, world_def, config, width=0.5, length=5, lower_lim=-2, upper_lim=0):
         x, y, theta = config
 
@@ -110,6 +116,8 @@ class Lock(Object):
             linearDamping=0.8,
             userData=self
         )
+
+        lock_body.gravityScale = 0
 
         lock_fixture = lock_body.CreateFixture(fixture_def)
 
@@ -227,6 +235,8 @@ class Door(Object):
             linearDamping=0.8,
             userData=self
         )
+
+        door_body.gravityScale = 0
 
         door_fixture = door_body.CreateFixture(fixture_def)
 

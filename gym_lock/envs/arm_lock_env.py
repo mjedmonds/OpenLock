@@ -121,7 +121,7 @@ class ArmLockEnv(gym.Env):
                                 BOX2D_SETTINGS['VEL_ITERS'],
                                 BOX2D_SETTINGS['POS_ITERS'])
 
-            self._render_world_at_frame_rate()
+            # self._render_world_at_frame_rate()
 
             self.state = self.get_state()
             self.state['SUCCESS'] = False

@@ -31,8 +31,8 @@ class DQNAgent:
     def _build_model(self):
         # Neural Net for Deep-Q learning Model
         model = Sequential()
-        model.add(Dense(24, input_dim=self.state_size, activation='relu'))
-        model.add(Dense(24, activation='relu'))
+        model.add(Dense(64, input_dim=self.state_size, activation='relu'))
+        model.add(Dense(64, activation='relu'))
         model.add(Dense(self.action_size, activation='linear'))
         model.compile(loss='mse', optimizer=Adam(lr=self.learning_rate))
         return model
@@ -84,12 +84,13 @@ if __name__ == "__main__":
     else:
         setting = sys.argv[1]
         params = PARAMS[IDX_TO_PARAMS[int(setting)-1]]
+        print('training_scenario: {}, testing_scenario: {}'.format(params['train_scenario_name'], params['test_scenario_name']))
         reward_mode = sys.argv[2]
 
 
     # RL specific settings
     params['data_dir'] = '../OpenLockRLResults/subjects'
-    params['train_attempt_limit'] = 30000
+    params['train_attempt_limit'] = 1
     params['test_attempt_limit'] = 30000
 
     scenario = select_scenario(params['train_scenario_name'])
@@ -115,6 +116,15 @@ if __name__ == "__main__":
 
     for trial_num in range(0, params['num_train_trials']):
         agent = manager.run_trial_computer(agent, obs_space, params['train_scenario_name'], params['train_action_limit'], params['train_attempt_limit'], trial_num)
+
+    # testing trial
+    # print "INFO: STARTING TESTING TRIAL"
+    if params['test_scenario_name'] is not None:
+        scenario = select_scenario(params['test_scenario_name'])
+        manager.update_scenario(scenario)
+        manager.set_action_limit(params['test_action_limit'])
+        # run testing trial with specified trial7
+        manager.run_trial_computer(agent, obs_space, params['test_scenario_name'], params['test_action_limit'], params['test_attempt_limit'], params['num_train_trials'] + 1, specified_trial='trial7')
 
     sys.exit(0)
     # agent.load("./save/cartpole-dqn.h5")
