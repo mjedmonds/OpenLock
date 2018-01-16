@@ -87,7 +87,7 @@ if __name__ == "__main__":
         print('training_scenario: {}, testing_scenario: {}'.format(params['train_scenario_name'], params['test_scenario_name']))
         reward_mode = sys.argv[2]
 
-    use_physics = True
+    use_physics = False
 
     # RL specific settings
     params['data_dir'] = '../OpenLockRLResults/subjects'
@@ -105,7 +105,7 @@ if __name__ == "__main__":
     manager.update_scenario(scenario)
     trial_selected = manager.run_trial_common_setup(params['train_scenario_name'], params['train_action_limit'], params['train_attempt_limit'])
 
-    obs_space = ObservationSpace(len(env.world_def.get_levers()))
+    obs_space = ObservationSpace(len(scenario.levers))
     env.observation_space = obs_space.multi_discrete
 
     env.reward_mode = reward_mode
@@ -123,12 +123,14 @@ if __name__ == "__main__":
     # testing trial
     # print "INFO: STARTING TESTING TRIAL"
     if params['test_scenario_name'] is not None:
-        scenario = select_scenario(params['test_scenario_name'])
+        scenario = select_scenario(params['test_scenario_name'], use_physics=use_physics)
         manager.update_scenario(scenario)
         manager.set_action_limit(params['test_action_limit'])
         # run testing trial with specified trial7
         manager.run_trial_computer(agent, obs_space, params['test_scenario_name'], params['test_action_limit'], params['test_attempt_limit'], params['num_train_trials'] + 1, specified_trial='trial7')
 
+    manager.finish_subject(manager.env.logger, manager.writer)
+    print 'Training complete for subject {}'.format(env.logger.subject_id)
     sys.exit(0)
     # agent.load("./save/cartpole-dqn.h5")
     # done = False

@@ -92,10 +92,11 @@ class SessionManager():
         cum_reward = 0
         while self.env.attempt_count < attempt_limit and self.env.logger.cur_trial.success is False:
             # self.env.render()
-            state, labels = obs_space.create_discrete_observation_from_simulator(self.env.world_def)
-            fsm_state, fsm_labels = obs_space.create_discrete_observation_from_fsm(self.env.scenario)
-            assert(state == fsm_state)
-            assert(labels == fsm_labels)
+            state, labels = obs_space.create_discrete_observation_from_fsm(self.env.scenario)
+            # following 3 lines used to verify observations from simulator match FSM
+            # phys_state, phys_labels = obs_space.create_discrete_observation_from_simulator(self.env.world_def)
+            # assert(state == phys_state)
+            # assert(labels == phys_labels)
 
             action_idx = agent.act(state)
             # convert idx to Action object (idx -> str -> Action)
@@ -103,10 +104,11 @@ class SessionManager():
             # todo: env.step does not return a discrete observation
             _, reward, done, _ = self.env.step(action)
 
-            next_state, next_labels = obs_space.create_discrete_observation_from_simulator(self.env.world_def)
-            next_fsm_state, next_fsm_labels = obs_space.create_discrete_observation_from_fsm(self.env.scenario)
-            assert(next_state == next_fsm_state)
-            assert(next_labels == next_fsm_labels)
+            next_state, next_labels = obs_space.create_discrete_observation_from_fsm(self.env.scenario)
+            # following 3 lines used to verify observations from simulator match FSM
+            # next_phys_state, next_phys_labels = obs_space.create_discrete_observation_from_simulator(self.env.world_def)
+            # assert(next_state == next_phys_state)
+            # assert(next_labels == next_phys_labels)
 
             if labels != next_labels:
                 raise ValueError('Column labels are different between state and next state')
@@ -141,10 +143,14 @@ class SessionManager():
         writer.write(logger)
 
     @staticmethod
-    def finish_subject(logger, writer):
+    def finish_subject(logger, writer, human=True):
         logger.finish(time.time())
-        strategy = SessionManager.prompt_strategy()
-        transfer_strategy = SessionManager.prompt_transfer_strategy()
+        if human:
+            strategy = SessionManager.prompt_strategy()
+            transfer_strategy = SessionManager.prompt_transfer_strategy()
+        else:
+            strategy = 'RL'
+            transfer_strategy = 'RL'
         logger.strategy = strategy
         logger.transfer_strategy = transfer_strategy
 

@@ -28,7 +28,7 @@ class CommonEffect4Scenario(Scenario):
         [ActionLog('push_l3', None), ActionLog('push_l0', None), ActionLog('push_door', None)],
     ]
 
-    def __init__(self, use_physics=False):
+    def __init__(self, use_physics=True):
         super(CommonEffect4Scenario, self).__init__(use_physics=use_physics)
 
         self.world_def = None # handle to the Box2D world
@@ -55,6 +55,7 @@ class CommonEffect4Scenario(Scenario):
             if lock == 'l0:':
                 pulled = [s for s in self.fsmm.observable_fsm.state_permutations if lock + 'pulled,' in s and ('l1:pushed,' in s or 'l2:pushed,' in s or 'l3:pushed,' in s)]
                 pushed = [s for s in self.fsmm.observable_fsm.state_permutations if lock + 'pushed,' in s and ('l1:pushed,' in s or 'l2:pushed,' in s or 'l3:pushed,' in s)]
+                super(CommonEffect4Scenario, self).add_no_ops(lock, pushed, pulled)
             else:
                 pulled = [s for s in self.fsmm.observable_fsm.state_permutations if lock + 'pulled,' in s]
                 pushed = [s for s in self.fsmm.observable_fsm.state_permutations if lock + 'pushed,' in s]

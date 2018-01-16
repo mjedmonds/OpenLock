@@ -56,6 +56,8 @@ class ArmLockEnv(gym.Env):
 
         self.use_physics = True
 
+        self.world_def = None
+
     def _reset(self):
         """Resets the state of the environment and returns an initial observation.
 
@@ -129,16 +131,6 @@ class ArmLockEnv(gym.Env):
                 done (boolean): whether the episode has ended, in which case further step() calls will return undefined results
                 info (dict): CONVERGED : whether algorithm succesfully coverged on action
         """
-        # if we are bypassing physics, directly execute the action in the FSM
-        if not self.use_physics:
-            observable_action = self._create_pre_obs_entry(action)
-            if observable_action:
-                self.logger.cur_trial.cur_attempt.add_action(action.name + '_' + action.params[0])
-
-            self.scenario.execute_action(action)
-
-            reward, success = determine_reward(self, action, self.reward_mode)
-
         # save a copy of the current state
         self.prev_state = self.get_state()
 
@@ -164,26 +156,30 @@ class ArmLockEnv(gym.Env):
                 self.logger.cur_trial.cur_attempt.add_action(action.name + '_' + action.params[0])
 
             success = False
-            if action.name == 'goto':
-                success = self._action_go_to(action.params)
-            elif action.name == 'goto_obj':
-                success = self._action_go_to_obj(action.params)
-            elif action.name == 'rest':
-                success = self._action_rest()
-            elif action.name == 'pull':
-                success = self._action_pull(action.params)
-            elif action.name == 'push':
-                success = self._action_push(action.params)
-            elif action.name == 'move':
-                success = self._action_move(action.params)
-            elif action.name == 'move_end_frame':
-                success = self._action_move_end_frame(action.params)
-            elif action.name == 'unlock':
-                success = self._action_unlock(action.params)
-            elif action.name == 'reset':
-                success = self._action_reset()
-            elif action.name == 'save':
-                success = self._action_save()
+            if self.use_physics:
+                if action.name == 'goto':
+                    success = self._action_go_to(action.params)
+                elif action.name == 'goto_obj':
+                    success = self._action_go_to_obj(action.params)
+                elif action.name == 'rest':
+                    success = self._action_rest()
+                elif action.name == 'pull':
+                    success = self._action_pull(action.params)
+                elif action.name == 'push':
+                    success = self._action_push(action.params)
+                elif action.name == 'move':
+                    success = self._action_move(action.params)
+                elif action.name == 'move_end_frame':
+                    success = self._action_move_end_frame(action.params)
+                elif action.name == 'unlock':
+                    success = self._action_unlock(action.params)
+                elif action.name == 'reset':
+                    success = self._action_reset()
+                elif action.name == 'save':
+                    success = self._action_save()
+            else:
+                success = True
+                self.scenario.execute_action(action)
 
             self.i += 1
 
@@ -203,6 +199,7 @@ class ArmLockEnv(gym.Env):
             # must update reward before potentially reset env (env may reset based on trial status)
             reward, success = determine_reward(self, action, self.reward_mode)
 
+
             # above the allowed number of actions, need to increment the attempt count and reset the simulator
             if self.action_limit is not None and self.action_count >= self.action_limit:
 
@@ -213,7 +210,7 @@ class ArmLockEnv(gym.Env):
                 trial_finished, pause = self._update_user(attempt_success)
 
                 # pauses if the human user unlocked the door but didn't push on the door
-                if self.human_agent and pause:
+                if self.use_physics and self.human_agent and pause:
                     # pause for 4 sec to allow user to view lock
                     t_end = time.time() + 4
                     while time.time() < t_end:
@@ -475,7 +472,7 @@ class ArmLockEnv(gym.Env):
                 self.viewer.register_clickable_region(save_button.clickable)
 
     def get_state(self):
-        if self.world_def is None and self.use_physics:
+        if self.use_physics is True and self.world_def is None:
             raise ValueError('world_def is None while trying to call get_state()')
         # get state from physics simulator
         if self.use_physics:

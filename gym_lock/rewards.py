@@ -1,3 +1,5 @@
+from gym_lock.common import ENTITY_STATES
+
 REWARD_NONE = 0
 REWARD_CHANGE_OBS = 0.5
 REWARD_UNLOCK = 10
@@ -24,12 +26,14 @@ def reward_basic(env, action):
     Give reward of REWARD_NONE for anything else
     '''
     success = False
+    door_lock_state = env.get_state()['OBJ_STATES']['door_lock']
+    door_unlocked = door_lock_state == ENTITY_STATES['DOOR_UNLOCKED']
     # door unlocked and pushed on door
-    if env.world_def.door.lock is None and action.name is 'push' and action.params[0] is 'door':
+    if door_unlocked and action.name is 'push' and action.params[0] is 'door':
         reward = REWARD_OPEN
         success = True
     # door unlocked
-    elif env.world_def.door.lock is None:
+    elif door_unlocked:
         reward = REWARD_UNLOCK
     # door locked
     else:
@@ -46,12 +50,14 @@ def reward_change_state(env, action):
     Give reward of REWARD_NONE for anything else
     '''
     success = False
+    door_lock_state = env.get_state()['OBJ_STATES']['door_lock']
+    door_unlocked = door_lock_state == ENTITY_STATES['DOOR_UNLOCKED']
     # door unlocked, push_door
-    if env.world_def.door.lock is None and action.name is 'push' and action.params[0] is 'door':
+    if door_unlocked and action.name is 'push' and action.params[0] is 'door':
         reward = REWARD_OPEN
         success = True
     # door unlocked
-    elif env.world_def.door.lock is None:
+    elif door_unlocked:
         reward = REWARD_UNLOCK
     # state change
     elif env.determine_fluent_change():
@@ -72,12 +78,14 @@ def reward_unique_solution(env, action):
     '''
     success = False
     unique_seq = env.logger.cur_trial.determine_unique()
+    door_lock_state = env.get_state()['OBJ_STATES']['door_lock']
+    door_unlocked = door_lock_state == ENTITY_STATES['DOOR_UNLOCKED']
     # door unlocked, push_door
-    if env.world_def.door.lock is None and action.name is 'push' and action.params[0] is 'door' and unique_seq:
+    if door_unlocked and action.name is 'push' and action.params[0] is 'door' and unique_seq:
         reward = REWARD_OPEN
         success = True
     # door unlocked, unique solution
-    elif env.world_def.door.lock is None and unique_seq:
+    elif door_unlocked and unique_seq:
         reward = REWARD_UNLOCK
     # door locked, no state change
     else:
@@ -95,12 +103,14 @@ def reward_change_state_unique_solution(env, action):
     '''
     success = False
     unique_seq = env.logger.cur_trial.determine_unique()
+    door_lock_state = env.get_state()['OBJ_STATES']['door_lock']
+    door_unlocked = door_lock_state == ENTITY_STATES['DOOR_UNLOCKED']
     # door locked, state change
-    if env.world_def.door.lock is None and action.name is 'push' and action.params[0] is 'door' and unique_seq:
+    if door_unlocked and action.name is 'push' and action.params[0] is 'door' and unique_seq:
         reward = REWARD_OPEN
         success = True
     # door unlocked
-    elif env.world_def.door.lock is None and unique_seq:
+    elif door_unlocked and unique_seq:
         reward = REWARD_UNLOCK
     # state change
     elif env.determine_fluent_change():

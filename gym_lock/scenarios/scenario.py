@@ -10,7 +10,7 @@ from gym_lock.settings_trial import UPPER, LEFT, LOWER, UPPERLEFT, UPPERRIGHT, L
 
 class Scenario(object):
 
-    def __init__(self, use_physics=False):
+    def __init__(self, use_physics=True):
         self.use_physics = use_physics
         self.levers = []
         self.lever_configs = None
@@ -36,6 +36,15 @@ class Scenario(object):
             # world_def will be initialized with init_scenario_env
             lever = common.Lever(role, two_d_config, color, opt_params)
             self.levers.append(lever)
+
+    def add_no_ops(self, lock, pushed, pulled):
+        # add no-ops for when lock condition is not satisfied
+        no_op_pulled = [s for s in self.fsmm.observable_fsm.state_permutations if s not in pulled]
+        no_op_pushed = [s for s in self.fsmm.observable_fsm.state_permutations if s not in pushed]
+        for state in no_op_pulled:
+            self.fsmm.observable_fsm.machine.add_transition('pull_{}'.format(lock), state, state)
+        for state in no_op_pushed:
+            self.fsmm.observable_fsm.machine.add_transition('push_{}'.format(lock), state, state)
 
     def add_nothing_transition(self):
         # add nothing transition
@@ -145,9 +154,8 @@ class Scenario(object):
                 self.push_door()
         # bypass physics, action must be specified
         else:
-            if action is None:
-                raise ValueError('No action specified while bypassing simulator')
-            self.execute_action(action)
+            if action is not None:
+                self.execute_action(action)
 
     def execute_action(self, action):
         if self.use_physics:
