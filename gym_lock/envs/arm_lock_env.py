@@ -1,5 +1,6 @@
 import gym
 import re
+import copy
 import time
 import numpy as np
 from shapely.geometry import Polygon, Point
@@ -53,6 +54,8 @@ class ArmLockEnv(gym.Env):
         self.observation_space = None
         self.reward_range = (REWARD_NONE, REWARD_OPEN)
 
+        self.bypass_physics = False
+
     def _reset(self):
         """Resets the state of the environment and returns an initial observation.
 
@@ -65,35 +68,48 @@ class ArmLockEnv(gym.Env):
         self.clock = 0
         self._seed()
 
-        self.init_inverse_kine()
+        if not self.bypass_physics:
+            self.init_inverse_kine()
 
-        # setup Box2D world
-        self.world_def = ArmLockDef(self.invkine.kinematic_chain, 1.0 / BOX2D_SETTINGS['FPS'], 30, self.scenario)
+            # setup Box2D world
+            self.world_def = ArmLockDef(self.invkine.kinematic_chain, 1.0 / BOX2D_SETTINGS['FPS'], 30, self.scenario)
 
-        self.action_space, self.action_map = ActionSpace.create_action_space(self.world_def.obj_map)
-        self.obs_space = ObservationSpace(len(self.world_def.get_locks()))
+            obj_map = self.world_def.obj_map
+            levers = self.world_def.get_levers()
+        else:
+            # initialize obj_map for scenario
+            self.scenario.init_scenario_env()
+
+            obj_map = self.scenario.obj_map
+            levers = self.scenario.levers
+
+        self.action_space, self.action_map = ActionSpace.create_action_space(obj_map)
+        self.obs_space = ObservationSpace(len(levers))
 
         # reset results (must be after world_def exists and action space has been created)
         self._reset_results()
 
-        # setup renderer
-        if not self.viewer:
-            self.viewer = Box2DRenderer(self._action_grasp)
+        if not self.bypass_physics:
+            # setup renderer
+            if not self.viewer:
+                self.viewer = Box2DRenderer(self._action_grasp)
 
-        self.viewer.reset()
+            self.viewer.reset()
 
-        self._create_clickable_regions()
+            self._create_clickable_regions()
 
         # reset the finite state machine
         self.scenario.reset()
         self.action_count = 0
 
-        if self.human_agent:
-            self._render()
+        if not self.bypass_physics:
+            if self.human_agent:
+                self._render()
+
         self.state = self.get_state()
         # append initial observation
         # self._print_observation(state, self.action_count)
-        self.results.append(self._create_state_entry(self.state, self.action_count))
+        self._append_result(self._create_state_entry(self.state, self.action_count))
         
         self._update_state_machine()
 
@@ -113,6 +129,16 @@ class ArmLockEnv(gym.Env):
                 done (boolean): whether the episode has ended, in which case further step() calls will return undefined results
                 info (dict): CONVERGED : whether algorithm succesfully coverged on action
         """
+        # if we are bypassing physics, directly execute the action in the FSM
+        if self.bypass_physics:
+            observable_action = self._create_pre_obs_entry(action)
+            if observable_action:
+                self.logger.cur_trial.cur_attempt.add_action(action.name + '_' + action.params[0])
+
+            self.scenario.execute_action(action)
+
+            reward, success = determine_reward(self, action, self.reward_mode)
+
         # save a copy of the current state
         self.prev_state = self.get_state()
 
@@ -161,15 +187,22 @@ class ArmLockEnv(gym.Env):
 
             self.i += 1
 
+            if True:
+                print 'dummy'
+
             # update state machine after executing a action
-            self._update_state_machine()
+            self._update_state_machine(action)
             self.state = self.get_state()
             self.state['SUCCESS'] = success
 
             if observable_action:
                 self.action_count += 1
-                # self._print_observation(state, self.action_count)
-                self.results.append(self._create_state_entry(self.state, self.action_count))
+
+                if self.action_count == 2:
+                    print 'Frame 2'
+                self._print_observation(self.state, self.action_count)
+                self._append_result(self._create_state_entry(self.state, self.action_count))
+                # self.results.append(self._create_state_entry(self.state, self.action_count))
                 self.logger.cur_trial.cur_attempt.finish_action()
 
             # must update reward before potentially reset env (env may reset based on trial status)
@@ -287,7 +320,7 @@ class ArmLockEnv(gym.Env):
         entry = [0] * len(self.col_label)
         entry[0] = self.action_count
         # copy over previous state
-        entry[1:self.index_map['agent']+1] = self.results[-1][1:self.index_map['agent']+1]
+        entry[1:self.index_map['agent']+1] = copy.copy(self.results[-1][1:self.index_map['agent']+1])
 
         # mark action idx
         if type(action.params[0]) is str:
@@ -300,7 +333,7 @@ class ArmLockEnv(gym.Env):
         if observable_action:
             entry[self.index_map[col]] = 1
             # append pre-observation entry
-            self.results.append(entry)
+            self._append_result(entry)
 
         return observable_action
 
@@ -340,8 +373,8 @@ class ArmLockEnv(gym.Env):
         if self.world_def.clock % BOX2D_SETTINGS['STATE_MACHINE_CLK_DIV'] == 0:
             self._update_state_machine()
 
-    def _update_state_machine(self):
-        self.scenario.update_state_machine()
+    def _update_state_machine(self, action=None):
+        self.scenario.update_state_machine(action)
    
     def _update_user(self, attempt_success):
         pause = False
@@ -381,6 +414,19 @@ class ArmLockEnv(gym.Env):
     def _print_observation(self, state, count):
         print str(count) + ': ' + str(state['OBJ_STATES'])
         print str(count) + ': ' + str(state['_FSM_STATE'])
+
+    def _append_result(self, cur_result):
+        self.results.append(cur_result)
+        # if len(self.results) > 2:
+        #     prev_result = self.results[-1]
+        #     # remove frame
+        #     differences = [x != y for (x, y) in zip(prev_result[1:], cur_result[1:])]
+        #     changes = differences.count(True)
+        #     if changes > 2:
+        #         print 'WARNING: More than 2 changes between observations'
+        #     self.results.append(cur_result)
+        # else:
+        #     self.results.append(cur_result)
 
     def _reset_results(self):
         # setup .csv headers
@@ -434,9 +480,15 @@ class ArmLockEnv(gym.Env):
                 self.viewer.register_clickable_region(save_button.clickable)
 
     def get_state(self):
-        if self.world_def is None:
+        if self.world_def is None and not self.bypass_physics:
             raise ValueError('world_def is None while trying to call get_state()')
-        return self.world_def.get_state()
+        # get state from physics simulator
+        if not self.bypass_physics:
+            state = self.world_def.get_state()
+        # get state from scenario/FSM
+        else:
+            state = self.scenario.get_state()
+        return state
 
     def determine_fluent_change(self):
         prev_fluent_state = self.prev_state['OBJ_STATES']

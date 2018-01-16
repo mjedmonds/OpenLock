@@ -16,6 +16,7 @@ ATTEMPT_LIMIT = 30
 ACTION_LIMIT = 3
 DATA_DIR = '../OpenLockResults/subjects'
 
+
 PARAMS = {
     'CE3-CE4': {
         'data_dir': DATA_DIR,
@@ -80,7 +81,7 @@ PARAMS = {
     'testing': {
         'data_dir': DATA_DIR,
         'num_train_trials': 1,
-        'train_scenario_name': 'CE4',
+        'train_scenario_name': 'CC3',
         'train_attempt_limit': ATTEMPT_LIMIT,
         'train_action_limit': ACTION_LIMIT,
         'test_scenario_name': None,

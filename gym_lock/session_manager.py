@@ -4,6 +4,7 @@ import os
 import copy
 
 from gym_lock.settings_trial import select_random_trial, select_trial
+from gym_lock.space_manager import ObservationSpace
 import logger
 
 
@@ -20,6 +21,8 @@ class SessionManager():
 
         # logger is stored in the environment - change if possible
         self.env.logger, self.writer = self.setup_subject(params['data_dir'], human)
+
+        self.env.logger.bypass_physics = env.bypass_physics
 
     # code to run before human and computer trials
     def run_trial_common_setup(self, scenario_name, action_limit, attempt_limit, specified_trial=None):
@@ -50,14 +53,33 @@ class SessionManager():
         self.completed_trials.append(copy.deepcopy(trial_selected))
 
     # code to run a human subject
-    def run_trial_human(self, scenario_name, action_limit, attempt_limit, specified_trial=None):
+    def run_trial_human(self, scenario_name, action_limit, attempt_limit, specified_trial=None, verify=False):
         self.env.human_agent = True
         trial_selected = self.run_trial_common_setup(scenario_name, action_limit, attempt_limit, specified_trial)
 
+        obs_space = None
         while self.env.attempt_count < attempt_limit and self.env.logger.cur_trial.success is False:
             self.env.render()
+            # used to verify simulator and fsm states are always the same (they should be)
+            if verify:
+                obs_space = self.verify_fsm_matches_simulator(obs_space)
 
         self.run_trial_common_finish(trial_selected)
+
+    def verify_fsm_matches_simulator(self, obs_space):
+        if obs_space is None:
+            obs_space = ObservationSpace(len(self.env.world_def.get_levers()))
+        state, labels = obs_space.create_discrete_observation_from_simulator(self.env.world_def)
+        fsm_state, fsm_labels = obs_space.create_discrete_observation_from_fsm(self.env.scenario)
+        try:
+            assert(state == fsm_state)
+            assert(labels == fsm_labels)
+        except AssertionError:
+            print state
+            print fsm_state
+            print labels
+            print fsm_labels
+        return obs_space
 
     # code to run a computer trial
     def run_trial_computer(self, agent, obs_space, scenario_name, action_limit, attempt_limit, trial_count, specified_trial=None):
@@ -70,14 +92,21 @@ class SessionManager():
         cum_reward = 0
         while self.env.attempt_count < attempt_limit and self.env.logger.cur_trial.success is False:
             # self.env.render()
-            state, labels = obs_space.create_discrete_observation_from_state(self.env.world_def)
+            state, labels = obs_space.create_discrete_observation_from_simulator(self.env.world_def)
+            fsm_state, fsm_labels = obs_space.create_discrete_observation_from_fsm(self.env.scenario)
+            assert(state == fsm_state)
+            assert(labels == fsm_labels)
 
             action_idx = agent.act(state)
             # convert idx to Action object (idx -> str -> Action)
             action = self.env.action_map[self.env.action_space[action_idx]]
-            next_state, reward, done, _ = self.env.step(action)
+            # todo: env.step does not return a discrete observation
+            _, reward, done, _ = self.env.step(action)
 
-            next_state, next_labels = obs_space.create_discrete_observation_from_state(self.env.world_def)
+            next_state, next_labels = obs_space.create_discrete_observation_from_simulator(self.env.world_def)
+            next_fsm_state, next_fsm_labels = obs_space.create_discrete_observation_from_fsm(self.env.scenario)
+            assert(next_state == next_fsm_state)
+            assert(next_labels == next_fsm_labels)
 
             if labels != next_labels:
                 raise ValueError('Column labels are different between state and next state')
@@ -86,12 +115,12 @@ class SessionManager():
             # self.env.render()
             cum_reward += reward
             if done:
-                print("trial {}, scenario {}, episode: {}/{}, reward {}, e: {:.2}".format(trial_count, scenario_name, self.env.attempt_count, self.env.attempt_limit, cum_reward, agent.epsilon))
+                print("ID: {}, trial {}, scenario {}, episode: {}/{}, reward {}, e: {:.2}".format(self.env.logger.subject_id, trial_count, scenario_name, self.env.attempt_count, self.env.attempt_limit, cum_reward, agent.epsilon))
                 print(self.env.logger.cur_trial.attempt_seq[-1].action_seq)
                 cum_reward = 0
                 # break
             # save agent every 10000 attempts
-            if self.env.attempt_count % 10000 == 0:
+            if self.env.attempt_count % 1000 == 0:
                 save_dir = self.writer.subject_path + '/models'
                 if not os.path.exists(save_dir):
                     os.makedirs(save_dir)

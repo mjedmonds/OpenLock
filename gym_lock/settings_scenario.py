@@ -15,16 +15,16 @@ TESTING_SCENARIOS = [
 ]
 
 
-def select_scenario(scenario):
+def select_scenario(scenario, bypass_physics=False):
     scenario_selected = None
     if scenario == 'CE3':
-        scenario_selected = CommonEffect3Scenario()
+        scenario_selected = CommonEffect3Scenario(bypass_physics=bypass_physics)
     elif scenario == 'CC3':
-        scenario_selected = CommonCause3Scenario()
+        scenario_selected = CommonCause3Scenario(bypass_physics=bypass_physics)
     elif scenario == 'CE4':
-        scenario_selected = CommonEffect4Scenario()
+        scenario_selected = CommonEffect4Scenario(bypass_physics=bypass_physics)
     elif scenario == 'CC4':
-        scenario_selected = CommonCause4Scenario()
+        scenario_selected = CommonCause4Scenario(bypass_physics=bypass_physics)
     elif scenario == 'multi-lock':
         scenario_selected = MultiLockScenario()
     else:

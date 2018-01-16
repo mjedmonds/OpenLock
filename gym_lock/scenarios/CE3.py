@@ -27,7 +27,9 @@ class CommonEffect3Scenario(Scenario):
         [ActionLog('push_l1', None), ActionLog('push_l0', None), ActionLog('push_door', None)],
     ]
 
-    def __init__(self):
+    def __init__(self, bypass_physics):
+        super(CommonEffect3Scenario, self).__init__(bypass_physics=bypass_physics)
+        
         self.world_def = None # handle to the Box2D world
 
         self.fsmm = FiniteStateMachineManager(scenario=self,
@@ -75,13 +77,13 @@ class CommonEffect3Scenario(Scenario):
         '''
         super(CommonEffect3Scenario, self).update_observable()
 
-    def update_state_machine(self):
+    def update_state_machine(self, action=None):
         '''
         Updates the finite state machines according to object status in the Box2D environment
         '''
-        super(CommonEffect3Scenario, self).update_state_machine()
+        super(CommonEffect3Scenario, self).update_state_machine(action)
 
-    def init_scenario_env(self, world_def):
+    def init_scenario_env(self, world_def=None):
         '''
         initializes the scenario-specific components of the box2d world (e.g. levers)
         :return:
@@ -95,8 +97,7 @@ class CommonEffect3Scenario(Scenario):
         '''
         updates the Box2D environment based on the state of the finite state machine
         '''
-        self._update_latent_objs()
-        self._update_observable_objs()
+        super(CommonEffect3Scenario, self)._update_env()
 
     def _update_latent_objs(self):
         '''

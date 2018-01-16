@@ -127,7 +127,7 @@ class MultiLockScenario(object):
 
         for i in range(0, len(self.lever_configs)):
             name = 'l{}'.format(i)
-            lock = common.Lock(self.world_def, name, self.lever_configs[i], self.lever_opt_params[i])
+            lock = common.Lever(self.world_def, name, self.lever_configs[i], self.lever_opt_params[i])
             self.world_def.obj_map[name] = lock
 
         self.world_def.lock_lever('l2') #initially lock l2

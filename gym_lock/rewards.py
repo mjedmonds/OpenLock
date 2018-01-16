@@ -25,11 +25,11 @@ def reward_basic(env, action):
     '''
     success = False
     # door unlocked and pushed on door
-    if env.world_def.door_lock is None and action.name is 'push' and action.params[0] is 'door':
+    if env.world_def.door.lock is None and action.name is 'push' and action.params[0] is 'door':
         reward = REWARD_OPEN
         success = True
     # door unlocked
-    elif env.world_def.door_lock is None:
+    elif env.world_def.door.lock is None:
         reward = REWARD_UNLOCK
     # door locked
     else:
@@ -47,11 +47,11 @@ def reward_change_state(env, action):
     '''
     success = False
     # door unlocked, push_door
-    if env.world_def.door_lock is None and action.name is 'push' and action.params[0] is 'door':
+    if env.world_def.door.lock is None and action.name is 'push' and action.params[0] is 'door':
         reward = REWARD_OPEN
         success = True
     # door unlocked
-    elif env.world_def.door_lock is None:
+    elif env.world_def.door.lock is None:
         reward = REWARD_UNLOCK
     # state change
     elif env.determine_fluent_change():
@@ -73,11 +73,11 @@ def reward_unique_solution(env, action):
     success = False
     unique_seq = env.logger.cur_trial.determine_unique()
     # door unlocked, push_door
-    if env.world_def.door_lock is None and action.name is 'push' and action.params[0] is 'door' and unique_seq:
+    if env.world_def.door.lock is None and action.name is 'push' and action.params[0] is 'door' and unique_seq:
         reward = REWARD_OPEN
         success = True
     # door unlocked, unique solution
-    elif env.world_def.door_lock is None and unique_seq:
+    elif env.world_def.door.lock is None and unique_seq:
         reward = REWARD_UNLOCK
     # door locked, no state change
     else:
@@ -96,11 +96,11 @@ def reward_change_state_unique_solution(env, action):
     success = False
     unique_seq = env.logger.cur_trial.determine_unique()
     # door locked, state change
-    if env.world_def.door_lock is None and action.name is 'push' and action.params[0] is 'door' and unique_seq:
+    if env.world_def.door.lock is None and action.name is 'push' and action.params[0] is 'door' and unique_seq:
         reward = REWARD_OPEN
         success = True
     # door unlocked
-    elif env.world_def.door_lock is None and unique_seq:
+    elif env.world_def.door.lock is None and unique_seq:
         reward = REWARD_UNLOCK
     # state change
     elif env.determine_fluent_change():

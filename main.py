@@ -6,11 +6,13 @@ import sys
 from gym_lock.settings_scenario import select_scenario, select_random_scenarios
 from gym_lock.session_manager import SessionManager
 from gym_lock.settings_trial import PARAMS, IDX_TO_PARAMS
+from gym_lock.space_manager import ObservationSpace
 
 # def exit_handler(signum, frame):
 #    print 'saving results.csv'
 #    np.savetxt('results.csv', env.results, delimiter=',', fmt='%s')
 #    exit()
+
 
 def run_specific_trial_and_scenario(manager, scenario_name, trial_name, action_limit, attempt_limit):
     scenario = select_scenario(scenario_name)
@@ -20,6 +22,7 @@ def run_specific_trial_and_scenario(manager, scenario_name, trial_name, action_l
     manager.finish_subject()
     manager.write_results()
     sys.exit(0)
+
 
 if __name__ == '__main__':
 
@@ -37,7 +40,11 @@ if __name__ == '__main__':
         # params = PARAMS['CC4']
     else:
         setting = sys.argv[1]
-        params = PARAMS[IDX_TO_PARAMS[int(setting)-1]]
+        # pass a string or an index
+        try:
+            params = PARAMS[IDX_TO_PARAMS[int(setting)-1]]
+        except Exception:
+            params = PARAMS[setting]
 
     # this section randomly selects a testing and training scenario
     # train_scenario_name, test_scenario_name = select_random_scenarios()
@@ -55,7 +62,7 @@ if __name__ == '__main__':
     # run_specific_trial_and_scenario(manager, 'CC3', 'trial5', params['train_action_limit'], params['train_attempt_limit'])
 
     for trial_num in range(0, params['num_train_trials']):
-        manager.run_trial_human(params['train_scenario_name'], params['train_action_limit'], params['train_attempt_limit'])
+        manager.run_trial_human(params['train_scenario_name'], params['train_action_limit'], params['train_attempt_limit'], verify=True, specified_trial='trial5')
 
     # testing trial
     # print "INFO: STARTING TESTING TRIAL"
