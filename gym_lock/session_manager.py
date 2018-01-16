@@ -22,7 +22,7 @@ class SessionManager():
         # logger is stored in the environment - change if possible
         self.env.logger, self.writer = self.setup_subject(params['data_dir'], human)
 
-        self.env.logger.bypass_physics = env.bypass_physics
+        self.env.logger.use_physics = env.use_physics
 
     # code to run before human and computer trials
     def run_trial_common_setup(self, scenario_name, action_limit, attempt_limit, specified_trial=None):

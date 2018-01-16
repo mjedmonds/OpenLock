@@ -54,7 +54,7 @@ class ArmLockEnv(gym.Env):
         self.observation_space = None
         self.reward_range = (REWARD_NONE, REWARD_OPEN)
 
-        self.bypass_physics = False
+        self.use_physics = True
 
     def _reset(self):
         """Resets the state of the environment and returns an initial observation.
@@ -68,7 +68,7 @@ class ArmLockEnv(gym.Env):
         self.clock = 0
         self._seed()
 
-        if not self.bypass_physics:
+        if self.use_physics:
             self.init_inverse_kine()
 
             # setup Box2D world
@@ -89,7 +89,7 @@ class ArmLockEnv(gym.Env):
         # reset results (must be after world_def exists and action space has been created)
         self._reset_results()
 
-        if not self.bypass_physics:
+        if self.use_physics:
             # setup renderer
             if not self.viewer:
                 self.viewer = Box2DRenderer(self._action_grasp)
@@ -102,7 +102,7 @@ class ArmLockEnv(gym.Env):
         self.scenario.reset()
         self.action_count = 0
 
-        if not self.bypass_physics:
+        if self.use_physics:
             if self.human_agent:
                 self._render()
 
@@ -130,7 +130,7 @@ class ArmLockEnv(gym.Env):
                 info (dict): CONVERGED : whether algorithm succesfully coverged on action
         """
         # if we are bypassing physics, directly execute the action in the FSM
-        if self.bypass_physics:
+        if not self.use_physics:
             observable_action = self._create_pre_obs_entry(action)
             if observable_action:
                 self.logger.cur_trial.cur_attempt.add_action(action.name + '_' + action.params[0])
@@ -187,9 +187,6 @@ class ArmLockEnv(gym.Env):
 
             self.i += 1
 
-            if True:
-                print 'dummy'
-
             # update state machine after executing a action
             self._update_state_machine(action)
             self.state = self.get_state()
@@ -198,9 +195,7 @@ class ArmLockEnv(gym.Env):
             if observable_action:
                 self.action_count += 1
 
-                if self.action_count == 2:
-                    print 'Frame 2'
-                self._print_observation(self.state, self.action_count)
+                # self._print_observation(self.state, self.action_count)
                 self._append_result(self._create_state_entry(self.state, self.action_count))
                 # self.results.append(self._create_state_entry(self.state, self.action_count))
                 self.logger.cur_trial.cur_attempt.finish_action()
@@ -480,10 +475,10 @@ class ArmLockEnv(gym.Env):
                 self.viewer.register_clickable_region(save_button.clickable)
 
     def get_state(self):
-        if self.world_def is None and not self.bypass_physics:
+        if self.world_def is None and self.use_physics:
             raise ValueError('world_def is None while trying to call get_state()')
         # get state from physics simulator
-        if not self.bypass_physics:
+        if self.use_physics:
             state = self.world_def.get_state()
         # get state from scenario/FSM
         else:

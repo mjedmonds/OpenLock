@@ -27,8 +27,8 @@ class CommonCause3Scenario(Scenario):
         [ActionLog('push_l0', None), ActionLog('push_l2', None), ActionLog('push_door', None)],
     ]
 
-    def __init__(self, bypass_physics=False):
-        super(CommonCause3Scenario, self).__init__(bypass_physics=bypass_physics)
+    def __init__(self, use_physics=False):
+        super(CommonCause3Scenario, self).__init__(use_physics=use_physics)
         
         self.world_def = None # handle to the Box2D world
 
@@ -96,8 +96,9 @@ class CommonCause3Scenario(Scenario):
 
         super(CommonCause3Scenario, self).init_scenario_env(world_def)
 
-        self.world_def.lock_lever('l2') #initially lock l2
-        self.world_def.lock_lever('l1') #initially lock l1
+        if self.use_physics:
+            self.world_def.lock_lever('l2') #initially lock l2
+            self.world_def.lock_lever('l1') #initially lock l1
 
     def _update_env(self):
         '''

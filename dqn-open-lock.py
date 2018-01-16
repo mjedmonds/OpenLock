@@ -87,18 +87,18 @@ if __name__ == "__main__":
         print('training_scenario: {}, testing_scenario: {}'.format(params['train_scenario_name'], params['test_scenario_name']))
         reward_mode = sys.argv[2]
 
-    bypass_physics = True
+    use_physics = True
 
     # RL specific settings
     params['data_dir'] = '../OpenLockRLResults/subjects'
     params['train_attempt_limit'] = 30000
     params['test_attempt_limit'] = 30000
 
-    scenario = select_scenario(params['train_scenario_name'], bypass_physics=bypass_physics)
+    scenario = select_scenario(params['train_scenario_name'], use_physics=use_physics)
 
     env = gym.make('arm_lock-v0')
 
-    env.bypass_physics = bypass_physics
+    env.use_physics = use_physics
 
     # create session/trial/experiment manager
     manager = SessionManager(env, params, human=False)

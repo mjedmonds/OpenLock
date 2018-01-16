@@ -10,8 +10,8 @@ from gym_lock.settings_trial import UPPER, LEFT, LOWER, UPPERLEFT, UPPERRIGHT, L
 
 class Scenario(object):
 
-    def __init__(self, bypass_physics=False):
-        self.bypass_physics = bypass_physics
+    def __init__(self, use_physics=False):
+        self.use_physics = use_physics
         self.levers = []
         self.lever_configs = None
         self.world_def = None
@@ -130,7 +130,7 @@ class Scenario(object):
         prev_state = self.fsmm.observable_fsm.state
 
         # do not bypass the simulator
-        if not self.bypass_physics:
+        if self.use_physics:
             # execute state transitions
             # check locks
             for name, obj in self.world_def.obj_map.items():
@@ -150,7 +150,7 @@ class Scenario(object):
             self.execute_action(action)
 
     def execute_action(self, action):
-        if not self.bypass_physics:
+        if self.use_physics:
             raise RuntimeError('Attempting to directly run FSM action without bypassing physics simulator')
         obj_name = action.params[0]
         fsm_name = obj_name + ':'
@@ -184,10 +184,10 @@ class Scenario(object):
             self.door_state = common.ENTITY_STATES['DOOR_OPENED']
 
     def init_scenario_env(self, world_def=None):
-        if not self.bypass_physics and world_def is None:
+        if self.use_physics and world_def is None:
             raise ValueError('No world_def passed to init_scenario_env while using physics')
 
-        if not self.bypass_physics:
+        if self.use_physics:
             # todo: come up with a better way to set self.world_def without passing as an argument here
             self.world_def = world_def
 
@@ -207,8 +207,8 @@ class Scenario(object):
         '''
         updates the Box2D environment based on the state of the finite state machine
         '''
-        # do not update physics simulator if we are bypassing it
-        if not self.bypass_physics:
+        # update physics simulator environment based on FSM changes
+        if self.use_physics:
             self._update_latent_objs()
             self._update_observable_objs()
 
