@@ -21,18 +21,19 @@ class DQNAgent:
         self.state_size = state_size
         self.action_size = action_size
         self.memory = deque(maxlen=2000)
-        self.gamma = 0.95    # discount rate
+        self.gamma = 0.8    # discount rate
         self.epsilon = 1.0  # exploration rate
-        self.epsilon_min = 0.01
-        self.epsilon_decay = 0.995
+        self.epsilon_min = 0.1
+        self.epsilon_decay = 0.999999
         self.learning_rate = 0.001
         self.model = self._build_model()
 
     def _build_model(self):
         # Neural Net for Deep-Q learning Model
         model = Sequential()
-        model.add(Dense(64, input_dim=self.state_size, activation='relu'))
+        model.add(Dense(32, input_dim=self.state_size, activation='relu'))
         model.add(Dense(64, activation='relu'))
+        model.add(Dense(32, activation='relu'))
         model.add(Dense(self.action_size, activation='linear'))
         model.compile(loss='mse', optimizer=Adam(lr=self.learning_rate))
         return model
@@ -88,6 +89,7 @@ if __name__ == "__main__":
         reward_mode = sys.argv[2]
 
     use_physics = False
+    batch_size = 64
 
     # RL specific settings
     params['data_dir'] = '../OpenLockRLResults/subjects'
@@ -105,6 +107,7 @@ if __name__ == "__main__":
     manager.update_scenario(scenario)
     trial_selected = manager.run_trial_common_setup(params['train_scenario_name'], params['train_action_limit'], params['train_attempt_limit'])
 
+    # set up observation space
     obs_space = ObservationSpace(len(scenario.levers))
     env.observation_space = obs_space.multi_discrete
 
@@ -118,7 +121,7 @@ if __name__ == "__main__":
     env.reset()
 
     for trial_num in range(0, params['num_train_trials']):
-        agent = manager.run_trial_computer(agent, obs_space, params['train_scenario_name'], params['train_action_limit'], params['train_attempt_limit'], trial_num)
+        agent = manager.run_trial_computer(agent, obs_space, params['train_scenario_name'], params['train_action_limit'], params['train_attempt_limit'], trial_num, state_size, batch_size=batch_size)
 
     # testing trial
     # print "INFO: STARTING TESTING TRIAL"
@@ -127,9 +130,9 @@ if __name__ == "__main__":
         manager.update_scenario(scenario)
         manager.set_action_limit(params['test_action_limit'])
         # run testing trial with specified trial7
-        manager.run_trial_computer(agent, obs_space, params['test_scenario_name'], params['test_action_limit'], params['test_attempt_limit'], params['num_train_trials'] + 1, specified_trial='trial7')
+        agent = manager.run_trial_computer(agent, obs_space, params['test_scenario_name'], params['test_action_limit'], params['test_attempt_limit'], params['num_train_trials'] + 1, state_size, batch_size=batch_size, specified_trial='trial7')
 
-    manager.finish_subject(manager.env.logger, manager.writer)
+    manager.finish_subject(manager.env.logger, manager.writer, human=False)
     print 'Training complete for subject {}'.format(env.logger.subject_id)
     sys.exit(0)
     # agent.load("./save/cartpole-dqn.h5")

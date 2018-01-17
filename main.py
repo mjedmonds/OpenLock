@@ -62,7 +62,7 @@ if __name__ == '__main__':
     # run_specific_trial_and_scenario(manager, 'CC3', 'trial5', params['train_action_limit'], params['train_attempt_limit'])
 
     for trial_num in range(0, params['num_train_trials']):
-        manager.run_trial_human(params['train_scenario_name'], params['train_action_limit'], params['train_attempt_limit'], verify=True, specified_trial='trial5')
+        manager.run_trial_human(params['train_scenario_name'], params['train_action_limit'], params['train_attempt_limit'], verify=True)
 
     # testing trial
     # print "INFO: STARTING TESTING TRIAL"

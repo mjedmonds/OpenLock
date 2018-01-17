@@ -2,6 +2,7 @@
 import time
 import os
 import copy
+import numpy as np
 
 from gym_lock.settings_trial import select_random_trial, select_trial
 from gym_lock.space_manager import ObservationSpace
@@ -82,7 +83,7 @@ class SessionManager():
         return obs_space
 
     # code to run a computer trial
-    def run_trial_computer(self, agent, obs_space, scenario_name, action_limit, attempt_limit, trial_count, specified_trial=None):
+    def run_trial_computer(self, agent, obs_space, scenario_name, action_limit, attempt_limit, trial_count, state_size, batch_size=128, specified_trial=None):
         self.env.human_agent = False
         trial_selected = self.run_trial_common_setup(scenario_name, action_limit, attempt_limit, specified_trial)
 
@@ -93,10 +94,8 @@ class SessionManager():
         while self.env.attempt_count < attempt_limit and self.env.logger.cur_trial.success is False:
             # self.env.render()
             state, labels = obs_space.create_discrete_observation_from_fsm(self.env.scenario)
-            # following 3 lines used to verify observations from simulator match FSM
-            # phys_state, phys_labels = obs_space.create_discrete_observation_from_simulator(self.env.world_def)
-            # assert(state == phys_state)
-            # assert(labels == phys_labels)
+            state = np.array(state)
+            state = np.reshape(state, [1, state_size])
 
             action_idx = agent.act(state)
             # convert idx to Action object (idx -> str -> Action)
@@ -105,15 +104,18 @@ class SessionManager():
             _, reward, done, _ = self.env.step(action)
 
             next_state, next_labels = obs_space.create_discrete_observation_from_fsm(self.env.scenario)
+            next_state = np.array(next_state)
+            next_state = np.reshape(next_state, [1, state_size])
             # following 3 lines used to verify observations from simulator match FSM
             # next_phys_state, next_phys_labels = obs_space.create_discrete_observation_from_simulator(self.env.world_def)
+            # next_phys_state = np.array(next_phys_state)
             # assert(next_state == next_phys_state)
             # assert(next_labels == next_phys_labels)
 
             if labels != next_labels:
                 raise ValueError('Column labels are different between state and next state')
 
-            agent.remember(state, action, reward, next_state, done)
+            agent.remember(state, action_idx, reward, next_state, done)
             # self.env.render()
             cum_reward += reward
             if done:
@@ -128,7 +130,12 @@ class SessionManager():
                     os.makedirs(save_dir)
                 agent.save(save_dir + '/agent_t' + str(trial_count) + '_a' + str(self.env.attempt_count) + '.h5')
 
+            # replay to learn
+            if len(agent.memory) > batch_size:
+                agent.replay(batch_size)
+
         self.run_trial_common_finish(trial_selected)
+        agent.average_reward = cum_reward / attempt_limit
 
         return agent
 

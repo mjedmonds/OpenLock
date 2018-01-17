@@ -129,7 +129,11 @@ class FiniteStateMachineManager():
             # changes in observable FSM will trigger a callback to update the latent FSM if needed
             self.observable_fsm.trigger(action)
         else:
-            raise ValueError('unknown action \'{}'.format(action) + '\'')
+            # todo: dirty hack to get door pushing action
+            if action == 'push_door:':
+                self.scenario.push_door()
+            else:
+                raise ValueError('unknown action \'{}'.format(action) + '\'')
 
     @staticmethod
     def extract_entity_state(state, obj):

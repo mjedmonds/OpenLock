@@ -83,6 +83,10 @@ class ArmLockEnv(gym.Env):
             self.scenario.init_scenario_env()
 
             obj_map = self.scenario.obj_map
+            # todo: this is a dirty hack to get the door in
+            # todo: define a global configuration that includes levers and doors
+            # add door because it is not originally in the map
+            obj_map['door'] = 'door'
             levers = self.scenario.levers
 
         self.action_space, self.action_map = ActionSpace.create_action_space(obj_map)
