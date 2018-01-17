@@ -83,7 +83,7 @@ class SessionManager():
         return obs_space
 
     # code to run a computer trial
-    def run_trial_computer(self, agent, obs_space, scenario_name, action_limit, attempt_limit, trial_count, state_size, batch_size=128, specified_trial=None):
+    def run_trial_computer(self, agent, obs_space, scenario_name, action_limit, attempt_limit, trial_count, specified_trial=None):
         self.env.human_agent = False
         trial_selected = self.run_trial_common_setup(scenario_name, action_limit, attempt_limit, specified_trial)
 
@@ -91,11 +91,12 @@ class SessionManager():
 
         prev_state = None
         cum_reward = 0
+        sub_cum_reward = 0
         while self.env.attempt_count < attempt_limit and self.env.logger.cur_trial.success is False:
             # self.env.render()
             state, labels = obs_space.create_discrete_observation_from_fsm(self.env.scenario)
             state = np.array(state)
-            state = np.reshape(state, [1, state_size])
+            state = np.reshape(state, [1, agent.state_size])
 
             action_idx = agent.act(state)
             # convert idx to Action object (idx -> str -> Action)
@@ -105,7 +106,7 @@ class SessionManager():
 
             next_state, next_labels = obs_space.create_discrete_observation_from_fsm(self.env.scenario)
             next_state = np.array(next_state)
-            next_state = np.reshape(next_state, [1, state_size])
+            next_state = np.reshape(next_state, [1, agent.state_size])
             # following 3 lines used to verify observations from simulator match FSM
             # next_phys_state, next_phys_labels = obs_space.create_discrete_observation_from_simulator(self.env.world_def)
             # next_phys_state = np.array(next_phys_state)
@@ -118,6 +119,7 @@ class SessionManager():
             agent.remember(state, action_idx, reward, next_state, done)
             # self.env.render()
             cum_reward += reward
+            sub_cum_reward += reward
             if done:
                 print("ID: {}, trial {}, scenario {}, episode: {}/{}, reward {}, e: {:.2}".format(self.env.logger.subject_id, trial_count, scenario_name, self.env.attempt_count, self.env.attempt_limit, cum_reward, agent.epsilon))
                 print(self.env.logger.cur_trial.attempt_seq[-1].action_seq)
@@ -130,9 +132,15 @@ class SessionManager():
                     os.makedirs(save_dir)
                 agent.save(save_dir + '/agent_t' + str(trial_count) + '_a' + str(self.env.attempt_count) + '.h5')
 
+            # save the agent's epsilon and reward (for plotting)
+            if self.env.attempt_count % agent.epsilon_save_rate == 0:
+                sub_avg_reward = sub_cum_reward / agent.epsilon_save_rate
+                agent.save_reward(sub_avg_reward)
+                sub_cum_reward = 0
+
             # replay to learn
-            if len(agent.memory) > batch_size:
-                agent.replay(batch_size)
+            if len(agent.memory) > agent.batch_size:
+                agent.replay()
 
         self.run_trial_common_finish(trial_selected)
         agent.average_reward = cum_reward / attempt_limit
@@ -146,11 +154,11 @@ class SessionManager():
         self.env.action_limit = action_limit
 
     @staticmethod
-    def write_results(logger, writer):
-        writer.write(logger)
+    def write_results(logger, writer, agent=None):
+        writer.write(logger, agent)
 
     @staticmethod
-    def finish_subject(logger, writer, human=True):
+    def finish_subject(logger, writer, human=True, agent=None):
         logger.finish(time.time())
         if human:
             strategy = SessionManager.prompt_strategy()
@@ -161,7 +169,7 @@ class SessionManager():
         logger.strategy = strategy
         logger.transfer_strategy = transfer_strategy
 
-        SessionManager.write_results(logger, writer)
+        SessionManager.write_results(logger, writer, agent)
 
     @staticmethod
     def get_trial(name, completed_trials=None):

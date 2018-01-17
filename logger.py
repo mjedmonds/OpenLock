@@ -4,6 +4,7 @@ import copy
 import jsonpickle
 import os
 import json
+import copy
 
 
 class ActionLog(object):
@@ -177,7 +178,7 @@ class SubjectWriter:
     def __init__(self, subject_path):
         self.subject_path = subject_path
 
-    def write(self, logger):
+    def write(self, logger, agent=None):
         subject_summary = jsonpickle.encode(logger)
         # json_results = self.JSONify_subject(logger)
 
@@ -191,6 +192,15 @@ class SubjectWriter:
             os.makedirs(trial_dir)
             trial_summary_filename = trial_dir + '/trial' + str(i) + '_summary.json'
             self.pretty_write(trial_summary_filename, trial_str)
+
+        # write out the RL agent
+        if agent is not None:
+            agent_cpy = copy.copy(agent)
+            del agent_cpy.memory
+            del agent_cpy.model
+            agent_file_name = self.subject_path + '/' + logger.subject_id + '_agent.json'
+            agent_str = jsonpickle.encode(agent_cpy, unpicklable=False)
+            self.pretty_write(agent_file_name, agent_str)
 
     @staticmethod
     def pretty_write(filename, json_str):

@@ -26,14 +26,22 @@ class DQNAgent:
         self.epsilon_min = 0.1
         self.epsilon_decay = 0.999999
         self.learning_rate = 0.001
+        self.epsilons = []
+        self.rewards = []
+        self.weights = [32, 64, 32]
+        self.epsilon_save_rate = 100
+        self.batch_size = 64
         self.model = self._build_model()
 
     def _build_model(self):
         # Neural Net for Deep-Q learning Model
         model = Sequential()
-        model.add(Dense(32, input_dim=self.state_size, activation='relu'))
-        model.add(Dense(64, activation='relu'))
-        model.add(Dense(32, activation='relu'))
+        # first layer
+        model.add(Dense(self.weights[0], input_dim=self.state_size, activation='relu'))
+        # add other layers
+        for i in range(1, len(self.weights)):
+            model.add(Dense(self.weights[i], activation='relu'))
+        # output layer
         model.add(Dense(self.action_size, activation='linear'))
         model.compile(loss='mse', optimizer=Adam(lr=self.learning_rate))
         return model
@@ -47,8 +55,8 @@ class DQNAgent:
         act_values = self.model.predict(state)
         return np.argmax(act_values[0])  # returns action
 
-    def replay(self, batch_size):
-        minibatch = random.sample(self.memory, batch_size)
+    def replay(self):
+        minibatch = random.sample(self.memory, self.batch_size)
         for state, action, reward, next_state, done in minibatch:
             target = reward
             if not done:
@@ -59,6 +67,10 @@ class DQNAgent:
             self.model.fit(state, target_f, epochs=1, verbose=0)
         if self.epsilon > self.epsilon_min:
             self.epsilon *= self.epsilon_decay
+
+    def save_reward(self, reward):
+        self.epsilons.append(self.epsilon)
+        self.rewards.append(reward)
 
     def load(self, name):
         self.model.load_weights(name)
@@ -89,12 +101,11 @@ if __name__ == "__main__":
         reward_mode = sys.argv[2]
 
     use_physics = False
-    batch_size = 64
 
     # RL specific settings
     params['data_dir'] = '../OpenLockRLResults/subjects'
-    params['train_attempt_limit'] = 30000
-    params['test_attempt_limit'] = 30000
+    params['train_attempt_limit'] = 3
+    params['test_attempt_limit'] = 3
 
     scenario = select_scenario(params['train_scenario_name'], use_physics=use_physics)
 
@@ -121,7 +132,7 @@ if __name__ == "__main__":
     env.reset()
 
     for trial_num in range(0, params['num_train_trials']):
-        agent = manager.run_trial_computer(agent, obs_space, params['train_scenario_name'], params['train_action_limit'], params['train_attempt_limit'], trial_num, state_size, batch_size=batch_size)
+        agent = manager.run_trial_computer(agent, obs_space, params['train_scenario_name'], params['train_action_limit'], params['train_attempt_limit'], trial_num)
 
     # testing trial
     # print "INFO: STARTING TESTING TRIAL"
@@ -130,9 +141,9 @@ if __name__ == "__main__":
         manager.update_scenario(scenario)
         manager.set_action_limit(params['test_action_limit'])
         # run testing trial with specified trial7
-        agent = manager.run_trial_computer(agent, obs_space, params['test_scenario_name'], params['test_action_limit'], params['test_attempt_limit'], params['num_train_trials'] + 1, state_size, batch_size=batch_size, specified_trial='trial7')
+        agent = manager.run_trial_computer(agent, obs_space, params['test_scenario_name'], params['test_action_limit'], params['test_attempt_limit'], params['num_train_trials'] + 1)
 
-    manager.finish_subject(manager.env.logger, manager.writer, human=False)
+    manager.finish_subject(manager.env.logger, manager.writer, human=False, agent=agent)
     print 'Training complete for subject {}'.format(env.logger.subject_id)
     sys.exit(0)
     # agent.load("./save/cartpole-dqn.h5")
