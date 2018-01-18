@@ -154,6 +154,7 @@ class ArmLockEnv(gym.Env):
         elif self.action_executing is False:
             self.action_executing = True
             self.i += 1
+            done = False
             reset = False
             observable_action = self._create_pre_obs_entry(action)
             if observable_action:
@@ -203,7 +204,6 @@ class ArmLockEnv(gym.Env):
             # must update reward before potentially reset env (env may reset based on trial status)
             reward, success = determine_reward(self, action, self.reward_mode)
 
-
             # above the allowed number of actions, need to increment the attempt count and reset the simulator
             if self.action_limit is not None and self.action_count >= self.action_limit:
 
@@ -225,13 +225,16 @@ class ArmLockEnv(gym.Env):
                     self._reset()  # reset if we are not done with this trial
                     self.logger.cur_trial.add_attempt()
                     reset = True
+                # tell agent we finished this trial
+                else:
+                    done = True
 
             self.action_executing = False
             self.state = self.get_state()
 
             # update state machine in case there was a reset
             self._update_state_machine()
-            return self.state, reward, reset, {'action_success': success}
+            return self.state, reward, done, {'action_success': success, 'env_reset': reset}
         else:
             self.state = self.get_state()
             self._update_state_machine()
