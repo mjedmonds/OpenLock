@@ -113,13 +113,13 @@ if __name__ == "__main__":
         reward_mode = sys.argv[2]
 
     use_physics = False
-    num_training_iters = 1000
+    num_training_iters = 100
     epsilon_decay = 0.99999
 
     # RL specific settings
     params['data_dir'] = '../OpenLockRLResults/subjects'
-    params['train_attempt_limit'] = 30
-    params['test_attempt_limit'] = 30
+    params['train_attempt_limit'] = 300
+    params['test_attempt_limit'] = 300
 
     scenario = select_scenario(params['train_scenario_name'], use_physics=use_physics)
 

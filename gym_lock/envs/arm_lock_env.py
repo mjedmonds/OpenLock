@@ -154,7 +154,7 @@ class ArmLockEnv(gym.Env):
         elif self.action_executing is False:
             self.action_executing = True
             self.i += 1
-            done = False
+            trial_finished = False
             reset = False
             observable_action = self._create_pre_obs_entry(action)
             if observable_action:
@@ -189,11 +189,7 @@ class ArmLockEnv(gym.Env):
             self.i += 1
 
             # update state machine after executing a action
-            print self.scenario.fsmm.latent_fsm.state
-            print self.scenario.fsmm.observable_fsm.state
             self._update_state_machine(action)
-            print self.scenario.fsmm.latent_fsm.state
-            print self.scenario.fsmm.observable_fsm.state
             self.state = self.get_state()
             self.state['SUCCESS'] = success
 
@@ -228,17 +224,15 @@ class ArmLockEnv(gym.Env):
                 if not trial_finished:
                     self._reset()  # reset if we are not done with this trial
                     self.logger.cur_trial.add_attempt()
-                    reset = True
-                # tell agent we finished this trial
-                else:
-                    done = True
+
+                reset = True
 
             self.action_executing = False
             self.state = self.get_state()
 
             # update state machine in case there was a reset
             self._update_state_machine()
-            return self.state, reward, done, {'action_success': success, 'env_reset': reset}
+            return self.state, reward, reset, {'action_success': success, 'env_reset': reset, 'trial_finished': trial_finished}
         else:
             self.state = self.get_state()
             self._update_state_machine()
