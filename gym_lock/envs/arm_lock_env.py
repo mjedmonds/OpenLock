@@ -158,26 +158,26 @@ class ArmLockEnv(gym.Env):
             reset = False
             observable_action = self._create_pre_obs_entry(action)
             if observable_action:
-                self.logger.cur_trial.cur_attempt.add_action(action.name + '_' + action.params[0])
+                self.logger.cur_trial.cur_attempt.add_action(str(action))
 
             success = False
             if self.use_physics:
                 if action.name == 'goto':
-                    success = self._action_go_to(action.params)
+                    success = self._action_go_to(action)
                 elif action.name == 'goto_obj':
-                    success = self._action_go_to_obj(action.params)
+                    success = self._action_go_to_obj(action)
                 elif action.name == 'rest':
                     success = self._action_rest()
                 elif action.name == 'pull':
-                    success = self._action_pull(action.params)
+                    success = self._action_pull(action)
                 elif action.name == 'push':
-                    success = self._action_push(action.params)
+                    success = self._action_push(action)
                 elif action.name == 'move':
-                    success = self._action_move(action.params)
+                    success = self._action_move(action)
                 elif action.name == 'move_end_frame':
-                    success = self._action_move_end_frame(action.params)
+                    success = self._action_move_end_frame(action)
                 elif action.name == 'unlock':
-                    success = self._action_unlock(action.params)
+                    success = self._action_unlock(action)
                 elif action.name == 'reset':
                     success = self._action_reset()
                 elif action.name == 'save':
@@ -189,7 +189,11 @@ class ArmLockEnv(gym.Env):
             self.i += 1
 
             # update state machine after executing a action
+            print self.scenario.fsmm.latent_fsm.state
+            print self.scenario.fsmm.observable_fsm.state
             self._update_state_machine(action)
+            print self.scenario.fsmm.latent_fsm.state
+            print self.scenario.fsmm.observable_fsm.state
             self.state = self.get_state()
             self.state['SUCCESS'] = success
 
@@ -322,8 +326,8 @@ class ArmLockEnv(gym.Env):
         entry[1:self.index_map['agent']+1] = copy.copy(self.results[-1][1:self.index_map['agent']+1])
 
         # mark action idx
-        if type(action.params[0]) is str:
-            col = '{}_{}'.format(action.name, action.params[0])
+        if type(action.obj) is str:
+            col = '{}_{}'.format(action.name, action.obj)
         else:
             col = action.name
 
@@ -494,13 +498,37 @@ class ArmLockEnv(gym.Env):
         cur_fluent = self.state['OBJ_STATES']
         return prev_fluent_state != cur_fluent
 
+    def determine_moveable_action(self, action):
+        '''
+        determines if the action is movable. Treats all active levers as movable, regardless of FSM
+        If you need to detect if the action will cause an effect, negative the determine_fluent_change function
+        :param action:
+        :return:
+        '''
+        if self.use_physics:
+            state, labels = self.obs_space.create_discrete_observation_from_simulator(self)
+        else:
+            state, labels = self.obs_space.create_discrete_observation_from_fsm(self)
+        obj_name = action.obj
+        if obj_name == 'door':
+            # door being movable depends on door lock
+            if state[labels.index('door_lock')] == 1:
+                return False
+            else:
+                return True
+        active = state[labels.index(obj_name + '_active')]
+        if active:
+            return True
+        else:
+            return False
+
     def _export_results(self):
         save_count = len(glob(self.save_path + 'results[0-9]*.csv'))
         np.savetxt(self.save_path + 'results{}.csv'.format(save_count), self.results, delimiter=',', fmt='%s')
 
-    def _action_go_to(self, config):
+    def _action_go_to(self, twod_config):
         # get configuatin of end effector
-        targ_x, targ_y, targ_theta = config
+        targ_x, targ_y, targ_theta = twod_config
 
         # draw arrow to show target location
         args = (targ_x, targ_y, targ_theta, 0.5, 1, common.Color(0.8, 0.8, 0.8))
@@ -568,7 +596,7 @@ class ArmLockEnv(gym.Env):
 
         return True
 
-    def _action_go_to_obj(self, params):
+    def _action_go_to_obj(self, obj_name):
         """
 
         Args:
@@ -577,7 +605,7 @@ class ArmLockEnv(gym.Env):
         Returns:
 
         """
-        obj = self.world_def.obj_map[params].fixture
+        obj = self.world_def.obj_map[obj_name].fixture
 
         # find face facing us by raycasting from end effector to center of fixture
         end_eff = self.world_def.end_effector_fixture
@@ -650,8 +678,9 @@ class ArmLockEnv(gym.Env):
         
         return True
 
-    def _action_pull(self, params):
-        name, distance = params
+    def _action_pull(self, action):
+        name = action.obj
+        distance = action.params
 
         if not self._action_go_to_obj(name):
             return False
@@ -675,8 +704,9 @@ class ArmLockEnv(gym.Env):
 
         return True
 
-    def _action_push(self, params):
-        name, distance = params
+    def _action_push(self, action):
+        name = action.obj
+        distance = action.params
 
         if not self._action_go_to_obj(name):
             return False
@@ -743,8 +773,8 @@ class ArmLockEnv(gym.Env):
             else:
                 return False
 
-    def _action_move(self, params):
-        delta_x, delta_y, delta_theta = params
+    def _action_move(self, action):
+        delta_x, delta_y, delta_theta = action.params
 
         cur_x, cur_y, cur_theta = self.world_def.get_abs_config()[-1]
 

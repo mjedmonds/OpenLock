@@ -38,13 +38,23 @@ class Scenario(object):
             self.levers.append(lever)
 
     def add_no_ops(self, lock, pushed, pulled):
-        # add no-ops for when lock condition is not satisfied
-        no_op_pulled = [s for s in self.fsmm.observable_fsm.state_permutations if s not in pulled]
-        no_op_pushed = [s for s in self.fsmm.observable_fsm.state_permutations if s not in pushed]
-        for state in no_op_pulled:
+        # add transitions from state back to same state when performing an action that already matches the state
+        for state in pulled:
             self.fsmm.observable_fsm.machine.add_transition('pull_{}'.format(lock), state, state)
-        for state in no_op_pushed:
+        for state in pushed:
             self.fsmm.observable_fsm.machine.add_transition('push_{}'.format(lock), state, state)
+        # generate the complement states that don't have transitions
+        comp_pulled, comp_pushed = self.generate_complement_states(lock, pushed, pulled)
+        # add transitions from state back to same state when
+        for state in comp_pushed:
+            self.fsmm.observable_fsm.machine.add_transition('pull_{}'.format(lock), state, state)
+        for state in comp_pulled:
+            self.fsmm.observable_fsm.machine.add_transition('push_{}'.format(lock), state, state)
+
+    def generate_complement_states(self, lock, pushed, pulled):
+        comp_pulled = [s for s in self.fsmm.observable_fsm.state_permutations if s not in pulled and lock + 'pulled,' in s]
+        comp_pushed = [s for s in self.fsmm.observable_fsm.state_permutations if s not in pushed and lock + 'pushed,' in s]
+        return comp_pulled, comp_pushed
 
     def add_nothing_transition(self):
         # add nothing transition
@@ -150,7 +160,7 @@ class Scenario(object):
                     else:
                         self.execute_pull(fsm_name)
             # todo, this is a dirty hack to see if the door is actually opened
-            if action is not None and action.name is 'push' and action.params[0] == 'door':
+            if action is not None and action.name is 'push' and action.obj == 'door':
                 self.push_door()
         # bypass physics, action must be specified
         else:
@@ -160,7 +170,7 @@ class Scenario(object):
     def execute_action(self, action):
         if self.use_physics:
             raise RuntimeError('Attempting to directly run FSM action without bypassing physics simulator')
-        obj_name = action.params[0]
+        obj_name = action.obj
         fsm_name = obj_name + ':'
         inactive_lock_regex = '^inactive[0-9]+$'
         # inactive levers are always no-ops in FSM
@@ -178,6 +188,7 @@ class Scenario(object):
             action = 'push_{}'.format(obj_name)
             self.fsmm.execute_action(action)
             self._update_env()
+            self.update_latent()
 
     def execute_pull(self, obj_name):
         if self.fsmm.extract_entity_state(self.fsmm.observable_fsm.state, obj_name) != 'pulled,':
@@ -185,11 +196,13 @@ class Scenario(object):
             action = 'pull_{}'.format(obj_name)
             self.fsmm.execute_action(action)
             self._update_env()
+            self.update_latent()
 
     # todo: this is a quick hack to represent actually opening the door, which is not included in any transition
     def push_door(self):
         if self.fsmm.extract_entity_state(self.fsmm.latent_fsm.state, 'door:') == 'unlocked,':
             self.door_state = common.ENTITY_STATES['DOOR_OPENED']
+            self.update_latent()
 
     def init_scenario_env(self, world_def=None):
         if self.use_physics and world_def is None:

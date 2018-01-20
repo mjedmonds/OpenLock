@@ -30,7 +30,6 @@ class LeverRole:
 
 TwoDConfig = namedtuple('Config', 'x y theta')
 TwoDForce = namedtuple('Force', 'norm tan')
-Action = namedtuple('action', 'name params') # params should be list-like or a single value
 LeverConfig = namedtuple('lever_config', 'TwoDConfig LeverRole opt_params')    # role should be an enum indicating which lever this
 
 Color = namedtuple('Color', 'r g b')
@@ -45,6 +44,16 @@ COLORS = {
     'save_button': Color(0.5, 0.9, 0.5),
     'default': Color(0.9, 0.7, 0.7),
 }
+
+
+class Action:
+    def __init__(self, name, obj, params):
+        self.name = name
+        self.obj = obj
+        self.params = params
+
+    def __str__(self):
+        return self.name + '_' + self.obj
 
 
 class Clickable(object):

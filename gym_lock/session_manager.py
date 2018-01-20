@@ -70,12 +70,13 @@ class SessionManager():
     def verify_fsm_matches_simulator(self, obs_space):
         if obs_space is None:
             obs_space = ObservationSpace(len(self.env.world_def.get_levers()))
-        state, labels = obs_space.create_discrete_observation_from_simulator(self.env.world_def)
-        fsm_state, fsm_labels = obs_space.create_discrete_observation_from_fsm(self.env.scenario)
+        state, labels = obs_space.create_discrete_observation_from_simulator(self.env)
+        fsm_state, fsm_labels = obs_space.create_discrete_observation_from_fsm(self.env)
         try:
             assert(state == fsm_state)
             assert(labels == fsm_labels)
         except AssertionError:
+            print 'FSM does not match simulator data'
             print state
             print fsm_state
             print labels
@@ -87,6 +88,9 @@ class SessionManager():
         self.env.human_agent = False
         trial_selected = self.run_trial_common_setup(scenario_name, action_limit, attempt_limit, specified_trial)
 
+        save_dir = self.writer.subject_path + '/models'
+        self.save_agent_model(save_dir, agent, iter_num, trial_count, self.env.attempt_count)
+
         print('scenario_name: {}, trial_count: {}, trial_name: {}'.format(scenario_name, trial_count, trial_selected))
 
         prev_state = None
@@ -94,7 +98,7 @@ class SessionManager():
         sub_cum_reward = 0
         while self.env.attempt_count < attempt_limit and self.env.logger.cur_trial.success is False:
             # self.env.render()
-            state, labels = obs_space.create_discrete_observation_from_fsm(self.env.scenario)
+            state, labels = obs_space.create_discrete_observation_from_fsm(self.env)
             state = np.array(state)
             state = np.reshape(state, [1, agent.state_size])
 
@@ -104,7 +108,7 @@ class SessionManager():
             # todo: env.step does not return a discrete observation
             _, reward, done, opt = self.env.step(action)
 
-            next_state, next_labels = obs_space.create_discrete_observation_from_fsm(self.env.scenario)
+            next_state, next_labels = obs_space.create_discrete_observation_from_fsm(self.env)
             next_state = np.array(next_state)
             next_state = np.reshape(next_state, [1, agent.state_size])
 
@@ -124,10 +128,7 @@ class SessionManager():
                 # break
             # save agent every 10000 attempts
             if self.env.attempt_count % 1000 == 0:
-                save_dir = self.writer.subject_path + '/models'
-                if not os.path.exists(save_dir):
-                    os.makedirs(save_dir)
-                agent.save(save_dir + '/agent_i_' + str(iter_num) + '_t' + str(trial_count) + '_a' + str(self.env.attempt_count) + '.h5')
+                self.save_agent_model(save_dir, agent, iter_num, trial_count, self.env.attempt_count)
 
             # save the agent's epsilon and reward (for plotting)
             if self.env.attempt_count % agent.epsilon_save_rate == 0:
@@ -152,6 +153,12 @@ class SessionManager():
 
     def print_update(self, iter_num, trial_num, scenario_name, episode, episode_max, reward, cum_reward, epsilon):
         print("ID: {}, iter {}, trial {}, scenario {}, episode: {}/{}, reward {}, cum_reward {}, e: {:.2}".format(self.env.logger.subject_id, iter_num, trial_num, scenario_name, episode, episode_max, reward, cum_reward, epsilon))
+
+    @staticmethod
+    def save_agent_model(save_dir, agent, iter_num, trial_count, attempt_count):
+        if not os.path.exists(save_dir):
+            os.makedirs(save_dir)
+        agent.save(save_dir + '/agent_i_' + str(iter_num) + '_t' + str(trial_count) + '_a' + str(attempt_count) + '.h5')
 
     @staticmethod
     def write_results(logger, writer, agent=None):

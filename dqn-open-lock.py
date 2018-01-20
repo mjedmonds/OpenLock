@@ -29,7 +29,7 @@ class DQNAgent:
         self.learning_rate = 0.001
         self.epsilons = []
         self.rewards = []
-        self.weights = [32, 64, 32]
+        self.weights = [64, 64]
         self.epsilon_save_rate = 100
         self.batch_size = 64
         self.num_training_iters = num_training_iters
@@ -113,7 +113,7 @@ if __name__ == "__main__":
         reward_mode = sys.argv[2]
 
     use_physics = False
-    num_training_iters = 3000
+    num_training_iters = 1000
     epsilon_decay = 0.99999
 
     # RL specific settings
@@ -184,7 +184,7 @@ if __name__ == "__main__":
     #
     # for e in range(EPISODES):
     #     env.reset()
-    #     state = obs_space.create_discrete_observation_from_state(env.world_def)
+    #     state = obs_space.create_discrete_observation_from_state(env)
     #     state = np.reshape(state, [1, state_size])
     #     for time in range(500):
     #         # env.render()

@@ -6,6 +6,7 @@ import gym_lock.common as common
 from gym.spaces import MultiDiscrete
 
 
+# todo: merge this file into arm_lock_env.py
 class ActionSpace:
 
     def __init__(self):
@@ -30,14 +31,14 @@ class ActionSpace:
                 push_action_space[lever_idx] = push
                 pull_action_space[lever_idx] = pull
 
-                action_map[push] = common.Action('push', (obj, 4))
-                action_map[pull] = common.Action('pull', (obj, 4))
+                action_map[push] = common.Action('push', obj, 4)
+                action_map[pull] = common.Action('pull', obj, 4)
             if 'button' not in obj and 'door' in obj:
                 push = 'push_{}'.format(obj)
 
                 door_action_space.append(push)
 
-                action_map[push] = common.Action('push', (obj, 4))
+                action_map[push] = common.Action('push', obj, 4)
 
         action_space = push_action_space + pull_action_space + door_action_space
 
@@ -46,14 +47,21 @@ class ActionSpace:
 
 class ObservationSpace:
 
-    def __init__(self, num_levers):
-        self.multi_discrete = self.create_observation_space(num_levers)
+    def __init__(self, num_levers, append_solutions_remaining=True):
+        self.append_solutions_remaining = append_solutions_remaining
+        self.solutions_found = [0, 0, 0]
+        self.labels = ['sln0', 'sln1', 'sln2']
+
+        if self.append_solutions_remaining:
+            self.multi_discrete = self.create_observation_space(num_levers, len(self.solutions_found))
+        else:
+            self.multi_discrete = self.create_observation_space(num_levers)
         self.num_levers = num_levers
         self.state = None
         self.state_labels = None
 
     @staticmethod
-    def create_observation_space(num_levers):
+    def create_observation_space(num_levers, num_solutions=0):
         discrete_space = []
         # first num_levers represent the state of the levers
         for i in range(num_levers):
@@ -63,18 +71,21 @@ class ObservationSpace:
             discrete_space.append([0, 1])
         discrete_space.append([0, 1])       # door lock
         discrete_space.append([0, 1])       # door open
+        # solutions appended
+        for i in range(num_solutions):
+            discrete_space.append([0, 1])
         multi_discrete = MultiDiscrete(discrete_space)
         return multi_discrete
 
-    def create_discrete_observation_from_simulator(self, world_def):
+    def create_discrete_observation_from_simulator(self, env):
         '''
         Constructs a discrete observation from the physics simulator
         :param world_def:
         :return:
         '''
-        levers = world_def.get_levers()
+        levers = env.world_def.get_levers()
         self.num_levers = len(levers)
-        world_state = world_def.get_state()
+        world_state = env.world_def.get_state()
 
         # need one element for state and color of each lock, need two addition for door lock status and door status
         self.state = [None] * (self.num_levers * 2 + 2)
@@ -97,18 +108,23 @@ class ObservationSpace:
         self.state_labels[-2] = 'door_lock'
         self.state[-2] = np.int8(world_state['OBJ_STATES']['door_lock'])
 
+        if self.append_solutions_remaining:
+            slns_found, sln_labels = self.determine_solutions_remaining(env)
+            self.state.extend(slns_found)
+            self.state_labels.extend(sln_labels)
+
         return self.state, self.state_labels
 
-    def create_discrete_observation_from_fsm(self, scenario):
+    def create_discrete_observation_from_fsm(self, env):
         '''
         constructs a discrete observation from the underlying FSM
         Used when the physics simulator is being bypassed
         :param fsmm:
         :return:
         '''
-        levers = scenario.levers
+        levers = env.scenario.levers
         self.num_levers = len(levers)
-        scenario_state = scenario.get_state()
+        scenario_state = env.scenario.get_state()
 
         # need one element for state and color of each lock, need two addition for door lock status and door status
         self.state = [None] * (self.num_levers * 2 + 2)
@@ -147,4 +163,20 @@ class ObservationSpace:
         self.state_labels[-2] = door_lock_name
         self.state[-2] = door_lock_state
 
+        if self.append_solutions_remaining:
+            slns_found, sln_labels = self.determine_solutions_remaining(env)
+            self.state.extend(slns_found)
+            self.state_labels.extend(sln_labels)
+
         return self.state, self.state_labels
+
+    def determine_solutions_remaining(self, env):
+        # todo: this is hardcored to scenarios with a max of 3 solutions
+        solutions = env.logger.cur_trial.solutions
+        completed_solutions = env.logger.cur_trial.completed_solutions
+        for i in range(len(completed_solutions)):
+            idx = solutions.index(completed_solutions[i])
+            # mark that this solution is finished
+            self.solutions_found[idx] = 1
+
+        return self.solutions_found, self.labels

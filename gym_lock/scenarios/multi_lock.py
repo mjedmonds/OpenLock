@@ -189,21 +189,22 @@ class MultiLockScenario(object):
     #     # return cartesian_product(observable_v_list, door_list)
     #     return observable_v_list, latent_v_list
 
-action_script = [common.Action('push_', ('l2', 4)),  # try to unlock l2, but it doesn't budge!
-                 common.Action('pull_', ('l2', 4)),  # try pulling l2 instead, still won't budge
-                 common.Action('push_', ('l0', 4)),  # unlock l0
-                 common.Action('push_', ('l1', 4)),  # unlock l1
-                 common.Action('push_', ('l2', 4)),  # try to unlock l2, but it still doesn't budge!
-                 common.Action('pull_', ('l2', 4)),  # try pulling l2 instead, it works
-                 common.Action('push_', ('door', 4)),  # open the door
-                 common.Action('pull_', ('l1', 4)),  # lock l1 (door locks too!)
-                 common.Action('push_', ('l2', 4)),  # try to move l2 again
-                 common.Action('pull_', ('l2', 4)),  # and it now doesn't work because l1 is locked!
-                 common.Action('push_', ('l1', 4)),  # so let's re-unlock l1 (re-unlocks door!)
-                 common.Action('pull_', ('door', 1)),  # close the door
-                 common.Action('pull_', ('door', 1)),
-                 common.Action('pull_', ('door', 1)),
-                 common.Action('push_', ('l2', 4)),  # then re-lock l2
-                 common.Action('pull_', ('l1', 4)),  # re-lock l1
-                 common.Action('pull_', ('l0', 4))]  # re-lock l0
+action_script = [common.Action('push_', 'l2', 4),  # try to unlock l2, but it doesn't budge!
+                 common.Action('pull_', 'l2', 4),  # try pulling l2 instead, still won't budge
+                 common.Action('push_', 'l0', 4),  # unlock l0
+                 common.Action('push_', 'l1', 4),  # unlock l1
+                 common.Action('push_', 'l2', 4),  # try to unlock l2, but it still doesn't budge!
+                 common.Action('pull_', 'l2', 4),  # try pulling l2 instead, it works
+                 common.Action('push_', 'door', 4),  # open the door
+                 common.Action('pull_', 'l1', 4),  # lock l1 (door locks too!)
+                 common.Action('push_', 'l2', 4),  # try to move l2 again
+                 common.Action('pull_', 'l2', 4),  # and it now doesn't work because l1 is locked!
+                 common.Action('push_', 'l1', 4),  # so let's re-unlock l1 (re-unlocks door!)
+                 common.Action('pull_', 'door', 1),  # close the door
+                 common.Action('pull_', 'door', 1),
+                 common.Action('pull_', 'door', 1),
+                 common.Action('push_', 'l2', 4),  # then re-lock l2
+                 common.Action('pull_', 'l1', 4),  # re-lock l1
+                 common.Action('pull_', 'l0', 4)]  # re-lock l0
+
 
