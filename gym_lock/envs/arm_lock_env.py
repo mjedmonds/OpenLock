@@ -243,7 +243,9 @@ class ArmLockEnv(gym.Env):
                 discrete_state, discrete_labels = self.observation_space.create_discrete_observation_from_simulator(self)
             else:
                 discrete_state, discrete_labels = self.observation_space.create_discrete_observation_from_fsm(self)
-            return np.array(discrete_state), reward, reset, {'action_success': success, 'env_reset': reset, 'trial_finished': trial_finished, 'state_labels': discrete_labels}
+            # set done = trial_finished to have done signaled to agent when trials end
+            # set done = reset to have done signaled to agent every time env resets
+            return np.array(discrete_state), reward, trial_finished, {'action_success': success, 'env_reset': reset, 'trial_finished': trial_finished, 'state_labels': discrete_labels}
         else:
             self.state = self.get_state()
             self._update_state_machine()

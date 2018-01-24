@@ -5,6 +5,7 @@ import numpy as np
 import sys
 import os
 import json
+from distutils.dir_util import copy_tree
 from matplotlib import pyplot as plt
 from collections import deque
 from keras.models import Sequential
@@ -36,10 +37,15 @@ class DQNAgent:
         self.rewards = []
         self.trial_switch_points = []
         self.average_trial_rewards = []
-        self.weights = [('dense', 128),
-                        ('dropout', 0.5),
+        self.weights = [
                         ('dense', 128),
-                        ('dropout', 0.5)]
+                        # ('dropout', 0.5),
+                        ('dense', 128),
+                        # ('dropout', 0.5)
+                        ('dense', 128),
+                        # ('dropout', 0.5)
+                        ('dense', 128),
+                        ]
         self.epsilon_save_rate = 100
         self.batch_size = 64
         self.num_training_iters = num_training_iters
@@ -131,8 +137,8 @@ def main():
 
     # RL specific settings
     params['data_dir'] = '../OpenLockRLResults/subjects'
-    params['train_attempt_limit'] = 3000
-    params['test_attempt_limit'] = 3000
+    params['train_attempt_limit'] = 300
+    params['test_attempt_limit'] = 300
 
     scenario = select_scenario(params['train_scenario_name'], use_physics=use_physics)
 
@@ -147,8 +153,12 @@ def main():
                                                     action_limit=params['train_action_limit'],
                                                     attempt_limit=params['train_attempt_limit'])
 
+    # copy the entire code base; this is unnecessary but prevents worrying about a particular
+    # source code version when trying to reproduce exact parameters
+    copy_tree('./', manager.writer.subject_path + '/src/')
+
     # set up observation space
-    env.observation_space = ObservationSpace(len(scenario.levers))
+    env.observation_space = ObservationSpace(len(scenario.levers), append_solutions_remaining=False)
 
     # set reward mode
     env.reward_mode = reward_mode

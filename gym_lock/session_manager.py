@@ -110,7 +110,6 @@ class SessionManager():
             action_idx = agent.act(state)
             # convert idx to Action object (idx -> str -> Action)
             action = self.env.action_map[self.env.action_space[action_idx]]
-            # todo: env.step does not return a discrete observation
             next_state, reward, done, opt = self.env.step(action)
 
             next_state = np.reshape(next_state, [1, agent.state_size])
