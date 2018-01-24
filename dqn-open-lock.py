@@ -3,22 +3,27 @@ import random
 import gym
 import numpy as np
 import sys
+import os
+import json
 from matplotlib import pyplot as plt
 from collections import deque
 from keras.models import Sequential
-from keras.layers import Dense
+from keras.layers import Dense, Dropout
 from keras.optimizers import Adam
+
 # MUST IMPORT FROM gym_lock to properly register the environment
 from gym_lock.session_manager import SessionManager
 from gym_lock.settings_trial import PARAMS, IDX_TO_PARAMS
 from gym_lock.settings_scenario import select_scenario
 from gym_lock.space_manager import ObservationSpace, ActionSpace
+from gym_lock.common import plot_rewards, plot_rewards_trial_switch_points
+
 
 EPISODES = 1000
 
 
 class DQNAgent:
-    def __init__(self, state_size, action_size, epsilon_decay, num_training_iters=None):
+    def __init__(self, state_size, action_size, epsilon_decay, reward_mode, num_training_iters, params):
         self.state_size = state_size
         self.action_size = action_size
         self.memory = deque(maxlen=2000)
@@ -29,10 +34,20 @@ class DQNAgent:
         self.learning_rate = 0.001
         self.epsilons = []
         self.rewards = []
-        self.weights = [64, 64]
+        self.trial_switch_points = []
+        self.average_trial_rewards = []
+        self.weights = [('dense', 128),
+                        ('dropout', 0.5),
+                        ('dense', 128),
+                        ('dropout', 0.5)]
         self.epsilon_save_rate = 100
         self.batch_size = 64
         self.num_training_iters = num_training_iters
+        self.train_attempt_limit = params['train_attempt_limit']
+        self.train_action_limit = params['train_action_limit']
+        self.test_attempt_limit = params['test_attempt_limit']
+        self.test_action_limit = params['test_action_limit']
+        self.reward_mode = reward_mode
         self.model = self._build_model()
 
 
@@ -40,10 +55,13 @@ class DQNAgent:
         # Neural Net for Deep-Q learning Model
         model = Sequential()
         # first layer
-        model.add(Dense(self.weights[0], input_dim=self.state_size, activation='relu'))
+        model.add(Dense(self.weights[0][1], input_dim=self.state_size, activation='relu'))
         # add other layers
         for i in range(1, len(self.weights)):
-            model.add(Dense(self.weights[i], activation='relu'))
+            if self.weights[i][0] == 'dense':
+                model.add(Dense(self.weights[i][1], activation='relu'))
+            if self.weights[i][0] == 'dropout':
+                model.add(Dropout(self.weights[i][1]))
         # output layer
         model.add(Dense(self.action_size, activation='linear'))
         model.compile(loss='mse', optimizer=Adam(lr=self.learning_rate))
@@ -78,22 +96,16 @@ class DQNAgent:
     def load(self, name):
         self.model.load_weights(name)
 
+    def save_model(self, save_dir, filename):
+        if not os.path.exists(save_dir):
+            os.makedirs(save_dir)
+        self.save(save_dir + '/' + filename)
+
     def save(self, name):
         self.model.save_weights(name)
 
-    def plot_rewards(self, filename):
-        plt.clf()
-        last = 0
-        assert len(self.epsilons) == len(self.rewards)
-        r, = plt.plot(self.rewards, color='red', linestyle='-', label='reward')
-        e, = plt.plot(self.epsilons, color='blue', linestyle='--', alpha=0.5, label='epsilon')
-        plt.legend([r, e])
-        plt.savefig(filename)
 
-
-if __name__ == "__main__":
-
-    reward_mode = 'basic'
+def main():
     # general params
     # training params
     if len(sys.argv) < 2:
@@ -108,8 +120,9 @@ if __name__ == "__main__":
         # params = PARAMS['CC4']
     else:
         setting = sys.argv[1]
-        params = PARAMS[IDX_TO_PARAMS[int(setting)-1]]
-        print('training_scenario: {}, testing_scenario: {}'.format(params['train_scenario_name'], params['test_scenario_name']))
+        params = PARAMS[IDX_TO_PARAMS[int(setting) - 1]]
+        print('training_scenario: {}, testing_scenario: {}'.format(params['train_scenario_name'],
+                                                                   params['test_scenario_name']))
         reward_mode = sys.argv[2]
 
     use_physics = False
@@ -118,8 +131,8 @@ if __name__ == "__main__":
 
     # RL specific settings
     params['data_dir'] = '../OpenLockRLResults/subjects'
-    params['train_attempt_limit'] = 300
-    params['test_attempt_limit'] = 300
+    params['train_attempt_limit'] = 3000
+    params['test_attempt_limit'] = 3000
 
     scenario = select_scenario(params['train_scenario_name'], use_physics=use_physics)
 
@@ -135,30 +148,32 @@ if __name__ == "__main__":
                                                     attempt_limit=params['train_attempt_limit'])
 
     # set up observation space
-    obs_space = ObservationSpace(len(scenario.levers))
-    env.observation_space = obs_space.multi_discrete
+    env.observation_space = ObservationSpace(len(scenario.levers))
 
+    # set reward mode
     env.reward_mode = reward_mode
     print 'Reward mode: {}'.format(env.reward_mode)
 
-    state_size = obs_space.multi_discrete.shape
+    state_size = env.observation_space.multi_discrete.shape
     action_size = len(env.action_space)
-    agent = DQNAgent(state_size, action_size, epsilon_decay, num_training_iters)
+    agent = DQNAgent(state_size, action_size, epsilon_decay, reward_mode, num_training_iters, params)
     env.reset()
 
     # train over multiple iterations over all trials
     for iter_num in range(num_training_iters):
         manager.completed_trials = []
         for trial_num in range(0, params['num_train_trials']):
-            agent = manager.run_trial_computer(agent=agent,
-                                               obs_space=obs_space,
-                                               scenario_name=params['train_scenario_name'],
-                                               action_limit=params['train_action_limit'],
-                                               attempt_limit=params['train_attempt_limit'],
-                                               trial_count=trial_num,
-                                               iter_num=iter_num)
+            agent = manager.run_trial_dqn(agent=agent,
+                                          scenario_name=params['train_scenario_name'],
+                                          action_limit=params['train_action_limit'],
+                                          attempt_limit=params['train_attempt_limit'],
+                                          trial_count=trial_num,
+                                          iter_num=iter_num)
 
-    agent.plot_rewards(manager.writer.subject_path + '/training_rewards.png')
+    plot_rewards(agent.rewards, agent.epsilons, manager.writer.subject_path + '/training_rewards.png')
+    plot_rewards_trial_switch_points(agent.rewards, agent.epsilons, agent.trial_switch_points, manager.writer.subject_path + '/training_rewards_switch_points.png', plot_xticks=False)
+    agent.test_start_idx = len(agent.rewards)
+    agent.save_model(manager.writer.subject_path + '/models', '/training_final.h5')
 
     # testing trial
     # print "INFO: STARTING TESTING TRIAL"
@@ -167,38 +182,30 @@ if __name__ == "__main__":
         manager.update_scenario(scenario)
         manager.set_action_limit(params['test_action_limit'])
         # run testing trial with specified trial7
-        agent = manager.run_trial_computer(agent=agent,
-                                           obs_space=obs_space,
-                                           scenario_name=params['test_scenario_name'],
-                                           action_limit=params['test_action_limit'],
-                                           attempt_limit=params['test_attempt_limit'],
-                                           trial_count=params['num_train_trials'] + 1,
-                                           iter_num=0)
+        agent = manager.run_trial_dqn(agent=agent,
+                                      scenario_name=params['test_scenario_name'],
+                                      action_limit=params['test_action_limit'],
+                                      attempt_limit=params['test_attempt_limit'],
+                                      trial_count=params['num_train_trials'] + 1,
+                                      iter_num=0,
+                                      specified_trial='trial7',
+                                      testing=True)
 
+        plot_rewards(agent.rewards[agent.test_start_idx:], agent.epsilons[agent.test_start_idx:], manager.writer.subject_path + '/testing_rewards.png', width=6, height=6)
+    agent.save_model(manager.writer.subject_path + '/models', '/testing_final.h5')
     manager.finish_subject(manager.env.logger, manager.writer, human=False, agent=agent)
-    print 'Training complete for subject {}'.format(env.logger.subject_id)
-    sys.exit(0)
-    # agent.load("./save/cartpole-dqn.h5")
-    # done = False
-    # batch_size = 32
-    #
-    # for e in range(EPISODES):
-    #     env.reset()
-    #     state = obs_space.create_discrete_observation_from_state(env)
-    #     state = np.reshape(state, [1, state_size])
-    #     for time in range(500):
-    #         # env.render()
-    #         action = agent.act(state)
-    #         next_state, reward, done, _ = env.step(action)
-    #         reward = reward if not done else -10
-    #         next_state = np.reshape(next_state, [1, state_size])
-    #         agent.remember(state, action, reward, next_state, done)
-    #         state = next_state
-    #         if done:
-    #             print("episode: {}/{}, score: {}, e: {:.2}"
-    #                   .format(e, EPISODES, time, agent.epsilon))
-    #             break
-    #     if len(agent.memory) > batch_size:
-    #         agent.replay(batch_size)
-    #     # if e % 10 == 0:
-    #     #     agent.save("./save/cartpole-dqn.h5")
+    print 'Training & testing complete for subject {}'.format(env.logger.subject_id)
+
+
+def replot_training_results(path):
+    agent_json = json.load(open(path))
+    agent_folder = os.path.dirname(path)
+    plot_rewards(agent_json['rewards'], agent_json['epsilons'], agent_folder + '/reward_plot.png')
+
+
+if __name__ == "__main__":
+    # agent_path = '../OpenLockRLResults/negative_immovable_partial_seq/2014838386/2014838386_agent.json'
+    # replot_training_results(agent_path)
+    main()
+
+

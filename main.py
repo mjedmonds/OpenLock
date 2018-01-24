@@ -53,6 +53,7 @@ if __name__ == '__main__':
 
     scenario = select_scenario(params['train_scenario_name'])
     env = gym.make('arm_lock-v0')
+    env.reward_mode = 'negative_immovable_partial_action_seq'
     # create session/trial/experiment manager
     manager = SessionManager(env, params)
     manager.update_scenario(scenario)

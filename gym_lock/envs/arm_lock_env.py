@@ -14,7 +14,7 @@ from gym_lock.envs.world_defs.arm_lock_def import ArmLockDef
 from gym_lock.kine import KinematicChain, discretize_path, InverseKinematics, generate_five_arm, TwoDKinematicTransform
 from gym_lock.settings_render import RENDER_SETTINGS, BOX2D_SETTINGS, ENV_SETTINGS
 from gym_lock.space_manager import ActionSpace, ObservationSpace
-from gym_lock.rewards import determine_reward, REWARD_NONE, REWARD_OPEN
+from gym_lock.rewards import determine_reward, REWARD_IMMOVABLE, REWARD_OPEN
 
 from glob import glob
 
@@ -52,7 +52,7 @@ class ArmLockEnv(gym.Env):
         self.reward_mode = 'basic'
 
         self.observation_space = None
-        self.reward_range = (REWARD_NONE, REWARD_OPEN)
+        self.reward_range = (REWARD_IMMOVABLE, REWARD_OPEN)
 
         self.use_physics = True
 
@@ -119,9 +119,16 @@ class ArmLockEnv(gym.Env):
         
         self._update_state_machine()
 
-        return self.state
+        if self.observation_space is not None:
+            if self.use_physics:
+                discrete_state, discrete_labels = self.observation_space.create_discrete_observation_from_simulator(self)
+            else:
+                discrete_state, discrete_labels = self.observation_space.create_discrete_observation_from_fsm(self)
+            return np.array(discrete_state)
+        else:
+            return None
 
-    def _step(self, action):
+    def _step(self, action, multithreaded=False):
         """Run one __timestep of the environment's dynamics. When end of
         episode is reached, you are responsible for calling `reset()`
         to reset this environment's state.
@@ -211,7 +218,7 @@ class ArmLockEnv(gym.Env):
                 attempt_success = self.logger.cur_trial.finish_attempt(results=self.results)
 
                 # update the user about their progress
-                trial_finished, pause = self._update_user(attempt_success)
+                trial_finished, pause = self._update_user(attempt_success, multithreaded)
 
                 # pauses if the human user unlocked the door but didn't push on the door
                 if self.use_physics and self.human_agent and pause:
@@ -232,7 +239,11 @@ class ArmLockEnv(gym.Env):
 
             # update state machine in case there was a reset
             self._update_state_machine()
-            return self.state, reward, reset, {'action_success': success, 'env_reset': reset, 'trial_finished': trial_finished}
+            if self.use_physics:
+                discrete_state, discrete_labels = self.observation_space.create_discrete_observation_from_simulator(self)
+            else:
+                discrete_state, discrete_labels = self.observation_space.create_discrete_observation_from_fsm(self)
+            return np.array(discrete_state), reward, reset, {'action_success': success, 'env_reset': reset, 'trial_finished': trial_finished, 'state_labels': discrete_labels}
         else:
             self.state = self.get_state()
             self._update_state_machine()
@@ -373,27 +384,31 @@ class ArmLockEnv(gym.Env):
     def _update_state_machine(self, action=None):
         self.scenario.update_state_machine(action)
    
-    def _update_user(self, attempt_success):
+    def _update_user(self, attempt_success, multithreaded=False):
         pause = False
         # continue or end trial
         if self.logger.cur_trial.success is True:
-            print "INFO: You found all of the solutions. Ending trial."
+            if not multithreaded:
+                print "INFO: You found all of the solutions. Ending trial."
             trial_finished = True
             pause = True            # pause if they open the door
         elif self.attempt_count < self.attempt_limit:
             # alert user to the number of solutions remaining
             if attempt_success is True:
-                print "INFO: You found a solution. There are {} unique solutions remaining.".format(self.logger.cur_trial.num_solutions_remaining)
+                if not multithreaded:
+                    print "INFO: You found a solution. There are {} unique solutions remaining.".format(self.logger.cur_trial.num_solutions_remaining)
                 pause = True            # pause if they open the door
             else:
-                print "INFO: Ending attempt. Action limit reached. There are {} unique solutions remaining. You have {} attempts remaining.".format(self.logger.cur_trial.num_solutions_remaining, self.attempt_limit - self.attempt_count)
+                if not multithreaded:
+                    print "INFO: Ending attempt. Action limit reached. There are {} unique solutions remaining. You have {} attempts remaining.".format(self.logger.cur_trial.num_solutions_remaining, self.attempt_limit - self.attempt_count)
                 # pause if the door lock is missing and the agent is a human
                 if self.human_agent and self.get_state()['OBJ_STATES']['door_lock'] is False:
                     pause = True
             trial_finished = False
         else:
-            print "INFO: Ending trial. Attempt limit reached. You found {} unique solutions".format(
-                len(self.logger.cur_trial.solutions) - self.logger.cur_trial.num_solutions_remaining)
+            if not multithreaded:
+                print "INFO: Ending trial. Attempt limit reached. You found {} unique solutions".format(
+                    len(self.logger.cur_trial.solutions) - self.logger.cur_trial.num_solutions_remaining)
             trial_finished = True
 
         return trial_finished, pause
@@ -407,7 +422,6 @@ class ArmLockEnv(gym.Env):
         self.invkine = InverseKinematics(KinematicChain(self.base, initial_config),
                                          KinematicChain(self.base, initial_config))
 
-    
     def _print_observation(self, state, count):
         print str(count) + ': ' + str(state['OBJ_STATES'])
         print str(count) + ': ' + str(state['_FSM_STATE'])
@@ -515,6 +529,22 @@ class ArmLockEnv(gym.Env):
             return True
         else:
             return False
+
+    def determine_partial_seq(self):
+        # order matters, so we need to compare element by element
+        cur_action_seq = self.logger.cur_trial.cur_attempt.action_seq
+        solutions = self.logger.cur_trial.solutions
+        for solution in solutions:
+            comparison = [solution[i] == cur_action_seq[i] for i in range(len(cur_action_seq))]
+            if all(comparison):
+                return True
+        return False
+
+    def determine_repeated_action(self):
+        cur_action_seq = self.logger.cur_trial.cur_attempt.action_seq
+        if len(cur_action_seq) >= 2 and cur_action_seq[-2] == cur_action_seq[-1]:
+            return True
+        return False
 
     def _export_results(self):
         save_count = len(glob(self.save_path + 'results[0-9]*.csv'))
@@ -680,7 +710,6 @@ class ArmLockEnv(gym.Env):
             return False
 
         if not self._action_grasp():
-            print 'no'
             return False
         
         cur_x, cur_y, cur_theta = self.world_def.get_abs_config()[-1]

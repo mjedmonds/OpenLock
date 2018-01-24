@@ -3,6 +3,8 @@ from gym_lock.common import ENTITY_STATES
 REWARD_NONE = 0
 REWARD_CHANGE_OBS = 0.5
 REWARD_IMMOVABLE = -0.5
+REWARD_REPEATED_ACTION = -0.25
+REWARD_PARTIAL_SEQ = 1
 REWARD_UNLOCK = 10
 REWARD_OPEN = 50
 
@@ -10,16 +12,43 @@ REWARD_OPEN = 50
 def determine_reward(env, action, reward_mode):
     # todo: this reward does not consider whether or not the action sequence has been finished before
     # todo: success also has the same limitation
+    reward = 0
+    success = door_open(env, action)
     if reward_mode == 'basic':
-        return reward_basic(env, action)
-    if reward_mode == 'change_state':
-        return reward_change_state(env, action)
-    if reward_mode == 'unique_solutions':
-        return reward_unique_solution(env, action)
-    if reward_mode == 'change_state_unique_solutions':
-        return reward_change_state_unique_solution(env, action)
-    if reward_mode == 'negative_immovable_unique_solutions':
-        return reward_negative_immovable_unique_solutions(env, action)
+        reward = reward_basic(env, action)
+    elif reward_mode == 'change_state':
+        reward = reward_change_state(env, action)
+    elif reward_mode == 'unique_solutions':
+        reward = reward_unique_solution(env, action)
+    elif reward_mode == 'change_state_unique_solutions':
+        reward = reward_change_state_unique_solution(env, action)
+    elif reward_mode == 'negative_immovable_unique_solutions':
+        reward = reward_negative_immovable_unique_solutions(env, action)
+    elif reward_mode == 'negative_immovable':
+        reward = reward_negative_immovable(env, action)
+    elif reward_mode == 'negative_immovable_partial_action_seq':
+        reward = reward_negative_immovable_partial_seq(env, action)
+    elif reward_mode == 'negative_immovable_negative_repeat':
+        reward = reward_negative_immovable_negative_repeat(env, action)
+    else:
+        raise ValueError('Unknown reward function mode: %s'.format(reward_mode))
+
+    return reward, success
+
+
+def door_open(env, action):
+    if door_unlocked(env) and action.name is 'push' and action.obj is 'door':
+        return True
+    else:
+        return False
+
+
+def door_unlocked(env):
+    door_lock_state = env.get_state()['OBJ_STATES']['door_lock']
+    if door_lock_state == ENTITY_STATES['DOOR_UNLOCKED']:
+        return True
+    else:
+        return False
 
 
 def reward_basic(env, action):
@@ -28,21 +57,16 @@ def reward_basic(env, action):
     Give reward of REWARD_OPEN for opening the door
     Give reward of REWARD_NONE for anything else
     '''
-    success = False
-    door_lock_state = env.get_state()['OBJ_STATES']['door_lock']
-    door_unlocked = door_lock_state == ENTITY_STATES['DOOR_UNLOCKED']
     # door unlocked and pushed on door
-    if door_unlocked and action.name is 'push' and action.obj is 'door':
+    if door_open(env, action):
         reward = REWARD_OPEN
-        success = True
     # door unlocked
-    elif door_unlocked:
+    elif door_unlocked(env):
         reward = REWARD_UNLOCK
     # door locked
     else:
         reward = REWARD_NONE
-
-    return reward, success
+    return reward
 
 
 def reward_change_state(env, action):
@@ -52,15 +76,11 @@ def reward_change_state(env, action):
     Give reward of REWARD_CHANGE_OBS for chanding the observation state
     Give reward of REWARD_NONE for anything else
     '''
-    success = False
-    door_lock_state = env.get_state()['OBJ_STATES']['door_lock']
-    door_unlocked = door_lock_state == ENTITY_STATES['DOOR_UNLOCKED']
     # door unlocked, push_door
-    if door_unlocked and action.name is 'push' and action.obj is 'door':
+    if door_open(env, action):
         reward = REWARD_OPEN
-        success = True
     # door unlocked
-    elif door_unlocked:
+    elif door_unlocked(env):
         reward = REWARD_UNLOCK
     # state change
     elif env.determine_fluent_change():
@@ -68,8 +88,7 @@ def reward_change_state(env, action):
     # door locked, no state change
     else:
         reward = REWARD_NONE
-
-    return reward, success
+    return reward
 
 
 def reward_unique_solution(env, action):
@@ -79,22 +98,17 @@ def reward_unique_solution(env, action):
     Give reward of REWARD_CHANGE_OBS for chanding the observation state
     Give reward of REWARD_NONE for anything else
     '''
-    success = False
     unique_seq = env.logger.cur_trial.determine_unique()
-    door_lock_state = env.get_state()['OBJ_STATES']['door_lock']
-    door_unlocked = door_lock_state == ENTITY_STATES['DOOR_UNLOCKED']
     # door unlocked, push_door
-    if door_unlocked and action.name is 'push' and action.obj is 'door' and unique_seq:
+    if door_open(env, action) and unique_seq:
         reward = REWARD_OPEN
-        success = True
     # door unlocked, unique solution
-    elif door_unlocked and unique_seq:
+    elif door_unlocked(env) and unique_seq:
         reward = REWARD_UNLOCK
     # door locked, no state change
     else:
         reward = REWARD_NONE
-
-    return reward, success
+    return reward
 
 
 def reward_change_state_unique_solution(env, action):
@@ -104,16 +118,12 @@ def reward_change_state_unique_solution(env, action):
     Give reward of REWARD_CHANGE_OBS for chanding the observation state
     Give reward of REWARD_NONE for anything else
     '''
-    success = False
     unique_seq = env.logger.cur_trial.determine_unique()
-    door_lock_state = env.get_state()['OBJ_STATES']['door_lock']
-    door_unlocked = door_lock_state == ENTITY_STATES['DOOR_UNLOCKED']
     # door locked, state change
-    if door_unlocked and action.name is 'push' and action.obj is 'door' and unique_seq:
+    if door_open(env, action) and unique_seq:
         reward = REWARD_OPEN
-        success = True
     # door unlocked
-    elif door_unlocked and unique_seq:
+    elif door_unlocked(env) and unique_seq:
         reward = REWARD_UNLOCK
     # state change
     elif env.determine_fluent_change():
@@ -121,26 +131,22 @@ def reward_change_state_unique_solution(env, action):
     # door locked, no state change
     else:
         reward = REWARD_NONE
+    return reward
 
-    return reward, success
 
 def reward_negative_immovable_unique_solutions(env, action):
     '''
     Give reward of REWARD_UNLOCK for unlocking the door with a new action sequence
     Give reward of REWARD_OPEN for opening the door with a new action sequence
-    Give reward of REWARD_CHANGE_OBS for chanding the observation state
+    Give reward of REWARD_IMMOVABLE for interacting with a lever that cannot move
     Give reward of REWARD_NONE for anything else
     '''
-    success = False
     unique_seq = env.logger.cur_trial.determine_unique()
-    door_lock_state = env.get_state()['OBJ_STATES']['door_lock']
-    door_unlocked = door_lock_state == ENTITY_STATES['DOOR_UNLOCKED']
     # door locked, state change
-    if door_unlocked and action.name is 'push' and action.obj is 'door' and unique_seq:
+    if door_open(env, action) and unique_seq:
         reward = REWARD_OPEN
-        success = True
     # door unlocked
-    elif door_unlocked and unique_seq:
+    elif door_unlocked(env) and unique_seq:
         reward = REWARD_UNLOCK
     # determine if movable
     elif action.obj is not 'door' and not env.determine_moveable_action(action):
@@ -148,8 +154,78 @@ def reward_negative_immovable_unique_solutions(env, action):
     # door locked, no state change
     else:
         reward = REWARD_NONE
-
-    return reward, success
-
+    return reward
 
 
+def reward_negative_immovable(env, action):
+    '''
+    Give reward of REWARD_UNLOCK for unlocking the door with a new action sequence
+    Give reward of REWARD_OPEN for opening the door with a new action sequence
+    Give reward of REWARD_IMMOVABLE for interacting with a lever that cannot move
+    Give reward of REWARD_NONE for anything else
+    '''
+    # door locked, state change
+    if door_open(env, action):
+        reward = REWARD_OPEN
+    # door unlocked
+    elif door_unlocked(env):
+        reward = REWARD_UNLOCK
+    # determine if movable
+    elif action.obj is not 'door' and not env.determine_moveable_action(action):
+        reward = REWARD_IMMOVABLE
+    # door locked, no state change
+    else:
+        reward = REWARD_NONE
+    return reward
+
+
+def reward_negative_immovable_partial_seq(env, action):
+    '''
+    Give reward of REWARD_UNLOCK for unlocking the door with a new action sequence
+    Give reward of REWARD_OPEN for opening the door with a new action sequence
+    Give reward of REWARD_IMMOVABLE for interacting with a lever that cannot move
+    Give reward of REWARD_PARTIAL_SEQ for any partial subsquence
+    Give reward of REWARD_NONE for anything else
+    '''
+    # door locked, state change
+    if door_open(env, action):
+        reward = REWARD_OPEN
+    # door unlocked
+    elif door_unlocked(env):
+        reward = REWARD_UNLOCK
+    # determine if partial subsequence of a solution action seq
+    elif env.determine_partial_seq():
+        reward = REWARD_PARTIAL_SEQ
+    # determine if movable
+    elif action.obj is not 'door' and not env.determine_moveable_action(action):
+        reward = REWARD_IMMOVABLE
+    # door locked, no state change
+    else:
+        reward = REWARD_NONE
+    return reward
+
+
+def reward_negative_immovable_negative_repeat(env, action):
+    '''
+    Give reward of REWARD_UNLOCK for unlocking the door with a new action sequence
+    Give reward of REWARD_OPEN for opening the door with a new action sequence
+    Give reward of REWARD_IMMOVABLE for interacting with a lever that cannot move
+    Give reward of REWARD_PARTIAL_SEQ for any partial subsquence
+    Give reward of REWARD_NONE for anything else
+    '''
+    # door locked, state change
+    if door_open(env, action):
+        reward = REWARD_OPEN
+    # door unlocked
+    elif door_unlocked(env):
+        reward = REWARD_UNLOCK
+    # determine if partial subsequence of a solution action seq
+    elif env.determine_repeated_action():
+        reward = REWARD_REPEATED_ACTION
+    # determine if movable
+    elif action.obj is not 'door' and not env.determine_moveable_action(action):
+        reward = REWARD_IMMOVABLE
+    # door locked, no state change
+    else:
+        reward = REWARD_NONE
+    return reward

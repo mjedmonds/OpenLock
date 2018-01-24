@@ -230,12 +230,18 @@ def select_random_trial(completed_trials, min_idx, max_idx):
     :param max: max value of trial index
     :return:
     '''
+    trial_list = []
     trial_base = 'trial'
     rand = np.random.randint(min_idx, max_idx+1)
     trial = trial_base + str(rand)
+    trial_list.append(trial)
     while trial in completed_trials:
         rand = np.random.randint(min_idx, max_idx+1)
         trial = trial_base + str(rand)
+        trial_list.append(trial)
+        # all have been tried
+        if len(trial_list) == max_idx - min_idx:
+            return None, None
 
     return select_trial(trial)
 

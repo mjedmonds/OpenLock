@@ -60,6 +60,10 @@ class ObservationSpace:
         self.state = None
         self.state_labels = None
 
+    @property
+    def shape(self):
+        return self.multi_discrete.shape
+
     @staticmethod
     def create_observation_space(num_levers, num_solutions=0):
         discrete_space = []
