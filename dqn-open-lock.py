@@ -201,7 +201,7 @@ def main():
 
     params['use_physics'] = False
     params['num_training_iters'] = 100
-    params['epsilon_decay'] = 0.99999
+    params['epsilon_decay'] = 0.99
 
     # RL specific settings
     params['data_dir'] = '../OpenLockRLResults/subjects'
@@ -254,6 +254,9 @@ def main():
                                           attempt_limit=params['train_attempt_limit'],
                                           trial_count=trial_num,
                                           iter_num=iter_num)
+
+            # reset the epsilon after each trial (to allow more exploration)
+            agent.epsilon = 0.5
 
     plot_rewards(agent.rewards, agent.epsilons, manager.writer.subject_path + '/training_rewards.png')
     plot_rewards_trial_switch_points(agent.rewards, agent.epsilons, agent.trial_switch_points, manager.writer.subject_path + '/training_rewards_switch_points.png', plot_xticks=False)
