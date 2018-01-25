@@ -200,13 +200,13 @@ def main():
         params['reward_mode'] = sys.argv[2]
 
     params['use_physics'] = False
-    params['num_training_iters'] = 1
+    params['num_training_iters'] = 100
     params['epsilon_decay'] = 0.99999
 
     # RL specific settings
     params['data_dir'] = '../OpenLockRLResults/subjects'
-    params['train_attempt_limit'] = 3
-    params['test_attempt_limit'] = 3
+    params['train_attempt_limit'] = 300
+    params['test_attempt_limit'] = 300
     params['gamma'] = 0.8    # discount rate
     params['epsilon'] = 1.0  # exploration rate
     params['epsilon_min'] = 0.1
