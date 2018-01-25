@@ -164,8 +164,8 @@ class DDQNAgent(Agent):
         # copy weights from model to target_model
         self.target_model.set_weights(self.model.get_weights())
 
-    def replay(self, batch_size):
-        minibatch = random.sample(self.memory, batch_size)
+    def replay(self):
+        minibatch = random.sample(self.memory, self.batch_size)
         for state, action, reward, next_state, done in minibatch:
             target = self.model.predict(state)
             if done:
