@@ -47,7 +47,7 @@ class ActionSpace:
 
 class ObservationSpace:
 
-    def __init__(self, num_levers, append_solutions_remaining=True):
+    def __init__(self, num_levers, append_solutions_remaining=False):
         self.append_solutions_remaining = append_solutions_remaining
         self.solutions_found = [0, 0, 0]
         self.labels = ['sln0', 'sln1', 'sln2']

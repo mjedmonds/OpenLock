@@ -11,6 +11,7 @@ from collections import deque
 from keras.models import Sequential
 from keras.layers import Dense, Dropout
 from keras.optimizers import Adam
+from keras import backend as K
 
 # MUST IMPORT FROM gym_lock to properly register the environment
 from gym_lock.session_manager import SessionManager
@@ -23,20 +24,57 @@ from gym_lock.common import plot_rewards, plot_rewards_trial_switch_points
 EPISODES = 1000
 
 
-class DQNAgent:
-    def __init__(self, state_size, action_size, epsilon_decay, reward_mode, num_training_iters, params):
+class Agent(object):
+    def __init__(self, state_size, action_size, params):
         self.state_size = state_size
         self.action_size = action_size
         self.memory = deque(maxlen=2000)
-        self.gamma = 0.8    # discount rate
-        self.epsilon = 1.0  # exploration rate
-        self.epsilon_min = 0.1
-        self.epsilon_decay = epsilon_decay
-        self.learning_rate = 0.001
+        self.gamma = params['gamma']    # discount rate
+        self.epsilon = params['epsilon']  # exploration rate
+        self.epsilon_min = params['epsilon_min']
+        self.epsilon_decay = params['epsilon_decay']
+        self.learning_rate = params['learning_rate']
         self.epsilons = []
         self.rewards = []
         self.trial_switch_points = []
         self.average_trial_rewards = []
+        self.epsilon_save_rate = params['epsilon_save_rate']
+        self.batch_size = params['batch_size']
+        self.num_training_iters = params['num_training_iters']
+        self.train_attempt_limit = params['train_attempt_limit']
+        self.train_action_limit = params['train_action_limit']
+        self.test_attempt_limit = params['test_attempt_limit']
+        self.test_action_limit = params['test_action_limit']
+        self.reward_mode = params['reward_mode']
+
+    def remember(self, state, action, reward, next_state, done):
+        self.memory.append((state, action, reward, next_state, done))
+
+    def act(self, state):
+        if np.random.rand() <= self.epsilon:
+            return random.randrange(self.action_size)
+        act_values = self.model.predict(state)
+        return np.argmax(act_values[0])  # returns action
+
+    def save_reward(self, reward):
+        self.epsilons.append(self.epsilon)
+        self.rewards.append(reward)
+
+    def save_model(self, save_dir, filename):
+        if not os.path.exists(save_dir):
+            os.makedirs(save_dir)
+        self.save(save_dir + '/' + filename)
+
+    def load(self, name):
+        self.model.load_weights(name)
+
+    def save(self, name):
+        self.model.save_weights(name)
+
+
+class DQNAgent(Agent):
+    def __init__(self, state_size, action_size, params):
+        super(DQNAgent, self).__init__(state_size, action_size, params)
         self.weights = [
                         ('dense', 128),
                         # ('dropout', 0.5),
@@ -46,16 +84,7 @@ class DQNAgent:
                         # ('dropout', 0.5)
                         ('dense', 128),
                         ]
-        self.epsilon_save_rate = 100
-        self.batch_size = 64
-        self.num_training_iters = num_training_iters
-        self.train_attempt_limit = params['train_attempt_limit']
-        self.train_action_limit = params['train_action_limit']
-        self.test_attempt_limit = params['test_attempt_limit']
-        self.test_action_limit = params['test_action_limit']
-        self.reward_mode = reward_mode
         self.model = self._build_model()
-
 
     def _build_model(self):
         # Neural Net for Deep-Q learning Model
@@ -72,9 +101,6 @@ class DQNAgent:
         model.add(Dense(self.action_size, activation='linear'))
         model.compile(loss='mse', optimizer=Adam(lr=self.learning_rate))
         return model
-
-    def remember(self, state, action, reward, next_state, done):
-        self.memory.append((state, action, reward, next_state, done))
 
     def act(self, state):
         if np.random.rand() <= self.epsilon:
@@ -95,20 +121,62 @@ class DQNAgent:
         if self.epsilon > self.epsilon_min:
             self.epsilon *= self.epsilon_decay
 
-    def save_reward(self, reward):
-        self.epsilons.append(self.epsilon)
-        self.rewards.append(reward)
 
-    def load(self, name):
-        self.model.load_weights(name)
+class DDQNAgent(Agent):
+    def __init__(self, state_size, action_size, params):
+        super(DDQNAgent, self).__init__(state_size, action_size, params)
+        self.weights = [
+                        ('dense', 128),
+                        # ('dropout', 0.5),
+                        ('dense', 128),
+                        # ('dropout', 0.5)
+                        ('dense', 128),
+                        # ('dropout', 0.5)
+                        ('dense', 128),
+                        ]
+        self.model = self._build_model()
+        self.target_model = self._build_model()
+        self.update_target_model()
 
-    def save_model(self, save_dir, filename):
-        if not os.path.exists(save_dir):
-            os.makedirs(save_dir)
-        self.save(save_dir + '/' + filename)
+    def _huber_loss(self, target, prediction):
+        # sqrt(1+error^2)-1
+        error = prediction - target
+        return K.mean(K.sqrt(1+K.square(error))-1, axis=-1)
 
-    def save(self, name):
-        self.model.save_weights(name)
+    def _build_model(self):
+        # Neural Net for Deep-Q learning Model
+        model = Sequential()
+        # input layer
+        model.add(Dense(self.weights[0][1], input_dim=self.state_size, activation='relu'))
+        # add other layers
+        for i in range(1, len(self.weights)):
+            if self.weights[i][0] == 'dense':
+                model.add(Dense(self.weights[i][1], activation='relu'))
+            if self.weights[i][0] == 'dropout':
+                model.add(Dropout(self.weights[i][1]))
+        # output layer
+        model.add(Dense(self.action_size, activation='linear'))
+        model.compile(loss=self._huber_loss,
+                      optimizer=Adam(lr=self.learning_rate))
+        return model
+
+    def update_target_model(self):
+        # copy weights from model to target_model
+        self.target_model.set_weights(self.model.get_weights())
+
+    def replay(self, batch_size):
+        minibatch = random.sample(self.memory, batch_size)
+        for state, action, reward, next_state, done in minibatch:
+            target = self.model.predict(state)
+            if done:
+                target[0][action] = reward
+            else:
+                a = self.model.predict(next_state)[0]
+                t = self.target_model.predict(next_state)[0]
+                target[0][action] = reward + self.gamma * t[np.argmax(a)]
+            self.model.fit(state, target, epochs=1, verbose=0)
+        if self.epsilon > self.epsilon_min:
+            self.epsilon *= self.epsilon_decay
 
 
 def main():
@@ -129,22 +197,28 @@ def main():
         params = PARAMS[IDX_TO_PARAMS[int(setting) - 1]]
         print('training_scenario: {}, testing_scenario: {}'.format(params['train_scenario_name'],
                                                                    params['test_scenario_name']))
-        reward_mode = sys.argv[2]
+        params['reward_mode'] = sys.argv[2]
 
-    use_physics = False
-    num_training_iters = 100
-    epsilon_decay = 0.99999
+    params['use_physics'] = False
+    params['num_training_iters'] = 1
+    params['epsilon_decay'] = 0.99999
 
     # RL specific settings
     params['data_dir'] = '../OpenLockRLResults/subjects'
-    params['train_attempt_limit'] = 300
-    params['test_attempt_limit'] = 300
+    params['train_attempt_limit'] = 3
+    params['test_attempt_limit'] = 3
+    params['gamma'] = 0.8    # discount rate
+    params['epsilon'] = 1.0  # exploration rate
+    params['epsilon_min'] = 0.1
+    params['learning_rate'] = 0.001
+    params['epsilon_save_rate'] = 100
+    params['batch_size'] = 64
 
-    scenario = select_scenario(params['train_scenario_name'], use_physics=use_physics)
+    scenario = select_scenario(params['train_scenario_name'], use_physics=params['use_physics'])
 
     env = gym.make('arm_lock-v0')
 
-    env.use_physics = use_physics
+    env.use_physics = params['use_physics']
 
     # create session/trial/experiment manager
     manager = SessionManager(env, params, human=False)
@@ -161,16 +235,17 @@ def main():
     env.observation_space = ObservationSpace(len(scenario.levers), append_solutions_remaining=False)
 
     # set reward mode
-    env.reward_mode = reward_mode
+    env.reward_mode = params['reward_mode']
     print 'Reward mode: {}'.format(env.reward_mode)
 
     state_size = env.observation_space.multi_discrete.shape
     action_size = len(env.action_space)
-    agent = DQNAgent(state_size, action_size, epsilon_decay, reward_mode, num_training_iters, params)
+    # agent = DQNAgent(state_size, action_size, params)
+    agent = DDQNAgent(state_size, action_size, params)
     env.reset()
 
     # train over multiple iterations over all trials
-    for iter_num in range(num_training_iters):
+    for iter_num in range(params['num_training_iters']):
         manager.completed_trials = []
         for trial_num in range(0, params['num_train_trials']):
             agent = manager.run_trial_dqn(agent=agent,
@@ -188,9 +263,10 @@ def main():
     # testing trial
     # print "INFO: STARTING TESTING TRIAL"
     if params['test_scenario_name'] is not None:
-        scenario = select_scenario(params['test_scenario_name'], use_physics=use_physics)
+        scenario = select_scenario(params['test_scenario_name'], use_physics=params['use_physics'])
         manager.update_scenario(scenario)
         manager.set_action_limit(params['test_action_limit'])
+        env.observation_space = ObservationSpace(len(scenario.levers), append_solutions_remaining=False)
         # run testing trial with specified trial7
         agent = manager.run_trial_dqn(agent=agent,
                                       scenario_name=params['test_scenario_name'],
@@ -202,7 +278,8 @@ def main():
                                       testing=True)
 
         plot_rewards(agent.rewards[agent.test_start_idx:], agent.epsilons[agent.test_start_idx:], manager.writer.subject_path + '/testing_rewards.png', width=6, height=6)
-    agent.save_model(manager.writer.subject_path + '/models', '/testing_final.h5')
+        agent.save_model(manager.writer.subject_path + '/models', '/testing_final.h5')
+
     manager.finish_subject(manager.env.logger, manager.writer, human=False, agent=agent)
     print 'Training & testing complete for subject {}'.format(env.logger.subject_id)
 

@@ -198,6 +198,8 @@ class SubjectWriter:
             agent_cpy = copy.copy(agent)
             del agent_cpy.memory
             del agent_cpy.model
+            if hasattr(agent_cpy, 'target_model'):
+                del agent_cpy.target_model
             agent_file_name = self.subject_path + '/' + logger.subject_id + '_agent.json'
             agent_str = jsonpickle.encode(agent_cpy, unpicklable=False)
             self.pretty_write(agent_file_name, agent_str)
