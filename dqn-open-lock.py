@@ -59,7 +59,7 @@ class Agent(object):
     def save_reward(self, reward, trial_reward):
         self.epsilons.append(self.epsilon)
         self.rewards.append(reward)
-        self.trial_rewards = trial_reward
+        self.trial_rewards.append(trial_reward)
 
     def save_model(self, save_dir, filename):
         if not os.path.exists(save_dir):
