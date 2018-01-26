@@ -282,7 +282,7 @@ def main():
     # print "INFO: STARTING TESTING TRIAL"
     if params['test_scenario_name'] is not None:
         # give the agent as many testing iterations as training
-        for i in range(params['num_testing_iters']):
+        for iter_num in range(params['num_testing_iters']):
             # run testing trial
             manager.completed_trials = []
             for trial_num in range(0, params['num_train_trials']):
@@ -291,7 +291,7 @@ def main():
                                               action_limit=params['test_action_limit'],
                                               attempt_limit=params['test_attempt_limit'],
                                               trial_count=trial_count,
-                                              iter_num=0,
+                                              iter_num=iter_num,
                                               testing=True)
 
                 trial_count += 1
