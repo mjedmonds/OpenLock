@@ -199,7 +199,7 @@ def main():
     params['use_physics'] = False
     params['num_training_iters'] = 100
     params['num_testing_iters'] = 100
-    params['epsilon_decay'] = 0.99
+    params['epsilon_decay'] = 0.9955
     params['num_testing_trials'] = 5
 
     # RL specific settings
@@ -213,10 +213,10 @@ def main():
     params['batch_size'] = 64
 
     # dummy settings
-    # params['num_training_iters'] = 10
-    # params['num_testing_iters'] = 10
-    # params['train_attempt_limit'] = 300
-    # params['test_attempt_limit'] = 300
+    params['num_training_iters'] = 10
+    params['num_testing_iters'] = 10
+    params['train_attempt_limit'] = 300
+    params['test_attempt_limit'] = 300
 
     scenario = select_scenario(params['train_scenario_name'], use_physics=params['use_physics'])
 

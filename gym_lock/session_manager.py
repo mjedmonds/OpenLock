@@ -120,11 +120,9 @@ class SessionManager():
             attempt_reward += reward
             state = next_state
 
-            self.print_update(iter_num, trial_count, scenario_name, self.env.attempt_count, self.env.attempt_limit, reward, trial_reward, agent.epsilon)
-
             if opt['env_reset']:
+                self.print_update(iter_num, trial_count, scenario_name, self.env.attempt_count, self.env.attempt_limit, attempt_reward, trial_reward, agent.epsilon)
                 print(self.env.logger.cur_trial.attempt_seq[-1].action_seq)
-            if done:
                 agent.save_reward(attempt_reward, trial_reward)
                 attempt_reward = 0
 
@@ -153,8 +151,8 @@ class SessionManager():
     def set_action_limit(self, action_limit):
         self.env.action_limit = action_limit
 
-    def print_update(self, iter_num, trial_num, scenario_name, episode, episode_max, reward, cum_reward, epsilon):
-        print("ID: {}, iter {}, trial {}, scenario {}, episode: {}/{}, reward {}, cum_reward {}, e: {:.2}".format(self.env.logger.subject_id, iter_num, trial_num, scenario_name, episode, episode_max, reward, cum_reward, epsilon))
+    def print_update(self, iter_num, trial_num, scenario_name, episode, episode_max, a_reward, t_reward, epsilon):
+        print("ID: {}, iter {}, trial {}, scenario {}, episode: {}/{}, attempt_reward {}, trial_reward {}, e: {:.2}".format(self.env.logger.subject_id, iter_num, trial_num, scenario_name, episode, episode_max, a_reward, t_reward, epsilon))
 
     @staticmethod
     def write_results(logger, writer, agent=None):
