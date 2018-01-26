@@ -213,10 +213,10 @@ def main():
     params['batch_size'] = 64
 
     # dummy settings
-    # params['num_training_iters'] = 1
-    # params['num_testing_iters'] = 1
-    # params['train_attempt_limit'] = 3
-    # params['test_attempt_limit'] = 3
+    # params['num_training_iters'] = 10
+    # params['num_testing_iters'] = 10
+    # params['train_attempt_limit'] = 300
+    # params['test_attempt_limit'] = 300
 
     scenario = select_scenario(params['train_scenario_name'], use_physics=params['use_physics'])
 
@@ -290,7 +290,7 @@ def main():
                                               scenario_name=params['test_scenario_name'],
                                               action_limit=params['test_action_limit'],
                                               attempt_limit=params['test_attempt_limit'],
-                                              trial_count=trial_count,
+                                              trial_count=trial_num,
                                               iter_num=iter_num,
                                               testing=True)
 
@@ -298,7 +298,7 @@ def main():
                 # reset the epsilon after each trial (to allow more exploration)
                 agent.epsilon = 0.5
 
-        plot_rewards(agent.rewards[agent.test_start_idx:], agent.epsilons[agent.test_start_idx:], manager.writer.subject_path + '/testing_rewards.png', width=6, height=6)
+        plot_rewards(agent.rewards[agent.test_start_reward_idx:], agent.epsilons[agent.test_start_reward_idx:], manager.writer.subject_path + '/testing_rewards.png', width=6, height=6)
         agent.save_model(manager.writer.subject_path + '/models', '/testing_final.h5')
 
     manager.finish_subject(manager.env.logger, manager.writer, human=False, agent=agent)
