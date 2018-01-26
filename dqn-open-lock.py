@@ -36,6 +36,7 @@ class Agent(object):
         self.learning_rate = params['learning_rate']
         self.epsilons = []
         self.rewards = []
+        self.trial_rewards = []
         self.trial_switch_points = []
         self.average_trial_rewards = []
         self.batch_size = params['batch_size']
@@ -55,9 +56,10 @@ class Agent(object):
         act_values = self.model.predict(state)
         return np.argmax(act_values[0])  # returns action
 
-    def save_reward(self, reward):
+    def save_reward(self, reward, trial_reward):
         self.epsilons.append(self.epsilon)
         self.rewards.append(reward)
+        self.trial_rewards = trial_reward
 
     def save_model(self, save_dir, filename):
         if not os.path.exists(save_dir):
@@ -127,10 +129,6 @@ class DDQNAgent(Agent):
         self.weights = [
                         ('dense', 128),
                         # ('dropout', 0.5),
-                        ('dense', 128),
-                        # ('dropout', 0.5)
-                        ('dense', 128),
-                        # ('dropout', 0.5)
                         ('dense', 128),
                         ]
         self.model = self._build_model()

@@ -125,7 +125,7 @@ class SessionManager():
             if opt['env_reset']:
                 print(self.env.logger.cur_trial.attempt_seq[-1].action_seq)
             if done:
-                agent.save_reward(attempt_reward)
+                agent.save_reward(attempt_reward, trial_reward)
                 attempt_reward = 0
 
             # save model
