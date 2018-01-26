@@ -24,6 +24,7 @@ PARAMS = {
         'train_scenario_name': 'CE3',
         'train_attempt_limit': ATTEMPT_LIMIT,
         'train_action_limit': ACTION_LIMIT,
+        'num_test_trials': 1,
         'test_scenario_name': 'CE4',
         'test_attempt_limit': ATTEMPT_LIMIT,
         'test_action_limit': ACTION_LIMIT
@@ -34,6 +35,7 @@ PARAMS = {
         'train_scenario_name': 'CE3',
         'train_attempt_limit': ATTEMPT_LIMIT,
         'train_action_limit': ACTION_LIMIT,
+        'num_test_trials': 1,
         'test_scenario_name': 'CC4',
         'test_attempt_limit': ATTEMPT_LIMIT,
         'test_action_limit': ACTION_LIMIT
@@ -44,6 +46,7 @@ PARAMS = {
         'train_scenario_name': 'CC3',
         'train_attempt_limit': ATTEMPT_LIMIT,
         'train_action_limit': ACTION_LIMIT,
+        'num_test_trials': 1,
         'test_scenario_name': 'CE4',
         'test_attempt_limit': ATTEMPT_LIMIT,
         'test_action_limit': ACTION_LIMIT
@@ -54,6 +57,7 @@ PARAMS = {
         'train_scenario_name': 'CC3',
         'train_attempt_limit': ATTEMPT_LIMIT,
         'train_action_limit': ACTION_LIMIT,
+        'num_test_trials': 1,
         'test_scenario_name': 'CC4',
         'test_attempt_limit': ATTEMPT_LIMIT,
         'test_action_limit': ACTION_LIMIT
@@ -64,6 +68,7 @@ PARAMS = {
         'train_scenario_name': 'CC4',
         'train_attempt_limit': ATTEMPT_LIMIT,
         'train_action_limit': ACTION_LIMIT,
+        'num_test_trials': 0,
         'test_scenario_name': None,
         'test_attempt_limit': ATTEMPT_LIMIT,
         'test_action_limit': ACTION_LIMIT
@@ -74,6 +79,7 @@ PARAMS = {
         'train_scenario_name': 'CE4',
         'train_attempt_limit': ATTEMPT_LIMIT,
         'train_action_limit': ACTION_LIMIT,
+        'num_test_trials': 0,
         'test_scenario_name': None,
         'test_attempt_limit': ATTEMPT_LIMIT,
         'test_action_limit': ACTION_LIMIT

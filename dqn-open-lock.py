@@ -38,7 +38,6 @@ class Agent(object):
         self.rewards = []
         self.trial_switch_points = []
         self.average_trial_rewards = []
-        self.epsilon_save_rate = params['epsilon_save_rate']
         self.batch_size = params['batch_size']
         self.num_training_iters = params['num_training_iters']
         self.train_attempt_limit = params['train_attempt_limit']
@@ -201,7 +200,9 @@ def main():
 
     params['use_physics'] = False
     params['num_training_iters'] = 100
+    params['num_testing_iters'] = 100
     params['epsilon_decay'] = 0.99
+    params['num_testing_trials'] = 5
 
     # RL specific settings
     params['data_dir'] = '../OpenLockRLResults/subjects'
@@ -211,8 +212,13 @@ def main():
     params['epsilon'] = 1.0  # exploration rate
     params['epsilon_min'] = 0.1
     params['learning_rate'] = 0.001
-    params['epsilon_save_rate'] = 100
     params['batch_size'] = 64
+
+    # dummy settings
+    # params['num_training_iters'] = 1
+    # params['num_testing_iters'] = 1
+    # params['train_attempt_limit'] = 3
+    # params['test_attempt_limit'] = 3
 
     scenario = select_scenario(params['train_scenario_name'], use_physics=params['use_physics'])
 
@@ -244,6 +250,7 @@ def main():
     agent = DDQNAgent(state_size, action_size, params)
     env.reset()
 
+    trial_count = 0
     # train over multiple iterations over all trials
     for iter_num in range(params['num_training_iters']):
         manager.completed_trials = []
@@ -257,35 +264,41 @@ def main():
 
             # reset the epsilon after each trial (to allow more exploration)
             agent.epsilon = 0.5
+            trial_count += 1
 
     plot_rewards(agent.rewards, agent.epsilons, manager.writer.subject_path + '/training_rewards.png')
     plot_rewards_trial_switch_points(agent.rewards, agent.epsilons, agent.trial_switch_points, manager.writer.subject_path + '/training_rewards_switch_points.png', plot_xticks=False)
-    agent.test_start_idx = len(agent.rewards)
+    agent.test_start_reward_idx = len(agent.rewards)
+    agent.test_start_trial_count = trial_count
+
     agent.save_model(manager.writer.subject_path + '/models', '/training_final.h5')
 
-    trial_count = params['num_train_trials'] + 1
+
+    # setup testing trial
+    scenario = select_scenario(params['test_scenario_name'], use_physics=params['use_physics'])
+    manager.update_scenario(scenario)
+    manager.set_action_limit(params['test_action_limit'])
+    env.observation_space = ObservationSpace(len(scenario.levers), append_solutions_remaining=False)
+
     # testing trial
     # print "INFO: STARTING TESTING TRIAL"
     if params['test_scenario_name'] is not None:
         # give the agent as many testing iterations as training
-        for i in range(params['num_training_iters']):
-            scenario = select_scenario(params['test_scenario_name'], use_physics=params['use_physics'])
-            manager.update_scenario(scenario)
-            manager.set_action_limit(params['test_action_limit'])
-            env.observation_space = ObservationSpace(len(scenario.levers), append_solutions_remaining=False)
-            # run testing trial with specified trial7
-            agent = manager.run_trial_dqn(agent=agent,
-                                          scenario_name=params['test_scenario_name'],
-                                          action_limit=params['test_action_limit'],
-                                          attempt_limit=params['test_attempt_limit'],
-                                          trial_count=trial_count,
-                                          iter_num=0,
-                                          specified_trial='trial7',
-                                          testing=True)
+        for i in range(params['num_testing_iters']):
+            # run testing trial
+            manager.completed_trials = []
+            for trial_num in range(0, params['num_train_trials']):
+                agent = manager.run_trial_dqn(agent=agent,
+                                              scenario_name=params['test_scenario_name'],
+                                              action_limit=params['test_action_limit'],
+                                              attempt_limit=params['test_attempt_limit'],
+                                              trial_count=trial_count,
+                                              iter_num=0,
+                                              testing=True)
 
-            trial_count += 1
-            # reset the epsilon after each trial (to allow more exploration)
-            agent.epsilon = 0.5
+                trial_count += 1
+                # reset the epsilon after each trial (to allow more exploration)
+                agent.epsilon = 0.5
 
         plot_rewards(agent.rewards[agent.test_start_idx:], agent.epsilons[agent.test_start_idx:], manager.writer.subject_path + '/testing_rewards.png', width=6, height=6)
         agent.save_model(manager.writer.subject_path + '/models', '/testing_final.h5')

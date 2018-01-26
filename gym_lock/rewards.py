@@ -31,7 +31,7 @@ def determine_reward(env, action, reward_mode):
     elif reward_mode == 'negative_immovable_negative_repeat':
         reward = reward_negative_immovable_negative_repeat(env, action)
     else:
-        raise ValueError('Unknown reward function mode: %s'.format(reward_mode))
+        raise ValueError(str('Unknown reward function mode: %s'.format(reward_mode)))
 
     return reward, success
 
