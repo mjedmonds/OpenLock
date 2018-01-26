@@ -210,7 +210,7 @@ def main():
     params['test_attempt_limit'] = 300
     params['gamma'] = 0.8    # discount rate
     params['epsilon'] = 1.0  # exploration rate
-    params['epsilon_min'] = 0.1
+    params['epsilon_min'] = 0.01
     params['learning_rate'] = 0.001
     params['batch_size'] = 64
 
