@@ -130,10 +130,14 @@ class SessionManager():
 
             # save model
             if self.env.attempt_count % (self.env.attempt_limit/2) == 0 or self.env.attempt_count == self.env.attempt_limit or self.env.logger.cur_trial.success is True:
-                agent.save_model(save_dir,  '/agent_i_' + str(iter_num) + '_t' + str(trial_count) + '_a' + str(self.env.attempt_count) + '.h5')
+                if testing:
+                    save_str = '/agent_test_i_' + str(iter_num) + '_t' + str(trial_count) + '_a' + str(self.env.attempt_count) + '.h5'
+                else:
+                    save_str = '/agent_i_' + str(iter_num) + '_t' + str(trial_count) + '_a' + str(self.env.attempt_count) + '.h5'
+                agent.save_model(save_dir,  save_str)
 
             # replay to learn
-            if not testing and len(agent.memory) > agent.batch_size:
+            if len(agent.memory) > agent.batch_size:
                 agent.replay()
 
         self.run_trial_common_finish(trial_selected)
