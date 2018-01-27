@@ -126,9 +126,11 @@ class DDQNAgent(Agent):
     def __init__(self, state_size, action_size, params):
         super(DDQNAgent, self).__init__(state_size, action_size, params)
         self.weights = [
-                        ('dense', 128),
+                        ('dense', 32),
                         # ('dropout', 0.5),
-                        ('dense', 128),
+                        ('dense', 32),
+                        ('dense', 32),
+                        ('dense', 32),
                         ]
         self.model = self._build_model()
         self.target_model = self._build_model()

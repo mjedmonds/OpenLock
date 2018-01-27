@@ -41,6 +41,7 @@ class AttemptLog(object):
     def __init__(self, attempt_num, start_time):
         self.attempt_num = attempt_num
         self.start_time = start_time
+        self.reward = None
 
     def __eq__(self, other):
         return self.action_seq == other.action_seq
@@ -83,6 +84,7 @@ class TrialLog(object):
         self.completed_solutions = []
         self.attempt_seq = []
         self.solution_found = []
+        self.trial_reward = None
 
     def add_attempt(self):
         self.cur_attempt = AttemptLog(len(self.attempt_seq), time.time())
@@ -157,7 +159,7 @@ class SubjectLog(object):
         self.handedness = handedness
         self.eyewear = eyewear
         self.major = major
-        self.human = True
+        self.human = human
 
     def add_trial(self, trial_name, scenario_name, solutions):
         self.cur_trial = TrialLog(trial_name, scenario_name, solutions, time.time())

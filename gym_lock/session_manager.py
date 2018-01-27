@@ -123,6 +123,7 @@ class SessionManager():
             if opt['env_reset']:
                 self.print_update(iter_num, trial_count, scenario_name, self.env.attempt_count, self.env.attempt_limit, attempt_reward, trial_reward, agent.epsilon)
                 print(self.env.logger.cur_trial.attempt_seq[-1].action_seq)
+                self.env.logger.cur_trial.attempt_seq[-1].reward = attempt_reward
                 agent.save_reward(attempt_reward, trial_reward)
                 attempt_reward = 0
 
@@ -138,9 +139,10 @@ class SessionManager():
             if len(agent.memory) > agent.batch_size:
                 agent.replay()
 
+        self.env.logger.cur_trial.trial_reward = trial_reward
         self.run_trial_common_finish(trial_selected)
         agent.trial_switch_points.append(len(agent.rewards))
-        agent.average_trial_rewards.append(trial_reward / attempt_limit)
+        agent.average_trial_rewards.append(trial_reward / self.env.attempt_count)
 
         return agent
 
