@@ -250,7 +250,7 @@ def reward_negative_immovable_solution_multiplier(env, action):
     agent to find unique solutions without penalizing for finding repeated solutions
     '''
     num_solutions_found = len(env.logger.cur_trial.completed_solutions)
-    multiplier = 1 * SOLUTION_MULTIPLIER * num_solutions_found
+    multiplier = max(1, 1 * SOLUTION_MULTIPLIER * num_solutions_found)
     unique_seq = env.logger.cur_trial.determine_unique()
     # door unlocked
     if door_open(env, action) and unique_seq:
@@ -288,7 +288,7 @@ def reward_negative_immovable_partial_seq_solution_multiplier(env, action):
     agent to find unique solutions without penalizing for finding repeated solutions
     '''
     num_solutions_found = len(env.logger.cur_trial.completed_solutions)
-    multiplier = 1 * SOLUTION_MULTIPLIER * num_solutions_found
+    multiplier = max(1, 1 * SOLUTION_MULTIPLIER * num_solutions_found)
     unique_seq = env.logger.cur_trial.determine_unique()
     # door unlocked
     if door_open(env, action) and unique_seq:

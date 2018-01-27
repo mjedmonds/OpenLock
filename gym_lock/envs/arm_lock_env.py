@@ -58,6 +58,8 @@ class ArmLockEnv(gym.Env):
 
         self.world_def = None
 
+        self.full_attempt_limit = False
+
     def _reset(self):
         """Resets the state of the environment and returns an initial observation.
 
@@ -165,6 +167,8 @@ class ArmLockEnv(gym.Env):
             reset = False
             observable_action = self._create_pre_obs_entry(action)
             if observable_action:
+                if self.logger.cur_trial.cur_attempt is None:
+                    raise ValueError('cur_attempt is null when it shouldn\'t be')
                 self.logger.cur_trial.cur_attempt.add_action(str(action))
 
             success = False
@@ -212,7 +216,7 @@ class ArmLockEnv(gym.Env):
             reward, success = determine_reward(self, action, self.reward_mode)
 
             # above the allowed number of actions, need to increment the attempt count and reset the simulator
-            if self.action_limit is not None and self.action_count >= self.action_limit:
+            if self.action_count >= self.action_limit:
 
                 self.attempt_count += 1
                 attempt_success = self.logger.cur_trial.finish_attempt(results=self.results)
@@ -228,7 +232,10 @@ class ArmLockEnv(gym.Env):
                         self._render()
                         self._update_state_machine()
 
-                if not trial_finished:
+                # reset attempt if the trial isn't finished or if we are running to the full
+                # attempt limit. If the full attempt is not used, trial will advance
+                # after finding all solutions
+                if not trial_finished or self.full_attempt_limit is not False:
                     self._reset()  # reset if we are not done with this trial
                     self.logger.cur_trial.add_attempt()
 
@@ -391,7 +398,7 @@ class ArmLockEnv(gym.Env):
         # continue or end trial
         if self.logger.cur_trial.success is True:
             if not multithreaded:
-                print "INFO: You found all of the solutions. Ending trial."
+                print "INFO: You found all of the solutions. "
             trial_finished = True
             pause = True            # pause if they open the door
         elif self.attempt_count < self.attempt_limit:

@@ -247,6 +247,8 @@ def main():
     env.reward_mode = params['reward_mode']
     print 'Reward mode: {}'.format(env.reward_mode)
 
+    env.full_attempt_limit = True
+
     state_size = env.observation_space.multi_discrete.shape
     action_size = len(env.action_space)
     # agent = DQNAgent(state_size, action_size, params)
