@@ -5,7 +5,7 @@ import numpy as np
 import sys
 import os
 import json
-from distutils.dir_util import copy_tree
+from shutil import copytree, ignore_patterns
 from collections import deque
 from keras.models import Sequential
 from keras.layers import Dense, Dropout
@@ -234,7 +234,11 @@ def main():
 
     # copy the entire code base; this is unnecessary but prevents worrying about a particular
     # source code version when trying to reproduce exact parameters
-    copy_tree('./', manager.writer.subject_path + '/src/')
+    copytree('./', manager.writer.subject_path + '/src/', ignore=ignore_patterns('*.mp4',
+                                                                                 '*.pyc',
+                                                                                 '.git',
+                                                                                 '.gitignore',
+                                                                                 '.gitmodules'))
 
     # set up observation space
     env.observation_space = ObservationSpace(len(scenario.levers), append_solutions_remaining=False)

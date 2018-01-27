@@ -104,7 +104,8 @@ class SessionManager():
 
         trial_reward = 0
         attempt_reward = 0
-        while self.env.attempt_count < attempt_limit and self.env.logger.cur_trial.success is False:
+        #while self.env.attempt_count < attempt_limit and self.env.logger.cur_trial.success is False:
+        while self.env.attempt_count < attempt_limit:
             # self.env.render()
 
             action_idx = agent.act(state)
