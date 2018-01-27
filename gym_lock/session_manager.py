@@ -144,6 +144,51 @@ class SessionManager():
 
         return agent
 
+    # code to run a computer trial
+    def run_trial_qtable(self, agent, scenario_name, action_limit, attempt_limit, trial_count, iter_num, testing=False, specified_trial=None):
+        self.env.human_agent = False
+        trial_selected = self.run_trial_common_setup(scenario_name, action_limit, attempt_limit, specified_trial)
+
+        state = self.env.reset()
+        state = np.reshape(state, [1, agent.state_size])
+
+        save_dir = self.writer.subject_path + '/models'
+
+        print('scenario_name: {}, trial_count: {}, trial_name: {}'.format(scenario_name, trial_count, trial_selected))
+
+        trial_reward = 0
+        attempt_reward = 0
+        while self.env.attempt_count < attempt_limit and self.env.logger.cur_trial.success is False:
+            # self.env.render()
+
+            action_idx = agent.action(state, train=True)
+            # convert idx to Action object (idx -> str -> Action)
+            action = self.env.action_map[self.env.action_space[action_idx]]
+            next_state, reward, done, opt = self.env.step(action)
+
+            next_state = np.reshape(next_state, [1, agent.state_size])
+
+            agent.update(state, action_idx, reward, next_state)
+            # self.env.render()
+            trial_reward += reward
+            attempt_reward += reward
+            state = next_state
+
+            if done:
+                agent.update_epsilon()
+
+            if opt['env_reset']:
+                self.print_update(iter_num, trial_count, scenario_name, self.env.attempt_count, self.env.attempt_limit, attempt_reward, trial_reward, agent.epsilon)
+                print(self.env.logger.cur_trial.attempt_seq[-1].action_seq)
+                agent.save_reward(attempt_reward, trial_reward)
+                attempt_reward = 0
+
+        self.run_trial_common_finish(trial_selected)
+        agent.trial_switch_points.append(len(agent.rewards))
+        agent.average_trial_rewards.append(trial_reward / attempt_limit)
+
+        return agent
+
     def update_scenario(self, scenario):
         self.env.scenario = scenario
         self.env.observation_space = ObservationSpace(len(scenario.levers))

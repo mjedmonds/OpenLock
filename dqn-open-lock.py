@@ -6,7 +6,6 @@ import sys
 import os
 import json
 from distutils.dir_util import copy_tree
-from matplotlib import pyplot as plt
 from collections import deque
 from keras.models import Sequential
 from keras.layers import Dense, Dropout
@@ -213,10 +212,10 @@ def main():
     params['batch_size'] = 64
 
     # dummy settings
-    params['num_training_iters'] = 10
-    params['num_testing_iters'] = 10
-    params['train_attempt_limit'] = 300
-    params['test_attempt_limit'] = 300
+    # params['num_training_iters'] = 1
+    # params['num_testing_iters'] = 1
+    # params['train_attempt_limit'] = 3
+    # params['test_attempt_limit'] = 3
 
     scenario = select_scenario(params['train_scenario_name'], use_physics=params['use_physics'])
 
@@ -294,9 +293,9 @@ def main():
                                               iter_num=iter_num,
                                               testing=True)
 
-                trial_count += 1
                 # reset the epsilon after each trial (to allow more exploration)
                 agent.epsilon = 0.5
+                trial_count += 1
 
         plot_rewards(agent.rewards[agent.test_start_reward_idx:], agent.epsilons[agent.test_start_reward_idx:], manager.writer.subject_path + '/testing_rewards.png', width=6, height=6)
         agent.save_model(manager.writer.subject_path + '/models', '/testing_final.h5')
