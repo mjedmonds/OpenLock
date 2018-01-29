@@ -141,6 +141,14 @@ class SessionManager():
             if len(agent.memory) > agent.batch_size:
                 agent.replay()
 
+        try:
+            if len(agent.trial_switch_points) > 0:
+                assert(len(self.env.logger.cur_trial.attempt_seq) == len(agent.rewards) - agent.trial_switch_points[-1])
+            else:
+                assert(len(self.env.logger.cur_trial.attempt_seq) == len(agent.rewards))
+        except AssertionError:
+            print('reward len does not match attempt len')
+
         self.env.logger.cur_trial.trial_reward = trial_reward
         self.run_trial_common_finish(trial_selected)
         agent.trial_switch_points.append(len(agent.rewards))
