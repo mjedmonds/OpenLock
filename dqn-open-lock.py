@@ -60,6 +60,12 @@ class Agent(object):
         self.rewards.append(reward)
         self.trial_rewards.append(trial_reward)
 
+    # update the epsilon after every trial once it drops below epsilon_threshold
+    def update_dynamic_epsilon(self, epsilon_threshold, new_epsilon, new_epsilon_decay):
+        if self.epsilon < epsilon_threshold:
+            self.epsilon = new_epsilon
+            self.epsilon_decay = new_epsilon_decay
+
     def save_model(self, save_dir, filename):
         if not os.path.exists(save_dir):
             os.makedirs(save_dir)
@@ -200,7 +206,10 @@ def main():
     params['use_physics'] = False
     params['num_training_iters'] = 100
     params['num_testing_iters'] = 10
-    params['epsilon_decay'] = 0.9955
+    # params['epsilon_decay'] = 0.9955
+    params['epsilon_decay'] = 0.9999
+    params['dynamic_epsilon_decay'] = 0.9955
+    params['dynamic_epsilon_max'] = 0.5
     params['num_testing_trials'] = 5
 
     # RL specific settings
@@ -210,7 +219,7 @@ def main():
     params['gamma'] = 0.8    # discount rate
     params['epsilon'] = 1.0  # exploration rate
     params['epsilon_min'] = 0.01
-    params['learning_rate'] = 0.001
+    params['learning_rate'] = 0.005
     params['batch_size'] = 64
 
     # dummy settings
@@ -268,7 +277,7 @@ def main():
                                           iter_num=iter_num)
 
             # reset the epsilon after each trial (to allow more exploration)
-            agent.epsilon = 0.5
+            agent.update_dynamic_epsilon(agent.epsilon_min, params['dynamic_epsilon_max'], params['dynamic_epsilon_decay'])
             trial_count += 1
 
     plot_rewards(agent.rewards, agent.epsilons, manager.writer.subject_path + '/training_rewards.png')
@@ -302,7 +311,7 @@ def main():
                                               testing=True)
 
                 # reset the epsilon after each trial (to allow more exploration)
-                agent.epsilon = 0.5
+                agent.update_dynamic_epsilon(agent.epsilon_min, params['dynamic_epsilon_max'], params['dynamic_epsilon_decay'])
                 trial_count += 1
 
         plot_rewards(agent.rewards[agent.test_start_reward_idx:], agent.epsilons[agent.test_start_reward_idx:], manager.writer.subject_path + '/testing_rewards.png', width=6, height=6)
