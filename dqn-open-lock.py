@@ -207,7 +207,8 @@ def main():
     params['num_training_iters'] = 100
     params['num_testing_iters'] = 10
     # params['epsilon_decay'] = 0.9955
-    params['epsilon_decay'] = 0.9999
+    # params['epsilon_decay'] = 0.9999
+    params['epsilon_decay'] = 0.99999
     params['dynamic_epsilon_decay'] = 0.9955
     params['dynamic_epsilon_max'] = 0.5
     params['num_testing_trials'] = 5

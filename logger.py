@@ -37,6 +37,7 @@ class AttemptLog(object):
     end_time = None
     cur_action = None
     results = None
+    reward = None
 
     def __init__(self, attempt_num, start_time):
         self.attempt_num = attempt_num

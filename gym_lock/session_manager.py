@@ -116,6 +116,7 @@ class SessionManager():
             next_state = np.reshape(next_state, [1, agent.state_size])
 
             agent.remember(state, action_idx, reward, next_state, done)
+            # agent.remember(state, action_idx, trial_reward, next_state, done)
             # self.env.render()
             trial_reward += reward
             attempt_reward += reward
@@ -130,7 +131,7 @@ class SessionManager():
 
             # save model
             # if self.env.attempt_count % (self.env.attempt_limit/2) == 0 or self.env.attempt_count == self.env.attempt_limit or self.env.logger.cur_trial.success is True:
-            if self.env.attempt_count % (self.env.attempt_limit/2) == 0 or self.env.attempt_count == self.env.attempt_limit:
+            if self.env.attempt_count == 0 or self.env.attempt_count == self.env.attempt_limit:
                 if testing:
                     save_str = '/agent_test_i_' + str(iter_num) + '_t' + str(trial_count) + '_a' + str(self.env.attempt_count) + '.h5'
                 else:
@@ -141,13 +142,7 @@ class SessionManager():
             if len(agent.memory) > agent.batch_size:
                 agent.replay()
 
-        try:
-            if len(agent.trial_switch_points) > 0:
-                assert(len(self.env.logger.cur_trial.attempt_seq) == len(agent.rewards) - agent.trial_switch_points[-1])
-            else:
-                assert(len(self.env.logger.cur_trial.attempt_seq) == len(agent.rewards))
-        except AssertionError:
-            print('reward len does not match attempt len')
+        self.dqn_trial_sanity_checks(agent)
 
         self.env.logger.cur_trial.trial_reward = trial_reward
         self.run_trial_common_finish(trial_selected)
@@ -210,6 +205,28 @@ class SessionManager():
 
     def print_update(self, iter_num, trial_num, scenario_name, episode, episode_max, a_reward, t_reward, epsilon):
         print("ID: {}, iter {}, trial {}, scenario {}, episode: {}/{}, attempt_reward {}, trial_reward {}, e: {:.2}".format(self.env.logger.subject_id, iter_num, trial_num, scenario_name, episode, episode_max, a_reward, t_reward, epsilon))
+
+    def dqn_trial_sanity_checks(self, agent):
+        try:
+            if len(agent.trial_switch_points) > 0:
+                assert(len(self.env.logger.cur_trial.attempt_seq) == len(agent.rewards) - agent.trial_switch_points[-1])
+                reward_agent = agent.rewards[agent.trial_switch_points[-1]:]
+            else:
+                assert(len(self.env.logger.cur_trial.attempt_seq) == len(agent.rewards))
+                reward_agent = agent.rewards[:]
+            reward_seq = []
+            for attempt in self.env.logger.cur_trial.attempt_seq:
+                reward_seq.append(attempt.reward)
+            assert(reward_seq == reward_agent)
+
+            if len(self.env.logger.trial_seq) > 0:
+                reward_seq_prev = []
+                for attempt in self.env.logger.trial_seq[-1].attempt_seq:
+                    reward_seq_prev.append(attempt.reward)
+                assert(reward_seq != reward_seq_prev)
+
+        except AssertionError:
+            print('reward len does not match attempt len')
 
     @staticmethod
     def write_results(logger, writer, agent=None):
