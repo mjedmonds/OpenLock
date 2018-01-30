@@ -203,6 +203,9 @@ def main():
                                                                    params['test_scenario_name']))
         params['reward_mode'] = sys.argv[2]
 
+    human_decay_mean = 0.7429 # from human data
+    human_decay_median = 0.5480 # from human data
+
     params['use_physics'] = False
     params['num_training_iters'] = 100
     params['num_testing_iters'] = 10
@@ -211,6 +214,7 @@ def main():
     params['epsilon_decay'] = 0.99999
     params['dynamic_epsilon_decay'] = 0.9955
     params['dynamic_epsilon_max'] = 0.5
+    params['use_dynamic_epsilon'] = False
     params['num_testing_trials'] = 5
 
     # RL specific settings
@@ -278,7 +282,8 @@ def main():
                                           iter_num=iter_num)
 
             # reset the epsilon after each trial (to allow more exploration)
-            agent.update_dynamic_epsilon(agent.epsilon_min, params['dynamic_epsilon_max'], params['dynamic_epsilon_decay'])
+            if params['use_dynamic_epsilon']:
+                agent.update_dynamic_epsilon(agent.epsilon_min, params['dynamic_epsilon_max'], params['dynamic_epsilon_decay'])
             trial_count += 1
 
     plot_rewards(agent.rewards, agent.epsilons, manager.writer.subject_path + '/training_rewards.png')
@@ -312,7 +317,8 @@ def main():
                                               testing=True)
 
                 # reset the epsilon after each trial (to allow more exploration)
-                agent.update_dynamic_epsilon(agent.epsilon_min, params['dynamic_epsilon_max'], params['dynamic_epsilon_decay'])
+                if params['use_dynamic_epsilon']:
+                    agent.update_dynamic_epsilon(agent.epsilon_min, params['dynamic_epsilon_max'], params['dynamic_epsilon_decay'])
                 trial_count += 1
 
         plot_rewards(agent.rewards[agent.test_start_reward_idx:], agent.epsilons[agent.test_start_reward_idx:], manager.writer.subject_path + '/testing_rewards.png', width=6, height=6)
