@@ -233,12 +233,15 @@ def main():
     # params['train_attempt_limit'] = 30
     # params['test_attempt_limit'] = 30
 
-    # human settings
+    # human comparison settings
     params['num_training_iters'] = 1
     params['num_testing_iters'] = 1
     params['train_attempt_limit'] = 30
     params['test_attempt_limit'] = 30
-    params['epsilon_decay'] = human_decay_mean
+    params['epsilon_decay'] = human_decay_median
+    params['dynamic_epsilon_decay'] = human_decay_median
+    params['dynamic_epsilon_max'] = 1
+    params['use_dynamic_epsilon'] = True
 
     scenario = select_scenario(params['train_scenario_name'], use_physics=params['use_physics'])
 
