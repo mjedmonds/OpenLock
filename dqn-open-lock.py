@@ -206,6 +206,7 @@ def main():
     human_decay_mean = 0.7429 # from human data
     human_decay_median = 0.5480 # from human data
 
+    # RL specific settings
     params['use_physics'] = False
     params['num_training_iters'] = 100
     params['num_testing_iters'] = 10
@@ -217,7 +218,6 @@ def main():
     params['use_dynamic_epsilon'] = False
     params['num_testing_trials'] = 5
 
-    # RL specific settings
     params['data_dir'] = '../OpenLockRLResults/subjects'
     params['train_attempt_limit'] = 300
     params['test_attempt_limit'] = 300
@@ -232,6 +232,13 @@ def main():
     # params['num_testing_iters'] = 10
     # params['train_attempt_limit'] = 30
     # params['test_attempt_limit'] = 30
+
+    # human settings
+    params['num_training_iters'] = 1
+    params['num_testing_iters'] = 1
+    params['train_attempt_limit'] = 30
+    params['test_attempt_limit'] = 30
+    params['epsilon_decay'] = human_decay_mean
 
     scenario = select_scenario(params['train_scenario_name'], use_physics=params['use_physics'])
 
