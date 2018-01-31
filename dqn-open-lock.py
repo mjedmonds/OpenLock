@@ -303,16 +303,16 @@ def main():
 
     agent.save_model(manager.writer.subject_path + '/models', '/training_final.h5')
 
-
-    # setup testing trial
-    scenario = select_scenario(params['test_scenario_name'], use_physics=params['use_physics'])
-    manager.update_scenario(scenario)
-    manager.set_action_limit(params['test_action_limit'])
-    env.observation_space = ObservationSpace(len(scenario.levers), append_solutions_remaining=False)
-
     # testing trial
     # print "INFO: STARTING TESTING TRIAL"
     if params['test_scenario_name'] is not None:
+
+        # setup testing trial
+        scenario = select_scenario(params['test_scenario_name'], use_physics=params['use_physics'])
+        manager.update_scenario(scenario)
+        manager.set_action_limit(params['test_action_limit'])
+        env.observation_space = ObservationSpace(len(scenario.levers), append_solutions_remaining=False)
+
         # give the agent as many testing iterations as training
         for iter_num in range(params['num_testing_iters']):
             # run testing trial
