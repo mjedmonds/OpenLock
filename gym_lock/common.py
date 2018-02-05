@@ -3,7 +3,19 @@ from collections import namedtuple
 import numpy as np
 
 from shapely.geometry import Polygon, Point
+from matplotlib import pyplot as plt
 from Box2D import *
+
+ENTITY_STATES = {
+    'LEVER_PUSHED': 0,
+    'LEVER_PULLED': 1,
+    'DOOR_UNLOCKED': 0,
+    'DOOR_LOCKED': 1,
+    'DOOR_CLOSED': 0,
+    'DOOR_OPENED': 1,
+    'LEVER_ACTIVE': 1,
+    'LEVER_INACTIVE': 0
+}
 
 
 class LeverRole:
@@ -19,7 +31,6 @@ class LeverRole:
 
 TwoDConfig = namedtuple('Config', 'x y theta')
 TwoDForce = namedtuple('Force', 'norm tan')
-Action = namedtuple('action', 'name params') # params should be list-like or a single value
 LeverConfig = namedtuple('lever_config', 'TwoDConfig LeverRole opt_params')    # role should be an enum indicating which lever this
 
 Color = namedtuple('Color', 'r g b')
@@ -34,6 +45,16 @@ COLORS = {
     'save_button': Color(0.5, 0.9, 0.5),
     'default': Color(0.9, 0.7, 0.7),
 }
+
+
+class Action:
+    def __init__(self, name, obj, params):
+        self.name = name
+        self.obj = obj
+        self.params = params
+
+    def __str__(self):
+        return self.name + '_' + self.obj
 
 
 class Clickable(object):
@@ -51,7 +72,7 @@ class Clickable(object):
         return self.callback(*self.callback_args)
 
 
-class Object():
+class Object:
     def __init__(self, name, fixture=None, joint=None, color=None, int_test=None, ext_test=None):
         self.fixture = fixture
         self.joint = joint
@@ -63,31 +84,59 @@ class Object():
         self.color = color
 
 
-class Lock(Object):
-    def __init__(self, world_def, name, config, color, opt_params=None):
+class Lever(Object):
+    def __init__(self, name, config, color, opt_params=None):
         Object.__init__(self, name)
 
-        if opt_params:
-            self.fixture, self.joint, self.outer_track, self.inner_track = self._create_lock(world_def, config, **opt_params)
-        else:
-            self.fixture, self.joint, self.outer_track, self.inner_track = self._create_lock(world_def, config)
-
-        self.inner_vertices = [self.inner_track.GetWorldPoint(vertex) for vertex in self.inner_track.fixtures[0].shape.vertices]
-        self.outer_vertices = [self.outer_track.GetWorldPoint(vertex) for vertex in self.outer_track.fixtures[0].shape.vertices]
-        self.inner_poly = Polygon(self.inner_vertices)
-        self.outer_poly = Polygon(self.outer_vertices)
-
-        self.int_test = lambda joint: joint.translation < (joint.upperLimit + joint.lowerLimit) / 2.0
-        self.ext_test = lambda joint: joint.translation > (joint.upperLimit + joint.lowerLimit) / 2.0
+        # # new
+        # self.int_test = lambda joint: ENTITY_STATES['LEVER_PULLED'] if joint.translation < (joint.upperLimit + joint.lowerLimit) / 2.0 else ENTITY_STATES['LEVER_PUSHED']
+        # self.ext_test = lambda joint: ENTITY_STATES['LEVER_PULLED'] if joint.translation > (joint.upperLimit + joint.lowerLimit) / 2.0 else ENTITY_STATES['LEVER_PUSHED']
+        # # old
+        # self.int_test = lambda joint: joint.translation < (joint.upperLimit + joint.lowerLimit) / 2.0
+        # self.ext_test = lambda joint: joint.translation > (joint.upperLimit + joint.lowerLimit) / 2.0
+        self.int_test = self.int_test_wrapper
+        self.ext_test = self.ext_test_wrapper
 
         self.inner_clickable = None
         self.outer_clickable = None
 
         self.color = color
-
         self.config = config
+        self.opt_params = opt_params
 
-    def _create_lock(self, world_def, config, width=0.5, length=5, lower_lim=-2, upper_lim=0):
+    def int_test_old(self, joint):
+        return joint.translation < (joint.upperLimit + joint.lowerLimit) / 2.0
+
+    def ext_test_old(self, joint):
+        return joint.translation > (joint.upperLimit + joint.lowerLimit) / 2.0
+
+    def int_test_new(self, joint):
+        if joint.translation < (joint.upperLimit + joint.lowerLimit) / 2.0:
+            return ENTITY_STATES['LEVER_PULLED']
+        else:
+            return ENTITY_STATES['LEVER_PUSHED']
+
+    def ext_test_new(self, joint):
+        if joint.translation > (joint.upperLimit + joint.lowerLimit) / 2.0:
+            return ENTITY_STATES['LEVER_PULLED']
+        else:
+            return ENTITY_STATES['LEVER_PUSHED']
+
+    def ext_test_wrapper(self, joint):
+        assert(self.ext_test_old(joint) == self.ext_test_new(joint))
+        return self.ext_test_new(joint)
+
+    def int_test_wrapper(self, joint):
+        assert(self.int_test_old(joint) == self.int_test_new(joint))
+        return self.int_test_new(joint)
+
+    def __str__(self):
+        return self.name
+
+    def __repr__(self):
+        return str(self)
+
+    def create_lever(self, world_def, config, width=0.5, length=5, lower_lim=-2, upper_lim=0):
         x, y, theta = config
 
         fixture_def = b2FixtureDef(
@@ -101,9 +150,9 @@ class Lock(Object):
             maskBits=0x1101
         )
 
-        # passing userData sets the color of the lock to the be same as the object
+        # passing userData sets the color of the lever to the be same as the object
         # used to set the color in box2drenderer
-        lock_body = world_def.world.CreateDynamicBody(
+        lever_body = world_def.world.CreateDynamicBody(
             position=(x, y),
             angle=theta,
             angularDamping=0.8,
@@ -111,39 +160,41 @@ class Lock(Object):
             userData=self
         )
 
-        lock_fixture = lock_body.CreateFixture(fixture_def)
+        lever_body.gravityScale = 0
+
+        lever_fixture = lever_body.CreateFixture(fixture_def)
 
         joint_axis = (-np.sin(theta), np.cos(theta))
-        lock_joint = world_def.world.CreatePrismaticJoint(
-            bodyA=lock_fixture.body,
+        lever_joint = world_def.world.CreatePrismaticJoint(
+            bodyA=lever_fixture.body,
             bodyB=world_def.ground,
             # anchor=(0, 0),
-            anchor=lock_fixture.body.position,
-            # localAnchorA=lock.body.position,
+            anchor=lever_fixture.body.position,
+            # localAnchorA=lever.body.position,
             # localAnchorB=self.ground.position,
             axis=joint_axis,
             lowerTranslation=lower_lim,
             upperTranslation=upper_lim,
             enableLimit=True,
             motorSpeed=0,
-            maxMotorForce=abs(b2Dot(lock_body.massData.mass * world_def.world.gravity, b2Vec2(joint_axis))),
+            maxMotorForce=abs(b2Dot(lever_body.massData.mass * world_def.world.gravity, b2Vec2(joint_axis))),
             enableMotor=True,
             userData={'plot_padding': width,
                       'joint_axis': joint_axis,
-                      'obj_type': 'lock_joint'},
+                      'obj_type': 'lever_joint'},
         )
 
-        # create lock track in background
-        xf1, xf2 = lock_fixture.body.transform, world_def.ground.transform
+        # create lever track in background
+        xf1, xf2 = lever_fixture.body.transform, world_def.ground.transform
         x1, x2 = xf1.position, xf2.position
-        p1, p2 = lock_joint.anchorA, lock_joint.anchorB
+        p1, p2 = lever_joint.anchorA, lever_joint.anchorB
         padding = width
         width = 0.5
 
         # plot the bounds in which body A's anchor point can move relative to B
-        local_axis = lock_body.GetLocalVector(joint_axis)
-        world_axis = lock_body.GetWorldVector(local_axis)
-        lower_lim, upper_lim = lock_joint.limits
+        local_axis = lever_body.GetLocalVector(joint_axis)
+        world_axis = lever_body.GetWorldVector(local_axis)
+        lower_lim, upper_lim = lever_joint.limits
         middle_lim = (upper_lim + lower_lim) / 2.0
         end1 = -world_axis * (upper_lim + padding)
         middle = -world_axis * middle_lim
@@ -154,20 +205,30 @@ class Lock(Object):
         outer_vertices = [middle - norm * width, middle + norm * width, end2 - norm * width, end2 + norm * width]
 
         # passing userData makes the color of the track the same as the lever
-        inner_lock_track_body = world_def.background.CreateStaticBody(position=p2,
+        inner_lever_track_body = world_def.background.CreateStaticBody(position=p2,
                                                                       active=False,
                                                                       shapes=b2PolygonShape(vertices=inner_vertices),
                                                                       userData=self)
 
         # passing userData makes the color of the track the same as the lever
-        outer_lock_track_body = world_def.background.CreateStaticBody(position=p2,
+        outer_lever_track_body = world_def.background.CreateStaticBody(position=p2,
                                                                       active=False,
                                                                       shapes=b2PolygonShape(vertices=outer_vertices),
                                                                       userData=self)
         trans = b2Transform()
         trans.SetIdentity()
 
-        return lock_fixture, lock_joint, outer_lock_track_body, inner_lock_track_body
+        self.inner_vertices = [inner_lever_track_body.GetWorldPoint(vertex) for vertex in
+                               inner_lever_track_body.fixtures[0].shape.vertices]
+        self.outer_vertices = [outer_lever_track_body.GetWorldPoint(vertex) for vertex in
+                               outer_lever_track_body.fixtures[0].shape.vertices]
+        self.inner_poly = Polygon(self.inner_vertices)
+        self.outer_poly = Polygon(self.outer_vertices)
+
+        self.fixture = lever_fixture
+        self.joint = lever_joint
+
+        return lever_fixture, lever_joint, outer_lever_track_body, inner_lever_track_body
 
     # step is world_def step function
     def create_clickable(self, step, action_map):
@@ -181,9 +242,9 @@ class Lock(Object):
 
     def determine_active(self):
         if self.color == COLORS['active']:
-            return True
+            return ENTITY_STATES['LEVER_ACTIVE']
         elif self.color == COLORS['inactive']:
-            return False
+            return ENTITY_STATES['LEVER_INACTIVE']
         else:
             raise ValueError('Expected lever to be active or inactive, different color set')
 
@@ -194,16 +255,34 @@ class Door(Object):
         Object.__init__(self, name)
         self.fixture, self.joint, self.lock = self._create_door(world_def, config)
 
-        # Register door components with ENV (TODO: can this be removed?)
-        world_def.door = self.fixture
-        world_def.door_hinge = self.joint
-        world_def.door_lock = self.lock
+        # old
+        # open_test = lambda door_hinge: ENTITY_STATES['DOOR_MOVED'] if abs(door_hinge.angle) > np.pi / 16 else ENTITY_STATES['DOOR_MOVED']
+        # old
+        # open_test = lambda door_hinge: abs(door_hinge.angle) > np.pi / 16
 
-        open_test = lambda door_hinge: abs(door_hinge.angle) > np.pi / 16
-        self.int_test = open_test
-        self.ext_test = open_test
+        self.int_test = self.open_test
+        self.ext_test = self.open_test
 
         self.color = color
+
+    def open_test_old(self, door_hinge):
+        return abs(door_hinge.angle) > np.pi / 16
+
+    def open_test_new(self, door_hinge):
+        if abs(door_hinge.angle) > np.pi / 16:
+            return ENTITY_STATES['DOOR_OPENED']
+        else:
+            return ENTITY_STATES['DOOR_CLOSED']
+
+    def open_test(self, door_hinge):
+        assert(self.open_test_old(door_hinge) == self.open_test_new(door_hinge))
+        return self.open_test_new(door_hinge)
+
+    def lock_present(self):
+        if self.lock is None:
+            return ENTITY_STATES['DOOR_UNLOCKED']
+        else:
+            return ENTITY_STATES['DOOR_LOCKED']
 
     def _create_door(self, world_def, config, width=0.5, length=10, locked=True):
         # TODO: add relocking ability
@@ -227,6 +306,8 @@ class Door(Object):
             linearDamping=0.8,
             userData=self
         )
+
+        door_body.gravityScale = 0
 
         door_fixture = door_body.CreateFixture(fixture_def)
 
@@ -287,6 +368,79 @@ def clamp_mag(array_like, clamp_mag):
         if abs(array_like[i]) > clamp_mag:
             array_like[i] = clamp_mag * np.sign(array_like[i])
     return array_like
+
+
+def plot_rewards(rewards, epsilons, filename, width=12, height=6):
+    plt.clf()
+    assert len(epsilons) == len(rewards)
+    moving_avg = compute_moving_average(rewards, 100)
+    fig = plt.gcf()
+    ax = plt.gca()
+    fig.set_size_inches(width, height)
+    plt.xlim((0, len(rewards)))
+    r, = plt.plot(rewards, color='red', linestyle='-', linewidth=0.5, label='reward', alpha=0.5)
+    ave_r, = plt.plot(moving_avg, color='blue', linestyle='-', linewidth=0.8, label='avg_reward')
+    # e, = plt.plot(epsilons, color='blue', linestyle='--', alpha=0.5, label='epsilon')
+    plt.legend([r, ave_r], ['reward', 'average reward'])
+    plt.ylabel('Reward')
+    plt.xlabel('Episode #')
+    plt.savefig(filename)
+
+
+def plot_rewards_trial_switch_points(rewards, epsilons, trial_switch_points, filename, plot_xticks=False):
+    plt.clf()
+    assert len(epsilons) == len(rewards)
+    moving_avg = compute_moving_average(rewards, 100)
+    fig = plt.gcf()
+    ax = plt.gca()
+    fig.set_size_inches(12, 6)
+    plt.xlim((0, len(rewards)))
+    # mark where the trials changed
+    for trial_switch_point in trial_switch_points:
+        plt.axvline(trial_switch_point, color='black', linewidth=0.5, linestyle='--', alpha=0.3)
+    r, = plt.plot(rewards, color='red', linestyle='-', linewidth=0.5, label='reward', alpha=0.5)
+    ave_r, = plt.plot(moving_avg, color='blue', linestyle='-', linewidth=0.8, label='avg_reward')
+    # e, = plt.plot(epsilons, color='blue', linestyle='--', alpha=0.5, label='epsilon')
+    plt.legend([r, ave_r], ['reward', 'average reward'])
+    if plot_xticks:
+        xtick_points, xtick_labels = create_xtick_labels(trial_switch_points)
+        plt.xticks(xtick_points, xtick_labels)
+        # vertical alignment of xtick labels
+        va = [0 if x % 2 == 0 else -0.03 for x in range(len(xtick_points))]
+        for t, y in zip(ax.get_xticklabels(), va):
+            t.set_y(y)
+    plt.ylabel('Reward')
+    plt.xlabel('Episode # and trial #')
+    plt.savefig(filename)
+
+
+def compute_moving_average(rewards, window):
+    cur_window_size = 1
+    moving_average = []
+    for i in range(len(rewards)-1):
+        lower_idx = max(0, i-cur_window_size)
+        average = sum(rewards[lower_idx:i+1]) / cur_window_size
+        moving_average.append(average)
+        cur_window_size += 1
+        if cur_window_size > window:
+            cur_window_size = window
+    return moving_average
+
+
+def create_xtick_labels(trial_switch_points):
+    xtick_points = [0]
+    xtick_labels = ['0']
+    prev_switch_point = 0
+    trial_count = 1
+    for trial_switch_point in trial_switch_points:
+        xtick_point = ((trial_switch_point - prev_switch_point) / 2) + prev_switch_point
+        xtick_points.append(xtick_point)
+        xtick_labels.append('trial ' + str(trial_count))
+        xtick_points.append(trial_switch_point)
+        xtick_labels.append(str(trial_switch_point))
+        trial_count += 1
+        prev_switch_point = trial_switch_point
+    return xtick_points, xtick_labels
 
 
 def print_instructions():

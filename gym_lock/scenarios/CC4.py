@@ -28,7 +28,9 @@ class CommonCause4Scenario(Scenario):
         [ActionLog('push_l0', None), ActionLog('push_l3', None), ActionLog('push_door', None)],
     ]
 
-    def __init__(self):
+    def __init__(self, use_physics=True):
+        super(CommonCause4Scenario, self).__init__(use_physics=use_physics)
+
         self.world_def = None # handle to the Box2D world
 
         self.fsmm = FiniteStateMachineManager(scenario=self,
@@ -53,12 +55,15 @@ class CommonCause4Scenario(Scenario):
             if lock == 'l1:':
                 pulled = [s for s in self.fsmm.observable_fsm.state_permutations if lock + 'pulled,' in s and 'l0:pushed,' in s]
                 pushed = [s for s in self.fsmm.observable_fsm.state_permutations if lock + 'pushed,' in s and 'l0:pushed,' in s]
+                super(CommonCause4Scenario, self).add_no_ops(lock, pushed, pulled)
             elif lock == 'l2:':
                 pulled = [s for s in self.fsmm.observable_fsm.state_permutations if lock + 'pulled,' in s and 'l0:pushed,' in s]
                 pushed = [s for s in self.fsmm.observable_fsm.state_permutations if lock + 'pushed,' in s and 'l0:pushed,' in s]
+                super(CommonCause4Scenario, self).add_no_ops(lock, pushed, pulled)
             elif lock == 'l3:':
                 pulled = [s for s in self.fsmm.observable_fsm.state_permutations if lock + 'pulled,' in s and 'l0:pushed,' in s]
                 pushed = [s for s in self.fsmm.observable_fsm.state_permutations if lock + 'pushed,' in s and 'l0:pushed,' in s]
+                super(CommonCause4Scenario, self).add_no_ops(lock, pushed, pulled)
             else:
                 pulled = [s for s in self.fsmm.observable_fsm.state_permutations if lock + 'pulled,' in s]
                 pushed = [s for s in self.fsmm.observable_fsm.state_permutations if lock + 'pushed,' in s]
@@ -83,13 +88,13 @@ class CommonCause4Scenario(Scenario):
         '''
         super(CommonCause4Scenario, self).update_observable()
 
-    def update_state_machine(self):
+    def update_state_machine(self, action=None):
         '''
         Updates the finite state machines according to object status in the Box2D environment
         '''
-        super(CommonCause4Scenario, self).update_state_machine()
+        super(CommonCause4Scenario, self).update_state_machine(action)
 
-    def init_scenario_env(self, world_def):
+    def init_scenario_env(self, world_def=None):
         '''
         initializes the scenario-specific components of the box2d world (e.g. levers)
         :return:
@@ -97,16 +102,16 @@ class CommonCause4Scenario(Scenario):
 
         super(CommonCause4Scenario, self).init_scenario_env(world_def)
 
-        self.world_def.lock_lever('l1') #initially lock l1
-        self.world_def.lock_lever('l2') #initially lock l2
-        self.world_def.lock_lever('l3') #initially lock l3
+        if self.use_physics:
+            self.world_def.lock_lever('l1') #initially lock l1
+            self.world_def.lock_lever('l2') #initially lock l2
+            self.world_def.lock_lever('l3') #initially lock l3
 
     def _update_env(self):
         '''
         updates the Box2D environment based on the state of the finite state machine
         '''
-        self._update_latent_objs()
-        self._update_observable_objs()
+        super(CommonCause4Scenario, self)._update_env()
 
     def _update_latent_objs(self):
         '''

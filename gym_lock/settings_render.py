@@ -27,9 +27,10 @@ RENDER_SETTINGS = {
 
 BOX2D_SETTINGS = {
     "FPS": 500,
-    "VEL_ITERS": 10,
-    "POS_ITERS": 10,
+    "VEL_ITERS": 3,
+    "POS_ITERS": 3,
     "POS_PID_CLK_DIV": 10,
+    "VEL_PID_CLK_DIV": 1,
     "STATE_MACHINE_CLK_DIV": 5,
 
     # Makes physics results more accurate (see Box2D wiki)

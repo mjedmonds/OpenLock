@@ -4,6 +4,7 @@ import copy
 import jsonpickle
 import os
 import json
+import copy
 
 
 class ActionLog(object):
@@ -21,6 +22,9 @@ class ActionLog(object):
     def __str__(self):
         return self.name
 
+    def __repr__(self):
+        return str(self)
+
     def finish(self, end_time):
         self.end_time = end_time
 
@@ -33,10 +37,12 @@ class AttemptLog(object):
     end_time = None
     cur_action = None
     results = None
+    reward = None
 
     def __init__(self, attempt_num, start_time):
         self.attempt_num = attempt_num
         self.start_time = start_time
+        self.reward = None
 
     def __eq__(self, other):
         return self.action_seq == other.action_seq
@@ -79,6 +85,7 @@ class TrialLog(object):
         self.completed_solutions = []
         self.attempt_seq = []
         self.solution_found = []
+        self.trial_reward = None
 
     def add_attempt(self):
         self.cur_attempt = AttemptLog(len(self.attempt_seq), time.time())
@@ -86,7 +93,7 @@ class TrialLog(object):
 
     def finish_attempt(self, results):
         # check to see if this attempt is a solution that has not been completed already
-        if self.cur_attempt.action_seq in self.solutions and self.cur_attempt.action_seq not in self.completed_solutions:
+        if self.determine_unique_solution():
             self.completed_solutions.append(self.cur_attempt.action_seq)
             success = True
             self.num_solutions_remaining -= 1
@@ -104,6 +111,28 @@ class TrialLog(object):
         self.success = len(self.solutions) == len(self.completed_solutions)
         self.end_time = end_time
         return self.success
+
+    def determine_unique_solution(self):
+        return len(self.cur_attempt.action_seq) == len(self.solutions[0]) and self.determine_unique()
+
+    # this function also determines if the action sequence is a duplicate to unlock the door, not just open the door
+    def determine_unique(self):
+        num_actions = len(self.cur_attempt.action_seq)
+        # if this is a complete action sequence and it is not a solution, return false
+        # full action sequence
+        if num_actions == len(self.solutions[0]):
+            # solution is unique if it is in the list of solutions and not in the solutions found
+            if self.cur_attempt.action_seq in self.solutions and self.cur_attempt.action_seq not in self.completed_solutions:
+                return True
+            else:
+                return False
+        # partial action sequence
+        else:
+            for solution in self.completed_solutions:
+                if solution[:num_actions] == self.cur_attempt.action_seq:
+                    return False
+            # doesn't match any solution found,
+            return True
 
 
 class SubjectLog(object):
@@ -132,7 +161,7 @@ class SubjectLog(object):
         self.handedness = handedness
         self.eyewear = eyewear
         self.major = major
-        self.human = True
+        self.human = human
 
     def add_trial(self, trial_name, scenario_name, solutions):
         self.cur_trial = TrialLog(trial_name, scenario_name, solutions, time.time())
@@ -153,7 +182,7 @@ class SubjectWriter:
     def __init__(self, subject_path):
         self.subject_path = subject_path
 
-    def write(self, logger):
+    def write(self, logger, agent=None):
         subject_summary = jsonpickle.encode(logger)
         # json_results = self.JSONify_subject(logger)
 
@@ -167,6 +196,17 @@ class SubjectWriter:
             os.makedirs(trial_dir)
             trial_summary_filename = trial_dir + '/trial' + str(i) + '_summary.json'
             self.pretty_write(trial_summary_filename, trial_str)
+
+        # write out the RL agent
+        if agent is not None:
+            agent_cpy = copy.copy(agent)
+            del agent_cpy.memory
+            del agent_cpy.model
+            if hasattr(agent_cpy, 'target_model'):
+                del agent_cpy.target_model
+            agent_file_name = self.subject_path + '/' + logger.subject_id + '_agent.json'
+            agent_str = jsonpickle.encode(agent_cpy, unpicklable=False)
+            self.pretty_write(agent_file_name, agent_str)
 
     @staticmethod
     def pretty_write(filename, json_str):

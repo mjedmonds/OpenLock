@@ -12,13 +12,10 @@ UPPERRIGHT = TwoDConfig(11, 11, -np.pi/4)
 LOWERLEFT = TwoDConfig(-11, -11, 3*np.pi / 4)
 LOWERRIGHT = TwoDConfig(11, -11, 5*np.pi/4)
 
-REWARD_NONE = 0
-REWARD_UNLOCK = 1
-REWARD_OPEN = 5
-
 ATTEMPT_LIMIT = 30
 ACTION_LIMIT = 3
 DATA_DIR = '../OpenLockResults/subjects'
+
 
 PARAMS = {
     'CE3-CE4': {
@@ -27,6 +24,7 @@ PARAMS = {
         'train_scenario_name': 'CE3',
         'train_attempt_limit': ATTEMPT_LIMIT,
         'train_action_limit': ACTION_LIMIT,
+        'num_test_trials': 1,
         'test_scenario_name': 'CE4',
         'test_attempt_limit': ATTEMPT_LIMIT,
         'test_action_limit': ACTION_LIMIT
@@ -37,6 +35,7 @@ PARAMS = {
         'train_scenario_name': 'CE3',
         'train_attempt_limit': ATTEMPT_LIMIT,
         'train_action_limit': ACTION_LIMIT,
+        'num_test_trials': 1,
         'test_scenario_name': 'CC4',
         'test_attempt_limit': ATTEMPT_LIMIT,
         'test_action_limit': ACTION_LIMIT
@@ -47,6 +46,7 @@ PARAMS = {
         'train_scenario_name': 'CC3',
         'train_attempt_limit': ATTEMPT_LIMIT,
         'train_action_limit': ACTION_LIMIT,
+        'num_test_trials': 1,
         'test_scenario_name': 'CE4',
         'test_attempt_limit': ATTEMPT_LIMIT,
         'test_action_limit': ACTION_LIMIT
@@ -57,6 +57,7 @@ PARAMS = {
         'train_scenario_name': 'CC3',
         'train_attempt_limit': ATTEMPT_LIMIT,
         'train_action_limit': ACTION_LIMIT,
+        'num_test_trials': 1,
         'test_scenario_name': 'CC4',
         'test_attempt_limit': ATTEMPT_LIMIT,
         'test_action_limit': ACTION_LIMIT
@@ -67,6 +68,7 @@ PARAMS = {
         'train_scenario_name': 'CC4',
         'train_attempt_limit': ATTEMPT_LIMIT,
         'train_action_limit': ACTION_LIMIT,
+        'num_test_trials': 0,
         'test_scenario_name': None,
         'test_attempt_limit': ATTEMPT_LIMIT,
         'test_action_limit': ACTION_LIMIT
@@ -77,6 +79,7 @@ PARAMS = {
         'train_scenario_name': 'CE4',
         'train_attempt_limit': ATTEMPT_LIMIT,
         'train_action_limit': ACTION_LIMIT,
+        'num_test_trials': 0,
         'test_scenario_name': None,
         'test_attempt_limit': ATTEMPT_LIMIT,
         'test_action_limit': ACTION_LIMIT
@@ -84,7 +87,7 @@ PARAMS = {
     'testing': {
         'data_dir': DATA_DIR,
         'num_train_trials': 1,
-        'train_scenario_name': 'CE4',
+        'train_scenario_name': 'CC3',
         'train_attempt_limit': ATTEMPT_LIMIT,
         'train_action_limit': ACTION_LIMIT,
         'test_scenario_name': None,
@@ -233,12 +236,18 @@ def select_random_trial(completed_trials, min_idx, max_idx):
     :param max: max value of trial index
     :return:
     '''
+    trial_list = []
     trial_base = 'trial'
     rand = np.random.randint(min_idx, max_idx+1)
     trial = trial_base + str(rand)
+    trial_list.append(trial)
     while trial in completed_trials:
         rand = np.random.randint(min_idx, max_idx+1)
         trial = trial_base + str(rand)
+        trial_list.append(trial)
+        # all have been tried
+        if len(trial_list) == max_idx - min_idx:
+            return None, None
 
     return select_trial(trial)
 

@@ -1,5 +1,9 @@
+import re
+import numpy as np
 
 from transitions.extensions import GraphMachine as Machine
+from gym_lock.settings_trial import UPPER, LEFT, LOWER, UPPERLEFT, UPPERRIGHT, LOWERLEFT, LOWERRIGHT, CONFIG_TO_IDX, NUM_LEVERS, LEVER_CONFIGS
+
 
 def cartesian_product(*lists):
     result = [[]]
@@ -88,7 +92,7 @@ class FiniteStateMachineManager():
         '''
         latent_states = dict()
         for latent_var in self.latent_vars:
-            latent_states[latent_var] = self._extract_entity_state(self.latent_fsm.state, latent_var)
+            latent_states[latent_var] = self.extract_entity_state(self.latent_fsm.state, latent_var)
         return latent_states
 
         # parses out the state of a specified object from a full state string
@@ -100,8 +104,11 @@ class FiniteStateMachineManager():
         '''
         observable_states = dict()
         for observable_var in self.observable_vars:
-            observable_states[observable_var] = self._extract_entity_state(self.observable_fsm.state, observable_var)
+            observable_states[observable_var] = self.extract_entity_state(self.observable_fsm.state, observable_var)
         return observable_states
+
+    def get_internal_state(self):
+        return self.observable_fsm.state + self.latent_fsm.state
 
     def update_latent(self):
         '''
@@ -122,10 +129,14 @@ class FiniteStateMachineManager():
             # changes in observable FSM will trigger a callback to update the latent FSM if needed
             self.observable_fsm.trigger(action)
         else:
-            raise ValueError('unknown action \'{}'.format(action) + '\'')
+            # todo: dirty hack to get door pushing action
+            if action == 'push_door:':
+                self.scenario.push_door()
+            else:
+                raise ValueError('unknown action \'{}'.format(action) + '\'')
 
     @staticmethod
-    def _extract_entity_state(state, obj):
+    def extract_entity_state(state, obj):
         obj_start_idx = state.find(obj)
         # extract object name + state
         obj_str = state[obj_start_idx:state.find(',', obj_start_idx) + 1]
@@ -135,7 +146,7 @@ class FiniteStateMachineManager():
 
     # changes obj's state in state (full state) to next_obj_state
     @staticmethod
-    def _change_entity_state(state, entity, next_obj_state):
+    def change_entity_state(state, entity, next_obj_state):
         tokens = state.split(',')
         tokens.pop(len(tokens)-1) # remove empty string at end of array
         for i in range(len(tokens)):

@@ -133,7 +133,6 @@ class ArmLockDef(object):
                                      (-world_size, -world_size)])
 
         self.obj_map = dict()
-        self.door_lock = None
         self.grasped_list = []
         self.__init_arm(x0)
         self._init_env()
@@ -142,6 +141,7 @@ class ArmLockDef(object):
         self.contact_listener = ArmLockContactListener(self.end_effector_fixture, self.timestep)
         self.world.contactListener = self.contact_listener
 
+        self.torque = []
         # for body in self.world.bodies:
         #     body.bullet = True
 
@@ -204,6 +204,8 @@ class ArmLockDef(object):
                 linearDamping=0.5,
                 angularDamping=1)
 
+            arm_body.gravityScale = 0
+
             self.arm_bodies.append(arm_body)
         self.end_effector_fixture = self.arm_bodies[-1].CreateFixture(end_effector_fixture_def)
 
@@ -229,8 +231,8 @@ class ArmLockDef(object):
         # TODO: better setup interface
 
         door_config = common.TwoDConfig(18, 5, -np.pi / 2)
-        door = common.Door(self, 'door', door_config, color=common.COLORS['active'])
-        self.obj_map['door'] = door
+        self.door = common.Door(self, 'door', door_config, color=common.COLORS['active'])
+        self.obj_map['door'] = self.door
 
         self.obj_map['door_right_button'] = common.Button(world_def=self, config=door_config, color=common.COLORS['static'], name='door_right_button', height=1.5, width=1.5, x_offset=3, y_offset=3)
         # uncommend below to re-enable pulling on door
@@ -264,6 +266,8 @@ class ArmLockDef(object):
                                             self.timestep,
                                             max_out=30000)
 
+        self.torque = self.update_cascade_controller()
+
     def update_cascade_controller(self):
         if self.clock % BOX2D_SETTINGS['POS_PID_CLK_DIV'] == 0:
             theta = [c.theta for c in self.get_rel_config()[1:]]
@@ -285,22 +289,22 @@ class ArmLockDef(object):
         self.vel_controller.set_setpoint(vel_setpoints)
 
     def lock_door(self):
-        theta = self.door.body.angle
-        length = max([v[0] for v in self.door.shape.vertices])
-        x, y = self.door.body.position
+        theta = self.door.fixture.body.angle
+        length = max([v[0] for v in self.door.fixture.shape.vertices])
+        x, y = self.door.fixture.body.position
 
         delta_x = np.cos(theta) * length
         delta_y = np.sin(theta) * length
 
-        self.door_lock = self.world.CreateWeldJoint(
-            bodyA=self.door.body,  # end of link A
+        self.door.lock = self.world.CreateWeldJoint(
+            bodyA=self.door.fixture.body,  # end of link A
             bodyB=self.ground,  # beginning of link B
             localAnchorB=(x + delta_x, y + delta_y),
         )
 
     def unlock_door(self):
-        self.world.DestroyJoint(self.door_lock)
-        self.door_lock = None
+        self.world.DestroyJoint(self.door.lock)
+        self.door.lock = None
 
     def lock_lever(self, lever):
         self.obj_map[lever].joint.maxMotorForce = 100000
@@ -343,21 +347,22 @@ class ArmLockDef(object):
 
         return config
 
-    def get_locks(self):
-        locks = []
-        lock_regex = '^l[0-9]+'
-        inactive_lock_regex = '^inactive[0-9]+$'
+    def get_levers(self):
+        levers = []
+        lever_regex = '^l[0-9]+'
+        inactive_lever_regex = '^inactive[0-9]+$'
         for obj, val in self.obj_map.items():
-            if re.search(lock_regex, obj) or re.search(inactive_lock_regex, obj):
-                locks.append(val)
-        return locks
+            if re.search(lever_regex, obj) or re.search(inactive_lever_regex, obj):
+                levers.append(val)
+        levers = sorted(levers, key=lambda lever: lever.name)
+        return levers
 
     def get_state(self):
         end_effector_position = self.get_abs_config()[-1]
         end_effector_force = common.TwoDForce(self.contact_listener.norm_force, self.contact_listener.tan_force)
         obj_states = {name: val.ext_test(val.joint) for name, val in self.obj_map.items() if 'button' not in name}
-        lock_state = self.obj_map['door'].int_test(self.obj_map['door'].joint)
-        fsm_state = self.scenario.fsmm.observable_fsm.state + self.scenario.fsmm.latent_fsm.state if self.scenario is not None else ValueError('No Scenario set')
+        lock_state = self.door.int_test(self.door.joint)
+        fsm_state = self.scenario.fsmm.get_internal_state()
         state = {
             'END_EFFECTOR_POS': end_effector_position,
             'END_EFFECTOR_FORCE': end_effector_force,
@@ -365,11 +370,9 @@ class ArmLockDef(object):
             # 'LOCK_TRANSLATIONS' : {name : val[1].translation for name, val in self.obj_map.items() if name != 'door'},
             'OBJ_STATES': obj_states,
             # ext state
-            'LOCK_STATE': lock_state,
-            # 'LOCK_STATE': self.obj_map['door'][2](self.obj_map['door'][1]),
             '_FSM_STATE': fsm_state,
         }
-        state['OBJ_STATES']['door_lock'] = True if self.door_lock is not None else False
+        state['OBJ_STATES']['door_lock'] = self.door.lock_present()
         return state
 
     def apply_torque(self, idx, torque):
@@ -392,14 +395,16 @@ class ArmLockDef(object):
         # self._update_state_machine_at_frame_rate()
 
         self._update_torques()
+        # self._update_torques_at_frame_rate()
 
         self.world.Step(timestep, vel_iterations, pos_iterations)
 
     def _update_torques(self):
         # update torques
-        new_torque = self.update_cascade_controller()
-        for i in range(0, len(new_torque)):
-            self.apply_torque(i + 1, new_torque[i])
+        if self.clock % BOX2D_SETTINGS['VEL_PID_CLK_DIV'] == 0:
+            self.torque = self.update_cascade_controller()
+        for i in range(0, len(self.torque)):
+            self.apply_torque(i + 1, self.torque[i])
 
     # def _update_state_machine_at_frame_rate(self):
     #     ''''''

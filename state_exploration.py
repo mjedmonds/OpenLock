@@ -28,7 +28,7 @@ def main():
     # setup .csv headers
     col_label = []
     col_label.append('frame')
-    for col_name in env.world_def.get_state()['OBJ_STATES']:
+    for col_name in env.world_def.get_internal_state()['OBJ_STATES']:
         col_label.append(col_name)
     col_label.append('agent')
     for col_name in env.action_space:
