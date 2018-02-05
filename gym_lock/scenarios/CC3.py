@@ -1,7 +1,7 @@
 
 from gym_lock.finite_state_machine import FiniteStateMachineManager
 from gym_lock.scenarios.scenario import Scenario
-from logger import ActionLog
+from gym_lock.logger import ActionLog
 
 
 class CommonCause3Scenario(Scenario):
