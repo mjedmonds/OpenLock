@@ -215,7 +215,7 @@ def main():
     params['epsilon_decay'] = 0.99999
     params['dynamic_epsilon_decay'] = 0.9955
     params['dynamic_epsilon_max'] = 0.5
-    params['use_dynamic_epsilon'] = False
+    params['use_dynamic_epsilon'] = True
     params['num_testing_trials'] = 5
 
     params['data_dir'] = '../OpenLockRLResults/subjects'
@@ -223,7 +223,7 @@ def main():
     params['test_attempt_limit'] = 300
     params['gamma'] = 0.8    # discount rate
     params['epsilon'] = 1.0  # exploration rate
-    params['epsilon_min'] = 0.01
+    params['epsilon_min'] = 0.1
     params['learning_rate'] = 0.005
     params['batch_size'] = 64
 
@@ -236,10 +236,10 @@ def main():
     # human comparison settings
     # params['num_training_iters'] = 1
     # params['num_testing_iters'] = 1
-    # params['train_attempt_limit'] = 30
-    # params['test_attempt_limit'] = 30
-    # params['epsilon_decay'] = human_decay_median
-    # params['dynamic_epsilon_decay'] = human_decay_median
+    # params['train_attempt_limit'] = 300000
+    # params['test_attempt_limit'] = 300000
+    # params['epsilon_decay'] = human_decay_mean
+    # params['dynamic_epsilon_decay'] = human_decay_mean
     # params['dynamic_epsilon_max'] = 1
     # params['use_dynamic_epsilon'] = True
 
