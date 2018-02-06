@@ -6,7 +6,6 @@ import sys
 from gym_lock.settings_scenario import select_scenario, select_random_scenarios
 from gym_lock.session_manager import SessionManager
 from gym_lock.settings_trial import PARAMS, IDX_TO_PARAMS
-from gym_lock.space_manager import ObservationSpace
 
 # def exit_handler(signum, frame):
 #    print 'saving results.csv'

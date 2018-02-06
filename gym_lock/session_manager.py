@@ -5,7 +5,7 @@ import copy
 import numpy as np
 
 from gym_lock.settings_trial import select_random_trial, select_trial
-from gym_lock.space_manager import ObservationSpace
+from gym_lock.envs.arm_lock_env import ObservationSpace
 from gym_lock import logger
 
 

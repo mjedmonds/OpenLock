@@ -14,7 +14,6 @@ from distutils.dir_util import copy_tree
 from gym_lock.session_manager import SessionManager
 from gym_lock.settings_trial import PARAMS, IDX_TO_PARAMS
 from gym_lock.settings_scenario import select_scenario
-from gym_lock.space_manager import ObservationSpace, ActionSpace
 from gym_lock.common import plot_rewards, plot_rewards_trial_switch_points
 
 
