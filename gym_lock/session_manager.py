@@ -74,22 +74,6 @@ class SessionManager():
 
         self.run_trial_common_finish(trial_selected)
 
-    def verify_fsm_matches_simulator(self, obs_space):
-        if obs_space is None:
-            obs_space = ObservationSpace(len(self.env.world_def.get_levers()))
-        state, labels = obs_space.create_discrete_observation_from_simulator(self.env)
-        fsm_state, fsm_labels = obs_space.create_discrete_observation_from_fsm(self.env)
-        try:
-            assert(state == fsm_state)
-            assert(labels == fsm_labels)
-        except AssertionError:
-            print 'FSM does not match simulator data'
-            print state
-            print fsm_state
-            print labels
-            print fsm_labels
-        return obs_space
-
     # code to run a computer trial
     def run_trial_dqn(self, agent, scenario_name, action_limit, attempt_limit, trial_count, iter_num, testing=False, specified_trial=None):
         self.env.human_agent = False
@@ -205,6 +189,22 @@ class SessionManager():
 
     def print_update(self, iter_num, trial_num, scenario_name, episode, episode_max, a_reward, t_reward, epsilon):
         print("ID: {}, iter {}, trial {}, scenario {}, episode: {}/{}, attempt_reward {}, trial_reward {}, e: {:.2}".format(self.env.logger.subject_id, iter_num, trial_num, scenario_name, episode, episode_max, a_reward, t_reward, epsilon))
+
+    def verify_fsm_matches_simulator(self, obs_space):
+        if obs_space is None:
+            obs_space = ObservationSpace(len(self.env.world_def.get_levers()))
+        state, labels = obs_space.create_discrete_observation_from_simulator(self.env)
+        fsm_state, fsm_labels = obs_space.create_discrete_observation_from_fsm(self.env)
+        try:
+            assert(state == fsm_state)
+            assert(labels == fsm_labels)
+        except AssertionError:
+            print 'FSM does not match simulator data'
+            print state
+            print fsm_state
+            print labels
+            print fsm_labels
+        return obs_space
 
     def dqn_trial_sanity_checks(self, agent):
         try:

@@ -591,7 +591,7 @@ class ArmLockEnv(gym.Env):
                 if not multithreaded and self.human_agent:
                     print "INFO: Ending attempt. Action limit reached. There are {} unique solutions remaining. You have {} attempts remaining.".format(self.logger.cur_trial.num_solutions_remaining, self.attempt_limit - self.attempt_count)
                 # pause if the door lock is missing and the agent is a human
-                if self.human_agent and self.get_state()['OBJ_STATES']['door_lock'] is False:
+                if self.human_agent and self.get_state()['OBJ_STATES']['door_lock'] == common.ENTITY_STATES['DOOR_UNLOCKED']:
                     pause = True
             trial_finished = False
         else:

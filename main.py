@@ -25,8 +25,6 @@ def run_specific_trial_and_scenario(manager, scenario_name, trial_name, action_l
 
 if __name__ == '__main__':
 
-    # PARAMETERS: todo: make these command-line arguments
-
     if len(sys.argv) < 2:
         # general params
         # training params
