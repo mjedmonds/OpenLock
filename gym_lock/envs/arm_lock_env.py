@@ -399,6 +399,8 @@ class ArmLockEnv(gym.Env):
         if self.logger.cur_trial.success is True:
             if not multithreaded:
                 print "INFO: You found all of the solutions. "
+            # todo: should we mark that the trial is finished even though the attempt_limit
+            # todo: may not be reached?
             trial_finished = True
             pause = True            # pause if they open the door
         elif self.attempt_count < self.attempt_limit:
@@ -504,11 +506,17 @@ class ArmLockEnv(gym.Env):
             raise ValueError('world_def is None while trying to call get_state()')
         # get state from physics simulator
         if self.use_physics:
-            state = self.world_def.get_state()
+            state = self.get_simulator_state()
         # get state from scenario/FSM
         else:
-            state = self.scenario.get_state()
+            state = self.get_fsm_state()
         return state
+
+    def get_fsm_state(self):
+        return self.scenario.get_state()
+
+    def get_simulator_state(self):
+        return self.world_def.get_state()
 
     def determine_fluent_change(self):
         prev_fluent_state = self.prev_state['OBJ_STATES']

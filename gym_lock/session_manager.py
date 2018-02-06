@@ -360,6 +360,7 @@ class SessionManager():
             handedness = 'none'
             eyewear = 'no'
             major = 'robotics'
+            participant_id = -1
 
         subject_id, subject_path = SessionManager.make_subject_dir(data_path)
 
