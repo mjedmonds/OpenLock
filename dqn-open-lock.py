@@ -26,7 +26,7 @@ class Agent(object):
     def __init__(self, state_size, action_size, params):
         self.state_size = state_size
         self.action_size = action_size
-        self.memory = deque(maxlen=2000)
+        self.memory = deque(maxlen=20000)
         self.gamma = params['gamma']    # discount rate
         self.epsilon = params['epsilon']  # exploration rate
         self.epsilon_min = params['epsilon_min']
@@ -207,6 +207,7 @@ def main():
 
     # RL specific settings
     params['use_physics'] = False
+    params['full_attempt_limit'] = True # run to the full attempt limit, regardless of whether or not all solutions were found
     params['num_training_iters'] = 100
     params['num_testing_iters'] = 10
     # params['epsilon_decay'] = 0.9955
@@ -223,7 +224,7 @@ def main():
     params['gamma'] = 0.8    # discount rate
     params['epsilon'] = 1.0  # exploration rate
     params['epsilon_min'] = 0.1
-    params['learning_rate'] = 0.005
+    params['learning_rate'] = 0.0005
     params['batch_size'] = 64
 
     # dummy settings

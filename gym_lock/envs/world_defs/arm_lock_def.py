@@ -1,6 +1,7 @@
+import re
+
 import numpy as np
 from Box2D import b2ContactListener, b2Vec2, b2World, b2FixtureDef, b2PolygonShape, b2CircleShape, b2Dot
-import re
 
 import gym_lock.common as common
 from gym_lock.pid_central import PIDController
