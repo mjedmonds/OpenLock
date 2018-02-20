@@ -233,11 +233,11 @@ class SessionManager():
         writer.write(logger, agent)
 
     @staticmethod
-    def write_trial_results(logger, writer, agent=None,test_trial = False):
-        writer.write_trial(logger, agent,test_trial)
+    def write_trial_results(logger, writer, agent=None):
+        writer.write_trial(logger, agent)
 
     @staticmethod
-    def finish_trial(logger, writer, human = True, agent = None, test_trial = False):
+    def finish_trial(logger, writer, human = True, agent = None):
         logger.finish(time.time())
         if human:
             strategy = None
@@ -248,7 +248,7 @@ class SessionManager():
         logger.strategy = strategy
         logger.transfer_strategy = transfer_strategy
 
-        SessionManager.write_trial_results(logger, writer, agent,test_trial)
+        SessionManager.write_trial_results(logger, writer, agent)
 
     @staticmethod
     def finish_subject(logger, writer, human=True, agent=None):
