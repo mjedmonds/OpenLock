@@ -16,7 +16,7 @@ from matplotlib import pyplot as plt
 from gym_lock.session_manager import SessionManager
 from gym_lock.settings_trial import PARAMS, IDX_TO_PARAMS
 from gym_lock.settings_scenario import select_scenario
-from gym_lock.common import compute_moving_average,plot_rewards, plot_rewards_trial_switch_points
+from gym_lock.common import show_rewards,plot_rewards, plot_rewards_trial_switch_points
 from gym_lock.envs.arm_lock_env import ObservationSpace
 
 EPISODES = 1000
@@ -277,11 +277,12 @@ def main():
     # agent = DQNAgent(state_size, action_size, params)
     agent = DDQNAgent(state_size, action_size, params)
     env.reset()
+    #Creating the figure
     fig = plt.gcf()
-    ax = plt.gca()
     fig.set_size_inches(12, 6)
     plt.ion()
     plt.show()
+    
     trial_count = 0
     # train over multiple iterations over all trials
     for iter_num in range(params['num_training_iters']):
@@ -293,20 +294,8 @@ def main():
                                           attempt_limit=params['train_attempt_limit'],
                                           trial_count=trial_num,
                                           iter_num=iter_num)
-            rewards = agent.rewards
-            epsilons = agent.epsilons
-            assert len(epsilons) == len(rewards)
-            moving_avg = compute_moving_average(rewards, 100)
-            plt.xlim((0, len(rewards)))
-            r, = plt.plot(rewards, color='red', linestyle='-', linewidth=0.5, label='reward', alpha=0.5)
-            ave_r, = plt.plot(moving_avg, color='blue', linestyle='-', linewidth=0.8, label='avg_reward')
-            # e, = plt.plot(epsilons, color='blue', linestyle='--', alpha=0.5, label='epsilon')
-            plt.legend([r, ave_r], ['reward', 'average reward'])
-            plt.ylabel('Reward')
-            plt.xlabel('Episode #')
-            plt.draw()
-            plt.show()
-            plt.pause(1)
+            show_rewards(agent.rewards, agent.epsilons,fig)
+
             # reset the epsilon after each trial (to allow more exploration)
             if params['use_dynamic_epsilon']:
                 agent.update_dynamic_epsilon(agent.epsilon_min, params['dynamic_epsilon_max'], params['dynamic_epsilon_decay'])

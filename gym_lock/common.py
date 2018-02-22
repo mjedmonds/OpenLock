@@ -387,8 +387,9 @@ def plot_rewards(rewards, epsilons, filename, width=12, height=6):
     plt.show()
     plt.savefig(filename)
 
-def show_rewards(rewards, epsilons, filename, width=12, height=6):
-    plt.clf()
+def show_rewards(rewards, epsilons, fig, width=12, height=6):
+    #plt.clf()
+    plt.ion()
     assert len(epsilons) == len(rewards)
     moving_avg = compute_moving_average(rewards, 100)
     fig = plt.gcf()
@@ -401,7 +402,9 @@ def show_rewards(rewards, epsilons, filename, width=12, height=6):
     plt.legend([r, ave_r], ['reward', 'average reward'])
     plt.ylabel('Reward')
     plt.xlabel('Episode #')
+    plt.draw()
     plt.show()
+    plt.pause(0.1)
 
 def plot_rewards_trial_switch_points(rewards, epsilons, trial_switch_points, filename, plot_xticks=False):
     plt.clf()
