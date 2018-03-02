@@ -82,17 +82,23 @@ class ObservationSpace:
     @staticmethod
     def create_observation_space(num_levers, num_solutions=0):
         discrete_space = []
+        num_lever_states = 2
+        num_lever_colors = 2
+        num_door_states = 2
+        num_door_lock_states = 2
         # first num_levers represent the state of the levers
         for i in range(num_levers):
-            discrete_space.append([0, 1])
+            discrete_space.append(num_lever_states)
         # second num_levers represent the colors of the levers
         for i in range(num_levers):
-            discrete_space.append([0, 1])
-        discrete_space.append([0, 1])       # door lock
-        discrete_space.append([0, 1])       # door open
+            discrete_space.append(num_lever_colors)
+        discrete_space.append(num_door_lock_states)       # door lock
+        discrete_space.append(num_door_states)       # door open
         # solutions appended
         for i in range(num_solutions):
-            discrete_space.append([0, 1])
+            # solutions can only be found or not found
+            discrete_space.append(2)
+        discrete_space = np.array(discrete_space)
         multi_discrete = MultiDiscrete(discrete_space)
         return multi_discrete
 
