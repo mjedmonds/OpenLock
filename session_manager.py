@@ -88,15 +88,8 @@ class SessionManager():
 
         trial_reward = 0
         attempt_reward = 0
-
-        while True:
-            # end if attempt limit reached
-            if self.env.attempt_count >= attempt_limit:
-                break
-            # trial is success and not forcing agent to use all attempts
-            elif self.params['full_attempt_limit'] is False and self.env.logger.cur_trial.success is True:
-                break
-
+        #while self.env.attempt_count < attempt_limit and self.env.logger.cur_trial.success is False:
+        while self.env.attempt_count < attempt_limit:
             # self.env.render()
 
             action_idx = agent.act(state)
@@ -106,19 +99,9 @@ class SessionManager():
 
             next_state = np.reshape(next_state, [1, agent.state_size])
 
-            # THIS OVERRIDES done coming from the environment based on whether or not
-            # we are allowing the agent to move to the next trial after finding all solutions
-            if self.params['full_attempt_limit'] and self.env.attempt_count < attempt_limit:
-                done = False
-
-            if self.env.logger.cur_trial.success:
-                print('found both solutions')
-
             agent.remember(state, action_idx, reward, next_state, done)
             # agent.remember(state, action_idx, trial_reward, next_state, done)
             # self.env.render()
-
-
             trial_reward += reward
             attempt_reward += reward
             state = next_state
@@ -130,7 +113,14 @@ class SessionManager():
                 agent.save_reward(attempt_reward, trial_reward)
                 attempt_reward = 0
 
-            self.save_agent(agent, save_dir, testing, iter_num, trial_count)
+            # save model
+            # if self.env.attempt_count % (self.env.attempt_limit/2) == 0 or self.env.attempt_count == self.env.attempt_limit or self.env.logger.cur_trial.success is True:
+            if self.env.attempt_count == 0 or self.env.attempt_count == self.env.attempt_limit:
+                if testing:
+                    save_str = '/agent_test_i_' + str(iter_num) + '_t' + str(trial_count) + '_a' + str(self.env.attempt_count) + '.h5'
+                else:
+                    save_str = '/agent_i_' + str(iter_num) + '_t' + str(trial_count) + '_a' + str(self.env.attempt_count) + '.h5'
+                agent.save_model(save_dir,  save_str)
 
             # replay to learn
             if len(agent.memory) > agent.batch_size:
@@ -144,16 +134,6 @@ class SessionManager():
         agent.average_trial_rewards.append(trial_reward / self.env.attempt_count)
 
         return agent
-
-    def save_agent(self, agent, save_dir, testing, iter_num, trial_count):
-        # save model
-        # if self.env.attempt_count % (self.env.attempt_limit/2) == 0 or self.env.attempt_count == self.env.attempt_limit or self.env.logger.cur_trial.success is True:
-        if self.env.attempt_count == 0 or self.env.attempt_count == self.env.attempt_limit:
-            if testing:
-                save_str = '/agent_test_i_' + str(iter_num) + '_t' + str(trial_count) + '_a' + str(self.env.attempt_count) + '.h5'
-            else:
-                save_str = '/agent_i_' + str(iter_num) + '_t' + str(trial_count) + '_a' + str(self.env.attempt_count) + '.h5'
-            agent.save_model(save_dir,  save_str)
 
     # code to run a computer trial
     def run_trial_qtable(self, agent, scenario_name, action_limit, attempt_limit, trial_count, iter_num, testing=False, specified_trial=None):
@@ -253,11 +233,11 @@ class SessionManager():
         writer.write(logger, agent)
 
     @staticmethod
-    def write_trial_results(logger, writer, agent=None,test_trial = False):
-        writer.write_trial(logger, agent,test_trial)
+    def write_trial_results(logger, writer, agent=None):
+        writer.write_trial(logger, agent)
 
     @staticmethod
-    def finish_trial(logger, writer, human = True, agent = None, test_trial = False):
+    def finish_trial(logger, writer, human = True, agent = None):
         logger.finish(time.time())
         if human:
             strategy = None
@@ -268,7 +248,7 @@ class SessionManager():
         logger.strategy = strategy
         logger.transfer_strategy = transfer_strategy
 
-        SessionManager.write_trial_results(logger, writer, agent,test_trial)
+        SessionManager.write_trial_results(logger, writer, agent)
 
     @staticmethod
     def finish_subject(logger, writer, human=True, agent=None):

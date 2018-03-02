@@ -290,7 +290,8 @@ def main():
                                           attempt_limit=params['train_attempt_limit'],
                                           trial_count=trial_num,
                                           iter_num=iter_num)
-
+            manager.finish_trial(manager.env.logger, manager.writer, human=False, agent=agent)
+            print 'One trial complete for subject {}'.format(env.logger.subject_id)
             # reset the epsilon after each trial (to allow more exploration)
             if params['use_dynamic_epsilon']:
                 agent.update_dynamic_epsilon(agent.epsilon_min, params['dynamic_epsilon_max'], params['dynamic_epsilon_decay'])
@@ -325,6 +326,8 @@ def main():
                                               trial_count=trial_num,
                                               iter_num=iter_num,
                                               testing=True)
+                manager.finish_trial(manager.env.logger, manager.writer, human=False, agent=agent)
+                print 'One trial complete for subject {}'.format(env.logger.subject_id)
 
                 # reset the epsilon after each trial (to allow more exploration)
                 if params['use_dynamic_epsilon']:
