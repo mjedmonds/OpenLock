@@ -38,7 +38,7 @@ class Agent(object):
         self.trial_switch_points = []
         self.average_trial_rewards = []
         self.batch_size = params['batch_size']
-        self.num_training_iters = params['num_training_iters']
+        self.train_num_iters = params['train_num_iters']
         self.train_attempt_limit = params['train_attempt_limit']
         self.train_action_limit = params['train_action_limit']
         self.test_attempt_limit = params['test_attempt_limit']
@@ -182,6 +182,44 @@ class DDQNAgent(Agent):
             self.epsilon *= self.epsilon_decay
 
 
+def run_trials(manager, env, agent, trial_count, num_iters, num_trials, scenario_name, action_limit, attempt_limit, use_dynamic_epsilon, dynamic_epsilon_max, dynamic_epsilon_decay, testing):
+    # train over multiple iterations over all trials
+    for iter_num in range(num_iters):
+        manager.completed_trials = []
+        for trial_num in range(0, num_trials):
+            manager, env, agent = run_single_trial(manager,
+                                                   env,
+                                                   agent,
+                                                   trial_num,
+                                                   iter_num,
+                                                   scenario_name,
+                                                   action_limit,
+                                                   attempt_limit,
+                                                   use_dynamic_epsilon,
+                                                   dynamic_epsilon_max,
+                                                   dynamic_epsilon_decay,
+                                                   testing)
+            trial_count += 1
+
+    return manager, env, agent, trial_count
+
+
+def run_single_trial(manager, env, agent, trial_num, iter_num, scenario_name, action_limit, attempt_limit, use_dynamic_epsilon, dynamic_max, dynamic_decay, testing=False):
+    agent = manager.run_trial_dqn(agent=agent,
+                                  scenario_name=scenario_name,
+                                  action_limit=action_limit,
+                                  attempt_limit=attempt_limit,
+                                  trial_count=trial_num,
+                                  iter_num=iter_num,
+                                  testing=testing)
+    manager.finish_trial(manager.env.logger, manager.writer, human=False, agent=agent)
+    print 'One trial complete for subject {}'.format(env.logger.subject_id)
+    # reset the epsilon after each trial (to allow more exploration)
+    if use_dynamic_epsilon:
+        agent.update_dynamic_epsilon(agent.epsilon_min, dynamic_max, dynamic_decay)
+    return manager, env, agent
+
+
 def main():
     # general params
     # training params
@@ -208,15 +246,15 @@ def main():
     # RL specific settings
     params['use_physics'] = False
     params['full_attempt_limit'] = True # run to the full attempt limit, regardless of whether or not all solutions were found
-    params['num_training_iters'] = 100
-    params['num_testing_iters'] = 10
+    params['train_num_iters'] = 100
+    params['test_num_iters'] = 10
     # params['epsilon_decay'] = 0.9955
     # params['epsilon_decay'] = 0.9999
     params['epsilon_decay'] = 0.99999
     params['dynamic_epsilon_decay'] = 0.9955
     params['dynamic_epsilon_max'] = 0.5
     params['use_dynamic_epsilon'] = True
-    params['num_testing_trials'] = 5
+    params['test_num_trials'] = 5
 
     params['data_dir'] = '../OpenLockRLResults/subjects'
     params['train_attempt_limit'] = 300
@@ -273,29 +311,15 @@ def main():
 
     env.full_attempt_limit = True
 
-    state_size = env.observation_space.multi_discrete.shape
+    state_size = env.observation_space.multi_discrete.shape[0]
     action_size = len(env.action_space)
     # agent = DQNAgent(state_size, action_size, params)
     agent = DDQNAgent(state_size, action_size, params)
     env.reset()
 
+    # train all training cases/trials
     trial_count = 0
-    # train over multiple iterations over all trials
-    for iter_num in range(params['num_training_iters']):
-        manager.completed_trials = []
-        for trial_num in range(0, params['num_train_trials']):
-            agent = manager.run_trial_dqn(agent=agent,
-                                          scenario_name=params['train_scenario_name'],
-                                          action_limit=params['train_action_limit'],
-                                          attempt_limit=params['train_attempt_limit'],
-                                          trial_count=trial_num,
-                                          iter_num=iter_num)
-            manager.finish_trial(manager.env.logger, manager.writer, human=False, agent=agent)
-            print 'One trial complete for subject {}'.format(env.logger.subject_id)
-            # reset the epsilon after each trial (to allow more exploration)
-            if params['use_dynamic_epsilon']:
-                agent.update_dynamic_epsilon(agent.epsilon_min, params['dynamic_epsilon_max'], params['dynamic_epsilon_decay'])
-            trial_count += 1
+    manager, env, agent, trial_count = run_trials(manager, env, agent, trial_count, params['train_num_iters'], params['train_num_trials'], params['train_scenario_name'], params['train_action_limit'], params['train_attempt_limit'], params['use_dynamic_epsilon'], params['dynamic_epsilon_max'], params['dynamic_epsilon_decay'], testing=False)
 
     plot_rewards(agent.rewards, agent.epsilons, manager.writer.subject_path + '/training_rewards.png')
     plot_rewards_trial_switch_points(agent.rewards, agent.epsilons, agent.trial_switch_points, manager.writer.subject_path + '/training_rewards_switch_points.png', plot_xticks=False)
@@ -314,25 +338,7 @@ def main():
         manager.set_action_limit(params['test_action_limit'])
         env.observation_space = ObservationSpace(len(scenario.levers), append_solutions_remaining=False)
 
-        # give the agent as many testing iterations as training
-        for iter_num in range(params['num_testing_iters']):
-            # run testing trial
-            manager.completed_trials = []
-            for trial_num in range(0, params['num_train_trials']):
-                agent = manager.run_trial_dqn(agent=agent,
-                                              scenario_name=params['test_scenario_name'],
-                                              action_limit=params['test_action_limit'],
-                                              attempt_limit=params['test_attempt_limit'],
-                                              trial_count=trial_num,
-                                              iter_num=iter_num,
-                                              testing=True)
-                manager.finish_trial(manager.env.logger, manager.writer, human=False, agent=agent)
-                print 'One trial complete for subject {}'.format(env.logger.subject_id)
-
-                # reset the epsilon after each trial (to allow more exploration)
-                if params['use_dynamic_epsilon']:
-                    agent.update_dynamic_epsilon(agent.epsilon_min, params['dynamic_epsilon_max'], params['dynamic_epsilon_decay'])
-                trial_count += 1
+        manager, env, agent, trial_count = run_trials(manager, env, agent, trial_count, params['test_num_iters'], params['test_num_trials'], params['test_scenario_name'], params['test_action_limit'], params['test_attempt_limit'], params['use_dynamic_epsilon'], params['dynamic_epsilon_max'], params['dynamic_epsilon_decay'], testing=True)
 
         plot_rewards(agent.rewards[agent.test_start_reward_idx:], agent.epsilons[agent.test_start_reward_idx:], manager.writer.subject_path + '/testing_rewards.png', width=6, height=6)
         agent.save_model(manager.writer.subject_path + '/models', '/testing_final.h5')

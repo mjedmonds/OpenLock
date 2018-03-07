@@ -59,7 +59,7 @@ if __name__ == '__main__':
     # used for debugging, runs a specific scenario & trial
     # run_specific_trial_and_scenario(manager, 'CC3', 'trial5', params['train_action_limit'], params['train_attempt_limit'])
 
-    for trial_num in range(0, params['num_train_trials']):
+    for trial_num in range(0, params['train_num_trials']):
         manager.run_trial_human(params['train_scenario_name'], params['train_action_limit'], params['train_attempt_limit'], verify=True)
         manager.finish_trial(manager.env.logger, manager.writer)
         print 'One trial complete for subject {}'.format(env.logger.subject_id)

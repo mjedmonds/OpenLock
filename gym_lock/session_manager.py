@@ -67,7 +67,7 @@ class SessionManager():
 
         obs_space = None
         while self.env.attempt_count < attempt_limit and self.env.logger.cur_trial.success is False:
-            self.env.render()
+            self.env.render(self.env)
             # used to verify simulator and fsm states are always the same (they should be)
             if verify:
                 obs_space = self.verify_fsm_matches_simulator(obs_space)
