@@ -5,7 +5,7 @@ import os
 import sys
 import json
 from shutil import copytree, ignore_patterns
-
+from matplotlib import pyplot as plt
 
 # MUST IMPORT FROM gym_lock to properly register the environment
 from gym_lock.session_manager import SessionManager
@@ -18,7 +18,7 @@ from dqn_agent import DQNAgent, DDQNAgent
 EPISODES = 1000
 
 
-def run_trials(manager, env, agent, trial_count, num_iters, num_trials, scenario_name, action_limit, attempt_limit, use_dynamic_epsilon, dynamic_epsilon_max, dynamic_epsilon_decay, testing):
+def run_trials(manager, env, agent, trial_count, num_iters, num_trials, scenario_name, action_limit, attempt_limit, use_dynamic_epsilon, dynamic_epsilon_max, dynamic_epsilon_decay, testing, fig=None):
     # train over multiple iterations over all trials
     for iter_num in range(num_iters):
         manager.completed_trials = []
@@ -34,20 +34,22 @@ def run_trials(manager, env, agent, trial_count, num_iters, num_trials, scenario
                                                    use_dynamic_epsilon,
                                                    dynamic_epsilon_max,
                                                    dynamic_epsilon_decay,
-                                                   testing)
+                                                   testing, 
+                                                   fig=fig)
             trial_count += 1
 
     return manager, env, agent, trial_count
 
 
-def run_single_trial(manager, env, agent, trial_num, iter_num, scenario_name, action_limit, attempt_limit, use_dynamic_epsilon=False, dynamic_max=None, dynamic_decay=None, testing=False):
+def run_single_trial(manager, env, agent, trial_num, iter_num, scenario_name, action_limit, attempt_limit, use_dynamic_epsilon=False, dynamic_max=None, dynamic_decay=None, testing=False, fig=None):
     agent = manager.run_trial_dqn(agent=agent,
                                   scenario_name=scenario_name,
                                   action_limit=action_limit,
                                   attempt_limit=attempt_limit,
                                   trial_count=trial_num,
                                   iter_num=iter_num,
-                                  testing=testing)
+                                  testing=testing,
+                                  fig=fig)
     manager.finish_trial(manager.env.logger, manager.writer, human=False, agent=agent)
     print 'One trial complete for subject {}'.format(env.logger.subject_id)
     # reset the epsilon after each trial (to allow more exploration)
@@ -57,10 +59,10 @@ def run_single_trial(manager, env, agent, trial_num, iter_num, scenario_name, ac
 
 
 # trains the transfer case and trains multiple transfer cases
-def train_transfer_test_transfer(manager, env, agent, params):
+def train_transfer_test_transfer(manager, env, agent, params, fig=None):
     # train all training cases/trials
     trial_count = 0
-    manager, env, agent, trial_count = run_trials(manager, env, agent, trial_count, params['train_num_iters'], params['train_num_trials'], params['train_scenario_name'], params['train_action_limit'], params['train_attempt_limit'], params['use_dynamic_epsilon'], params['dynamic_epsilon_max'], params['dynamic_epsilon_decay'], testing=False)
+    manager, env, agent, trial_count = run_trials(manager, env, agent, trial_count, params['train_num_iters'], params['train_num_trials'], params['train_scenario_name'], params['train_action_limit'], params['train_attempt_limit'], params['use_dynamic_epsilon'], params['dynamic_epsilon_max'], params['dynamic_epsilon_decay'], testing=False, fig=fig)
 
     plot_rewards(agent.rewards, agent.epsilons, manager.writer.subject_path + '/training_rewards.png')
     plot_rewards_trial_switch_points(agent.rewards, agent.epsilons, agent.trial_switch_points, manager.writer.subject_path + '/training_rewards_switch_points.png', plot_xticks=False)
@@ -87,6 +89,29 @@ def train_transfer_test_transfer(manager, env, agent, params):
     return manager, env, agent
 
 
+def train_single_trial(manager, env, agent, params, fig=None):
+    manager, env, agent = run_single_trial(manager, env, agent,
+                                           trial_num=0,
+                                           iter_num=0,
+                                           scenario_name=params['train_scenario_name'],
+                                           action_limit=params['train_action_limit'],
+                                           attempt_limit=params['train_attempt_limit'],
+                                           fig=fig)
+    plot_rewards(agent.rewards, agent.epsilons, manager.writer.subject_path + '/training_rewards.png') 
+    plot_rewards_trial_switch_points(agent.rewards, agent.epsilons, agent.trial_switch_points, manager.writer.subject_path + '/training_rewards_switch_points.png', plot_xticks=False)
+    agent.save_model(manager.writer.subject_path + '/models', '/training_final.h5')
+    return manager, env, agent
+
+
+def create_reward_fig():
+    # creating the figure
+    fig = plt.gcf()
+    fig.set_size_inches(12, 6)
+    plt.ion()
+    plt.show()
+    return fig
+
+
 def main():
     # general params
     # training params
@@ -106,7 +131,7 @@ def main():
         print('training_scenario: {}, testing_scenario: {}'.format(params['train_scenario_name'],
                                                                    params['test_scenario_name']))
         params['reward_mode'] = sys.argv[2]
-
+    print(params['reward_mode'])
     human_decay_mean = 0.7429 # from human data
     human_decay_median = 0.5480 # from human data
 
@@ -124,7 +149,7 @@ def main():
     params['test_num_trials'] = 5
 
     params['data_dir'] = '../OpenLockRLResults/subjects'
-    params['train_attempt_limit'] = 300
+    params['train_attempt_limit'] = 30000
     params['test_attempt_limit'] = 300
     params['gamma'] = 0.8    # discount rate
     params['epsilon'] = 1.0  # exploration rate
@@ -183,16 +208,13 @@ def main():
     # agent = DQNAgent(state_size, action_size, params)
     agent = DDQNAgent(state_size, action_size, params)
     env.reset()
-
+    fig = create_reward_fig()
+ 
+    
     # runs through all training trials and testing trials
-    # manager, env, agent = train_transfer_test_transfer(manager, env, agent, params)
+    # manager, env, agent = train_transfer_test_transfer(manager, env, agent, params, fig)
 
-    manager, env, agent = run_single_trial(manager, env, agent,
-                                           trial_num=0,
-                                           iter_num=0,
-                                           scenario_name=params['train_scenario_name'],
-                                           action_limit=params['train_action_limit'],
-                                           attempt_limit=10)
+    manager, env, agent = train_single_trial(manager, env, agent, params, fig)
 
     manager.finish_subject(manager.env.logger, manager.writer, human=False, agent=agent)
     print 'Training & testing complete for subject {}'.format(env.logger.subject_id)

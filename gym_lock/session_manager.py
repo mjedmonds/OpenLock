@@ -7,6 +7,7 @@ import numpy as np
 from gym_lock.settings_trial import select_random_trial, select_trial
 from gym_lock.envs.arm_lock_env import ObservationSpace
 from gym_lock import logger
+from gym_lock.common import show_rewards
 
 
 class SessionManager():
@@ -75,7 +76,7 @@ class SessionManager():
         self.run_trial_common_finish(trial_selected)
 
     # code to run a computer trial
-    def run_trial_dqn(self, agent, scenario_name, action_limit, attempt_limit, trial_count, iter_num, testing=False, specified_trial=None):
+    def run_trial_dqn(self, agent, scenario_name, action_limit, attempt_limit, trial_count, iter_num, testing=False, specified_trial=None, fig=None, fig_update_rate=100):
         self.env.human_agent = False
         trial_selected = self.run_trial_common_setup(scenario_name, action_limit, attempt_limit, specified_trial)
 
@@ -131,6 +132,9 @@ class SessionManager():
                 attempt_reward = 0
 
             self.save_agent(agent, save_dir, testing, iter_num, trial_count)
+
+            if fig is not None and self.env.attempt_count % fig_update_rate == 0:
+                show_rewards(agent.rewards, agent.epsilons, fig)
 
             # replay to learn
             if len(agent.memory) > agent.batch_size:
