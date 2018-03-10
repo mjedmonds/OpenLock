@@ -182,20 +182,21 @@ class SubjectWriter:
     def __init__(self, subject_path):
         self.subject_path = subject_path
 
+    def write_trial(self, logger, agent = None, test_trial = False):
+        i = len(logger.trial_seq)-1
+        trial = logger.trial_seq[i]
+        trial_str = jsonpickle.encode(trial)
+        trial_dir = self.subject_path + '/trial' + str(i)
+        os.makedirs(trial_dir)
+        trial_summary_filename = trial_dir + '/trial' + str(i) + '_summary.json'
+        self.pretty_write(trial_summary_filename, trial_str)
+
     def write(self, logger, agent=None):
         subject_summary = jsonpickle.encode(logger)
         # json_results = self.JSONify_subject(logger)
 
         subject_summary_filename = self.subject_path + '/' + logger.subject_id +'_summary.json'
         self.pretty_write(subject_summary_filename, subject_summary)
-
-        for i in range(len(logger.trial_seq)):
-            trial = logger.trial_seq[i]
-            trial_str = jsonpickle.encode(trial)
-            trial_dir = self.subject_path + '/trial' + str(i)
-            os.makedirs(trial_dir)
-            trial_summary_filename = trial_dir + '/trial' + str(i) + '_summary.json'
-            self.pretty_write(trial_summary_filename, trial_str)
 
         # write out the RL agent
         if agent is not None:

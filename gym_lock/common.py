@@ -6,6 +6,9 @@ from shapely.geometry import Polygon, Point
 from matplotlib import pyplot as plt
 from Box2D import *
 
+
+
+
 ENTITY_STATES = {
     'LEVER_PUSHED': 0,
     'LEVER_PULLED': 1,
@@ -387,14 +390,15 @@ def plot_rewards(rewards, epsilons, filename, width=12, height=6):
     plt.show()
     plt.savefig(filename)
 
+
 def show_rewards(rewards, epsilons, fig, width=12, height=6):
     #plt.clf()
     plt.ion()
     assert len(epsilons) == len(rewards)
     moving_avg = compute_moving_average(rewards, 100)
-    fig = plt.gcf()
+    gcf = plt.gcf()
     ax = plt.gca()
-    fig.set_size_inches(width, height)
+    gcf.set_size_inches(width, height)
     plt.xlim((0, len(rewards)))
     r, = plt.plot(rewards, color='red', linestyle='-', linewidth=0.5, label='reward', alpha=0.5)
     ave_r, = plt.plot(moving_avg, color='blue', linestyle='-', linewidth=0.8, label='avg_reward')
@@ -405,6 +409,7 @@ def show_rewards(rewards, epsilons, fig, width=12, height=6):
     plt.draw()
     plt.show()
     plt.pause(0.1)
+
 
 def plot_rewards_trial_switch_points(rewards, epsilons, trial_switch_points, filename, plot_xticks=False):
     plt.clf()
