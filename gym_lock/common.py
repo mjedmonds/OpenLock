@@ -392,9 +392,14 @@ def plot_rewards(rewards, epsilons, filename, width=12, height=6):
 
 
 def show_rewards(rewards, epsilons, fig, width=12, height=6):
-    #plt.clf()
-    plt.ion()
+    # sanity checks for plotting
+    assert(fig is not None)
     assert len(epsilons) == len(rewards)
+    if len(rewards) == 0:
+        return
+
+    plt.figure(fig.number)
+    plt.clf()
     moving_avg = compute_moving_average(rewards, 100)
     gcf = plt.gcf()
     ax = plt.gca()
@@ -407,7 +412,6 @@ def show_rewards(rewards, epsilons, fig, width=12, height=6):
     plt.ylabel('Reward')
     plt.xlabel('Episode #')
     plt.draw()
-    plt.show()
     plt.pause(0.1)
 
 

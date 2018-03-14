@@ -131,10 +131,11 @@ class SessionManager():
                 agent.save_reward(attempt_reward, trial_reward)
                 attempt_reward = 0
 
-            self.save_agent(agent, save_dir, testing, iter_num, trial_count)
+                # update figure
+                if fig is not None and self.env.attempt_count % fig_update_rate == 0:
+                    show_rewards(agent.rewards, agent.epsilons, fig)
 
-            if fig is not None and self.env.attempt_count % fig_update_rate == 0:
-                show_rewards(agent.rewards, agent.epsilons, fig)
+            self.save_agent(agent, save_dir, testing, iter_num, trial_count)
 
             # replay to learn
             if len(agent.memory) > agent.batch_size:

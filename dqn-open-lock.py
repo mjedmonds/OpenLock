@@ -105,7 +105,7 @@ def train_single_trial(manager, env, agent, params, fig=None):
 
 def create_reward_fig():
     # creating the figure
-    fig = plt.gcf()
+    fig = plt.figure()
     fig.set_size_inches(12, 6)
     plt.ion()
     plt.show()
@@ -209,8 +209,7 @@ def main():
     agent = DDQNAgent(state_size, action_size, params)
     env.reset()
     fig = create_reward_fig()
- 
-    
+
     # runs through all training trials and testing trials
     # manager, env, agent = train_transfer_test_transfer(manager, env, agent, params, fig)
 
