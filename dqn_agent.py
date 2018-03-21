@@ -2,6 +2,7 @@
 import numpy as np
 import random
 import os
+from agent import Agent
 
 from collections import deque
 from keras.models import Sequential
@@ -10,8 +11,11 @@ from keras.optimizers import Adam
 from keras import backend as K
 
 
-class Agent(object):
+class DAgent(Agent):
     def __init__(self, state_size, action_size, params):
+        super(DAgent, self).__init__(params['data_dir'])
+        super(DAgent, self).setup_subject(human=False)
+
         self.state_size = state_size
         self.action_size = action_size
         self.memory = deque(maxlen=200000)
@@ -33,6 +37,9 @@ class Agent(object):
         self.test_action_limit = params['test_action_limit']
         self.reward_mode = params['reward_mode']
 
+    def finish_subject(self, strategy='Deep Q-Learning', transfer_strategy='Deep Q-Learning'):
+        super(DAgent, self).finish_subject(strategy, transfer_strategy)
+
     def remember(self, state, action, reward, next_state, done):
         self.memory.append((state, action, reward, next_state, done))
 
@@ -53,19 +60,28 @@ class Agent(object):
             self.epsilon = new_epsilon
             self.epsilon_decay = new_epsilon_decay
 
-    def save_model(self, save_dir, filename):
+    def save_weights(self, save_dir, filename):
         if not os.path.exists(save_dir):
             os.makedirs(save_dir)
         self.save(save_dir + '/' + filename)
 
+    def save_agent(self, agent, save_dir, testing, iter_num, trial_count, attempt_count):
+        if testing:
+            save_str = '/agent_test_i_' + str(iter_num) + '_t' + str(trial_count) + '_a' + str(attempt_count) + '.h5'
+        else:
+            save_str = '/agent_i_' + str(iter_num) + '_t' + str(trial_count) + '_a' + str(attempt_count) + '.h5'
+        agent.save_weights(save_dir, save_str)
+
+    # load Keras weights (.h5)
     def load(self, name):
         self.model.load_weights(name)
 
+    # save Keras weights (.h5)
     def save(self, name):
         self.model.save_weights(name)
 
 
-class DQNAgent(Agent):
+class DQNAgent(DAgent):
     def __init__(self, state_size, action_size, params):
         super(DQNAgent, self).__init__(state_size, action_size, params)
         self.weights = [
@@ -78,6 +94,9 @@ class DQNAgent(Agent):
                         ('dense', 128),
                         ]
         self.model = self._build_model()
+
+    def finish_subject(self, strategy='DQN', transfer_strategy='DQN'):
+        super(DAgent, self).finish_subject(strategy, transfer_strategy)
 
     def _build_model(self):
         # Neural Net for Deep-Q learning Model
@@ -115,7 +134,7 @@ class DQNAgent(Agent):
             self.epsilon *= self.epsilon_decay
 
 
-class DDQNAgent(Agent):
+class DDQNAgent(DAgent):
     def __init__(self, state_size, action_size, params):
         super(DDQNAgent, self).__init__(state_size, action_size, params)
         self.weights = [
@@ -128,6 +147,9 @@ class DDQNAgent(Agent):
         self.model = self._build_model()
         self.target_model = self._build_model()
         self.update_target_model()
+
+    def finish_subject(self, strategy='DDQN', transfer_strategy='DDQN'):
+        super(DAgent, self).finish_subject(strategy, transfer_strategy)
 
     def _huber_loss(self, target, prediction):
         # sqrt(1+error^2)-1

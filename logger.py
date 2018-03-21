@@ -135,7 +135,7 @@ class TrialLog(object):
             return True
 
 
-class SubjectLog(object):
+class SubjectLogger(object):
     subject_id = None
     age = None
     gender = None
@@ -179,10 +179,19 @@ class SubjectLog(object):
 class SubjectWriter:
     subject_path = None
 
-    def __init__(self, subject_path):
-        self.subject_path = subject_path
+    def __init__(self, data_path):
+        self.subject_id = str(hash(time.time()))
+        self.subject_path = data_path + '/' + self.subject_id
+        while True:
+            # make sure directory does not exist
+            if not os.path.exists(self.subject_path):
+                os.makedirs(self.subject_path)
+            else:
+                self.subject_id = str(hash(time.time()))
+                self.subject_path = data_path + '/' + self.subject_id
+                continue
 
-    def write_trial(self, logger, agent = None, test_trial = False):
+    def write_trial(self, logger, agent=None, test_trial=False):
         i = len(logger.trial_seq)-1
         trial = logger.trial_seq[i]
         trial_str = jsonpickle.encode(trial)
@@ -251,7 +260,6 @@ class SubjectWriter:
     #
     # def JSONify_action(self, action):
     #     return jsonpickle.encode(action)
-
 
 def obj_dict(obj):
     return obj.__dict__

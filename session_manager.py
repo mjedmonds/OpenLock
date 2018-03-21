@@ -6,8 +6,7 @@ import numpy as np
 
 from gym_lock.settings_trial import select_random_trial, select_trial
 from gym_lock.envs.arm_lock_env import ObservationSpace
-from gym_lock import logger
-
+import logger
 
 class SessionManager():
 
@@ -383,14 +382,14 @@ class SessionManager():
         subject_id, subject_path = SessionManager.make_subject_dir(data_path)
 
         print "Starting trials for subject {}".format(subject_id)
-        sub_logger = logger.SubjectLog(subject_id=subject_id,
-                                       participant_id=participant_id,
-                                       age=age,
-                                       gender=gender,
-                                       handedness=handedness,
-                                       eyewear=eyewear,
-                                       major=major,
-                                       start_time=time.time())
+        sub_logger = logger.SubjectLogger(subject_id=subject_id,
+                                          participant_id=participant_id,
+                                          age=age,
+                                          gender=gender,
+                                          handedness=handedness,
+                                          eyewear=eyewear,
+                                          major=major,
+                                          start_time=time.time())
         sub_writer = logger.SubjectWriter(subject_path)
         return sub_logger, sub_writer
 

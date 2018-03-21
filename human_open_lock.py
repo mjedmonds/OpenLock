@@ -2,6 +2,7 @@
 import gym
 import time
 import sys
+from human_agent import HumanAgent
 
 from gym_lock.settings_scenario import select_scenario, select_random_scenarios
 from gym_lock.session_manager import SessionManager
@@ -48,11 +49,12 @@ if __name__ == '__main__':
     # params['train_scenario_name'] = train_scenario_name
     # params['test_scenario_name'] = test_scenario_name
 
+    agent = HumanAgent(params)
     scenario = select_scenario(params['train_scenario_name'])
     env = gym.make('arm_lock-v0')
     env.reward_mode = 'negative_immovable_partial_action_seq'
     # create session/trial/experiment manager
-    manager = SessionManager(env, params)
+    manager = SessionManager(env, agent, params)
     manager.update_scenario(scenario)
     manager.set_action_limit(params['train_action_limit'])
 

@@ -1,9 +1,3 @@
-[submodule "deep-q-learning"]
-	path = deep-q-learning
-	url = git@github.com:mjedmonds/deep-q-learning
 [submodule "A3C-LSTM"]
 	path = A3C-LSTM
 	url = git@github.com:mjedmonds/A3C-LSTM
-[submodule "async_deep_reinforce"]
-	path = async_deep_reinforce
-	url = https://github.com/mjedmonds/async_deep_reinforce

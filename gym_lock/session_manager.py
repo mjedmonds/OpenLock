@@ -6,7 +6,7 @@ import numpy as np
 
 from gym_lock.settings_trial import select_random_trial, select_trial
 from gym_lock.envs.arm_lock_env import ObservationSpace
-from gym_lock import logger
+import logger
 from gym_lock.common import show_rewards
 
 
@@ -17,12 +17,9 @@ class SessionManager():
     params = None
     completed_trials = []
 
-    def __init__(self, env, params, human=True):
+    def __init__(self, env, params):
         self.env = env
         self.params = params
-
-        # logger is stored in the environment - change if possible
-        self.env.logger, self.writer = self.setup_subject(params['data_dir'], human)
 
         self.env.logger.use_physics = env.use_physics
         self.completed_trials = []
@@ -112,13 +109,9 @@ class SessionManager():
             if self.params['full_attempt_limit'] and self.env.attempt_count < attempt_limit:
                 done = False
 
-            if self.env.logger.cur_trial.success:
-                print('found both solutions')
-
             agent.remember(state, action_idx, reward, next_state, done)
             # agent.remember(state, action_idx, trial_reward, next_state, done)
             # self.env.render()
-
 
             trial_reward += reward
             attempt_reward += reward
@@ -135,7 +128,10 @@ class SessionManager():
                 if fig is not None and self.env.attempt_count % fig_update_rate == 0:
                     show_rewards(agent.rewards, agent.epsilons, fig)
 
-            self.save_agent(agent, save_dir, testing, iter_num, trial_count)
+            # save agent's model
+            # if self.env.attempt_count % (self.env.attempt_limit/2) == 0 or self.env.attempt_count == self.env.attempt_limit or self.env.logger.cur_trial.success is True:
+            if self.env.attempt_count == 0 or self.env.attempt_count == self.env.attempt_limit:
+                agent.save_agent(agent, save_dir, testing, iter_num, trial_count)
 
             # replay to learn
             if len(agent.memory) > agent.batch_size:
@@ -150,15 +146,7 @@ class SessionManager():
 
         return agent
 
-    def save_agent(self, agent, save_dir, testing, iter_num, trial_count):
-        # save model
-        # if self.env.attempt_count % (self.env.attempt_limit/2) == 0 or self.env.attempt_count == self.env.attempt_limit or self.env.logger.cur_trial.success is True:
-        if self.env.attempt_count == 0 or self.env.attempt_count == self.env.attempt_limit:
-            if testing:
-                save_str = '/agent_test_i_' + str(iter_num) + '_t' + str(trial_count) + '_a' + str(self.env.attempt_count) + '.h5'
-            else:
-                save_str = '/agent_i_' + str(iter_num) + '_t' + str(trial_count) + '_a' + str(self.env.attempt_count) + '.h5'
-            agent.save_model(save_dir,  save_str)
+
 
     # code to run a computer trial
     def run_trial_qtable(self, agent, scenario_name, action_limit, attempt_limit, trial_count, iter_num, testing=False, specified_trial=None):
@@ -254,42 +242,6 @@ class SessionManager():
             print('reward len does not match attempt len')
 
     @staticmethod
-    def write_results(logger, writer, agent=None):
-        writer.write(logger, agent)
-
-    @staticmethod
-    def write_trial_results(logger, writer, agent=None,test_trial = False):
-        writer.write_trial(logger, agent,test_trial)
-
-    @staticmethod
-    def finish_trial(logger, writer, human = True, agent = None, test_trial = False):
-        logger.finish(time.time())
-        if human:
-            strategy = None
-            transfer_strategy = None
-        else:
-            strategy = 'RL'
-            transfer_strategy = 'RL'
-        logger.strategy = strategy
-        logger.transfer_strategy = transfer_strategy
-
-        SessionManager.write_trial_results(logger, writer, agent,test_trial)
-
-    @staticmethod
-    def finish_subject(logger, writer, human=True, agent=None):
-        logger.finish(time.time())
-        if human:
-            strategy = SessionManager.prompt_strategy()
-            transfer_strategy = SessionManager.prompt_transfer_strategy()
-        else:
-            strategy = 'RL'
-            transfer_strategy = 'RL'
-        logger.strategy = strategy
-        logger.transfer_strategy = transfer_strategy
-
-        SessionManager.write_results(logger, writer, agent)
-
-    @staticmethod
     def get_trial(name, completed_trials=None):
         # select a random trial and add it to the scenario
         if name != 'CE4' and name != 'CC4':
@@ -300,123 +252,3 @@ class SessionManager():
             trial, configs = select_random_trial(completed_trials, 7, 11)
 
         return trial, configs
-
-    @staticmethod
-    def prompt_participant_id():
-        while True:
-            try: 
-                participant_id = int(raw_input('Please enter the participant ID (ask the RA for this): '))
-            except ValueError:
-                print 'Please enter an integer for the participant ID'
-                continue
-            else:
-                return participant_id
-
-    @staticmethod
-    def prompt_age():
-        while True:
-            try:
-                age = int(raw_input('Please enter your age: '))
-            except ValueError:
-                print 'Please enter your age as an integer'
-                continue
-            else:
-                return age
-
-    @staticmethod
-    def prompt_gender():
-        while True:
-            gender = raw_input('Please enter your gender (\'M\' for male, \'F\' for female, or \'O\' for other): ')
-            if gender == 'M' or gender == 'F' or gender == 'O':
-                return gender
-            else:
-                continue
-
-    @staticmethod
-    def prompt_handedness():
-        while True:
-            handedness = raw_input('Please enter your handedness (\'right\' for right-handed or \'left\' for left-handed): ')
-            if handedness == 'right' or handedness == 'left':
-                return handedness
-            else:
-                continue
-
-    @staticmethod
-    def prompt_eyewear():
-        while True:
-            eyewear = raw_input('Please enter \'yes\' if you wear glasses or contacts or \'no\' if you do not wear glasses or contacts: ')
-            if eyewear == 'yes' or eyewear == 'no':
-                return eyewear
-            else:
-                continue
-
-    @staticmethod
-    def prompt_major():
-        major = raw_input('Please enter your major: ')
-        return major
-
-    @staticmethod
-    def prompt_subject():
-        print 'Welcome to OpenLock!'
-        participant_id = SessionManager.prompt_participant_id()
-        age = SessionManager.prompt_age()
-        gender = SessionManager.prompt_gender()
-        handedness = SessionManager.prompt_handedness()
-        eyewear = SessionManager.prompt_eyewear()
-        major = SessionManager.prompt_major()
-        return participant_id, age, gender, handedness, eyewear, major
-
-    @staticmethod
-    def prompt_strategy():
-        strategy = raw_input('Did you develop any particular technique or strategy to solve the problem? If so, what was your technique/strategy? ')
-        return strategy
-
-    @staticmethod
-    def prompt_transfer_strategy():
-        transfer_strategy = raw_input('If you used a particular technique/strategy, did you find that it also worked when the number of colored levers increased from 3 to 4? ')
-        return transfer_strategy
-
-    @staticmethod
-    def make_subject_dir(data_path):
-        subject_id = str(hash(time.time()))
-        subject_path = data_path + '/' + subject_id
-        while True:
-            # make sure directory does not exist
-            if not os.path.exists(subject_path):
-                os.makedirs(subject_path)
-                return subject_id, subject_path
-            else:
-                subject_id = str(hash(time.time()))
-                subject_path = data_path + '/' + subject_id
-                continue
-
-    @staticmethod
-    def setup_subject(data_path, human=True):
-        # human agent
-        if human:
-            participant_id, age, gender, handedness, eyewear, major = SessionManager.prompt_subject()
-            # age, gender, handedness, eyewear = ['25', 'M', 'right', 'no']
-        # robot agent
-        else:
-            age = -1
-            gender = 'robot'
-            handedness = 'none'
-            eyewear = 'no'
-            major = 'robotics'
-            participant_id = -1
-
-        subject_id, subject_path = SessionManager.make_subject_dir(data_path)
-
-        print "Starting trials for subject {}".format(subject_id)
-        sub_logger = logger.SubjectLog(subject_id=subject_id,
-                                       participant_id=participant_id,
-                                       age=age,
-                                       gender=gender,
-                                       handedness=handedness,
-                                       eyewear=eyewear,
-                                       major=major,
-                                       start_time=time.time())
-        sub_writer = logger.SubjectWriter(subject_path)
-        return sub_logger, sub_writer
-
-

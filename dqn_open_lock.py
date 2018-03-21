@@ -4,7 +4,6 @@ import numpy as np
 import os
 import sys
 import json
-from shutil import copytree, ignore_patterns
 from matplotlib import pyplot as plt
 
 # MUST IMPORT FROM gym_lock to properly register the environment
@@ -42,6 +41,7 @@ def run_trials(manager, env, agent, trial_count, num_iters, num_trials, scenario
 
 
 def run_single_trial(manager, env, agent, trial_num, iter_num, scenario_name, action_limit, attempt_limit, use_dynamic_epsilon=False, dynamic_max=None, dynamic_decay=None, testing=False, fig=None):
+    print agent.epsilon_decay
     agent = manager.run_trial_dqn(agent=agent,
                                   scenario_name=scenario_name,
                                   action_limit=action_limit,
@@ -149,13 +149,18 @@ def main():
     params['test_num_trials'] = 5
 
     params['data_dir'] = '../OpenLockRLResults/subjects'
-    params['train_attempt_limit'] = 30000
+    params['train_attempt_limit'] = 300
     params['test_attempt_limit'] = 300
     params['gamma'] = 0.8    # discount rate
     params['epsilon'] = 1.0  # exploration rate
-    params['epsilon_min'] = 0.1
+    params['epsilon_min'] = 0.00
     params['learning_rate'] = 0.0005
     params['batch_size'] = 64
+
+    # SINGLE TRIAL TRAINING
+    #params['train_attempt_limit'] = 30000
+    #params['epsilon_decay'] = 0.99995
+    #params['use_dynamic_epsilon'] = False
 
     # dummy settings
     # params['num_training_iters'] = 10
@@ -180,19 +185,13 @@ def main():
     env.use_physics = params['use_physics']
 
     # create session/trial/experiment manager
-    manager = SessionManager(env, params, human=False)
+    manager = SessionManager(env, params)
     manager.update_scenario(scenario)
     trial_selected = manager.run_trial_common_setup(scenario_name=params['train_scenario_name'],
                                                     action_limit=params['train_action_limit'],
                                                     attempt_limit=params['train_attempt_limit'])
 
-    # copy the entire code base; this is unnecessary but prevents worrying about a particular
-    # source code version when trying to reproduce exact parameters
-    copytree('./', manager.writer.subject_path + '/src/', ignore=ignore_patterns('*.mp4',
-                                                                                 '*.pyc',
-                                                                                 '.git',
-                                                                                 '.gitignore',
-                                                                                 '.gitmodules'))
+
 
     # set up observation space
     env.observation_space = ObservationSpace(len(scenario.levers), append_solutions_remaining=False)
@@ -210,10 +209,12 @@ def main():
     env.reset()
     fig = create_reward_fig()
 
+    # MULTI-TRIAL TRAINING, TESTING
     # runs through all training trials and testing trials
-    # manager, env, agent = train_transfer_test_transfer(manager, env, agent, params, fig)
+    manager, env, agent = train_transfer_test_transfer(manager, env, agent, params, fig)
 
-    manager, env, agent = train_single_trial(manager, env, agent, params, fig)
+    # SINGLE TRIAL TRAINING
+    #manager, env, agent = train_single_trial(manager, env, agent, params, fig)
 
     manager.finish_subject(manager.env.logger, manager.writer, human=False, agent=agent)
     print 'Training & testing complete for subject {}'.format(env.logger.subject_id)
