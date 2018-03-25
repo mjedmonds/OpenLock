@@ -41,15 +41,12 @@ class Agent(object):
     def write_results(self):
         self.writer.write(self.logger, self)
 
-    def write_trial_results(self, test_trial=False):
-        self.writer.write_trial(self.logger, self, test_trial)
+    def write_trial(self, test_trial=False):
+        self.writer.write_trial(self.logger, test_trial)
 
-    def finish_trial(self, strategy, transfer_strategy, test_trial=False):
-        self.logger.finish(time.time())
-        self.logger.strategy = strategy
-        self.logger.transfer_strategy = transfer_strategy
-
-        self.write_trial_results(test_trial)
+    def finish_trial(self, test_trial):
+        self.logger.finish_trial()
+        self.write_trial(test_trial)
 
     def finish_subject(self, strategy, transfer_strategy):
         self.logger.finish(time.time())

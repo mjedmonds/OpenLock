@@ -1,11 +1,13 @@
 
-from agent import Agent
+from agents.agent import Agent
 
 
 class HumanAgent(Agent):
 
     def __init__(self, params):
         super(HumanAgent, self).__init__(params['data_dir'])
+
+        self.params = params
 
         participant_id, age, gender, handedness, eyewear, major = self.prompt_subject()
 

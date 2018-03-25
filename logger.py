@@ -47,11 +47,15 @@ class AttemptLog(object):
     def __eq__(self, other):
         return self.action_seq == other.action_seq
 
-    def add_action(self, name):
-        self.cur_action = ActionLog(name, time.time())
+    def add_action(self, name, t=None):
+        if t is None:
+            t = time.time()
+        self.cur_action = ActionLog(name, t)
 
-    def finish_action(self):
-        self.cur_action.finish(time.time())
+    def finish_action(self, t=None):
+        if t is None:
+            t = time.time()
+        self.cur_action.finish(t)
         self.action_seq.append(copy.deepcopy(self.cur_action))
         self.cur_action = None
 
@@ -72,7 +76,6 @@ class TrialLog(object):
     cur_attempt = None
     solutions = []
     completed_solutions = []
-    num_solutions_remaining = None
     solution_found = []
 
     def __init__(self, name, scenario_name, solutions, start_time):
@@ -80,7 +83,6 @@ class TrialLog(object):
         self.start_time = start_time
         self.scenario_name = scenario_name
         self.solutions = solutions
-        self.num_solutions_remaining = len(solutions)
         self.success = False
         self.completed_solutions = []
         self.attempt_seq = []
@@ -91,48 +93,21 @@ class TrialLog(object):
         self.cur_attempt = AttemptLog(len(self.attempt_seq), time.time())
         self.cur_attempt.action_seq = []
 
-    def finish_attempt(self, results):
+    def finish_attempt(self, attempt_success, results):
         # check to see if this attempt is a solution that has not been completed already
-        if self.determine_unique_solution():
+        if attempt_success:
             self.completed_solutions.append(self.cur_attempt.action_seq)
-            success = True
-            self.num_solutions_remaining -= 1
-        else:
-            success = False
-        self.solution_found.append(success)
-        self.cur_attempt.finish(success, results, time.time())
+        self.solution_found.append(attempt_success)
+        self.cur_attempt.finish(attempt_success, results, time.time())
         self.attempt_seq.append(copy.deepcopy(self.cur_attempt))
         self.success = len(self.solutions) == len(self.completed_solutions)
         self.cur_attempt = None
-        return success
 
     def finish(self, end_time):
         # if we have completed all solutions (solutions are only added if they are not repeats)
         self.success = len(self.solutions) == len(self.completed_solutions)
         self.end_time = end_time
         return self.success
-
-    def determine_unique_solution(self):
-        return len(self.cur_attempt.action_seq) == len(self.solutions[0]) and self.determine_unique()
-
-    # this function also determines if the action sequence is a duplicate to unlock the door, not just open the door
-    def determine_unique(self):
-        num_actions = len(self.cur_attempt.action_seq)
-        # if this is a complete action sequence and it is not a solution, return false
-        # full action sequence
-        if num_actions == len(self.solutions[0]):
-            # solution is unique if it is in the list of solutions and not in the solutions found
-            if self.cur_attempt.action_seq in self.solutions and self.cur_attempt.action_seq not in self.completed_solutions:
-                return True
-            else:
-                return False
-        # partial action sequence
-        else:
-            for solution in self.completed_solutions:
-                if solution[:num_actions] == self.cur_attempt.action_seq:
-                    return False
-            # doesn't match any solution found,
-            return True
 
 
 class SubjectLogger(object):
@@ -186,21 +161,24 @@ class SubjectWriter:
             # make sure directory does not exist
             if not os.path.exists(self.subject_path):
                 os.makedirs(self.subject_path)
+                break
             else:
                 self.subject_id = str(hash(time.time()))
                 self.subject_path = data_path + '/' + self.subject_id
                 continue
 
-    def write_trial(self, logger, agent=None, test_trial=False):
+    def write_trial(self, logger, test_trial=False):
         i = len(logger.trial_seq)-1
         trial = logger.trial_seq[i]
         trial_str = jsonpickle.encode(trial)
         trial_dir = self.subject_path + '/trial' + str(i)
+        # if test_trial:
+        #     trial_dir = trial_dir + '_test'
         os.makedirs(trial_dir)
         trial_summary_filename = trial_dir + '/trial' + str(i) + '_summary.json'
         self.pretty_write(trial_summary_filename, trial_str)
 
-    def write(self, logger, agent=None):
+    def write(self, logger, agent):
         subject_summary = jsonpickle.encode(logger)
         # json_results = self.JSONify_subject(logger)
 
@@ -210,8 +188,10 @@ class SubjectWriter:
         # write out the RL agent
         if agent is not None:
             agent_cpy = copy.copy(agent)
-            del agent_cpy.memory
-            del agent_cpy.model
+            if hasattr(agent_cpy, 'memory'):
+                del agent_cpy.memory
+            if hasattr(agent_cpy, 'model'):
+                del agent_cpy.model
             if hasattr(agent_cpy, 'target_model'):
                 del agent_cpy.target_model
             agent_file_name = self.subject_path + '/' + logger.subject_id + '_agent.json'

@@ -3,10 +3,13 @@ import time
 import os
 import copy
 import numpy as np
+import gym_lock.common as common
 
 from gym_lock.settings_trial import select_random_trial, select_trial
 from gym_lock.envs.arm_lock_env import ObservationSpace
 import logger
+from gym_lock.common import show_rewards
+
 
 class SessionManager():
 
@@ -15,14 +18,11 @@ class SessionManager():
     params = None
     completed_trials = []
 
-    def __init__(self, env, params, human=True):
+    def __init__(self, env, agent, params):
         self.env = env
         self.params = params
+        self.agent = agent
 
-        # logger is stored in the environment - change if possible
-        self.env.logger, self.writer = self.setup_subject(params['data_dir'], human)
-
-        self.env.logger.use_physics = env.use_physics
         self.completed_trials = []
 
     # code to run before human and computer trials
@@ -41,10 +41,12 @@ class SessionManager():
                 trial_selected, lever_configs = self.get_trial(scenario_name, self.completed_trials)
         else:
             trial_selected, lever_configs = select_trial(specified_trial)
-        self.env.scenario.set_lever_configs(lever_configs)
 
-        self.env.logger.add_trial(trial_selected, scenario_name, self.env.scenario.solutions)
-        self.env.logger.cur_trial.add_attempt()
+        self.env.scenario.set_lever_configs(lever_configs)
+        self.env.observation_space = ObservationSpace(len(self.env.scenario.levers))
+        self.env.solutions = self.env.scenario.solutions
+        self.agent.logger.add_trial(trial_selected, scenario_name, self.env.scenario.solutions)
+        self.agent.logger.cur_trial.add_attempt()
 
         if not multithreaded:
             print "INFO: New trial. There are {} unique solutions remaining.".format(len(self.env.scenario.solutions))
@@ -54,93 +56,109 @@ class SessionManager():
         return trial_selected
 
     # code to run after both human and computer trials
-    def run_trial_common_finish(self, trial_selected):
+    def run_trial_common_finish(self, trial_selected, test_trial):
         # todo: detect whether or not all possible successful paths were uncovered
-        self.env.logger.finish_trial()
+        self.agent.finish_trial(test_trial)
         self.completed_trials.append(copy.deepcopy(trial_selected))
+        self.env.completed_solutions = []
+        self.env.cur_action_seq = []
 
     # code to run a human subject
-    def run_trial_human(self, scenario_name, action_limit, attempt_limit, specified_trial=None, verify=False):
+    def run_trial_human(self, scenario_name, action_limit, attempt_limit, specified_trial=None, verify=False, test_trial=False):
         self.env.human_agent = True
         trial_selected = self.run_trial_common_setup(scenario_name, action_limit, attempt_limit, specified_trial)
 
         obs_space = None
-        while self.env.attempt_count < attempt_limit and self.env.logger.cur_trial.success is False:
-            self.env.render()
+        while self.env.attempt_count < attempt_limit and self.env.determine_trial_success() is False:
+            self.env.render(self.env)
+            # acknowledge any acks that may have occurred (action executed, attempt ended, etc)
+            env_reset = self.update_acks()
             # used to verify simulator and fsm states are always the same (they should be)
             if verify:
                 obs_space = self.verify_fsm_matches_simulator(obs_space)
 
-        self.run_trial_common_finish(trial_selected)
+        self.run_trial_common_finish(trial_selected, test_trial)
 
     # code to run a computer trial
-    def run_trial_dqn(self, agent, scenario_name, action_limit, attempt_limit, trial_count, iter_num, testing=False, specified_trial=None):
+    def run_trial_dqn(self, scenario_name, action_limit, attempt_limit, trial_count, iter_num, test_trial=False, specified_trial=None, fig=None, fig_update_rate=100):
         self.env.human_agent = False
         trial_selected = self.run_trial_common_setup(scenario_name, action_limit, attempt_limit, specified_trial)
 
         state = self.env.reset()
-        state = np.reshape(state, [1, agent.state_size])
+        state = np.reshape(state, [1, self.agent.state_size])
 
-        save_dir = self.writer.subject_path + '/models'
+        save_dir = self.agent.writer.subject_path + '/models'
 
         print('scenario_name: {}, trial_count: {}, trial_name: {}'.format(scenario_name, trial_count, trial_selected))
 
         trial_reward = 0
         attempt_reward = 0
-        #while self.env.attempt_count < attempt_limit and self.env.logger.cur_trial.success is False:
-        while self.env.attempt_count < attempt_limit:
+
+        while True:
+            # end if attempt limit reached
+            if self.env.attempt_count >= attempt_limit:
+                break
+            # trial is success and not forcing agent to use all attempts
+            elif self.params['full_attempt_limit'] is False and self.agent.logger.cur_trial.success is True:
+                break
+
             # self.env.render()
 
-            action_idx = agent.act(state)
+            action_idx = self.agent.act(state)
             # convert idx to Action object (idx -> str -> Action)
             action = self.env.action_map[self.env.action_space[action_idx]]
             next_state, reward, done, opt = self.env.step(action)
 
-            next_state = np.reshape(next_state, [1, agent.state_size])
+            next_state = np.reshape(next_state, [1, self.agent.state_size])
 
-            agent.remember(state, action_idx, reward, next_state, done)
+            # THIS OVERRIDES done coming from the environment based on whether or not
+            # we are allowing the agent to move to the next trial after finding all solutions
+            if self.params['full_attempt_limit'] and self.env.attempt_count < attempt_limit:
+                done = False
+
+            self.agent.remember(state, action_idx, reward, next_state, done)
             # agent.remember(state, action_idx, trial_reward, next_state, done)
             # self.env.render()
+
+            env_reset = self.update_acks()
             trial_reward += reward
             attempt_reward += reward
             state = next_state
 
-            if opt['env_reset']:
-                self.print_update(iter_num, trial_count, scenario_name, self.env.attempt_count, self.env.attempt_limit, attempt_reward, trial_reward, agent.epsilon)
-                print(self.env.logger.cur_trial.attempt_seq[-1].action_seq)
-                self.env.logger.cur_trial.attempt_seq[-1].reward = attempt_reward
-                agent.save_reward(attempt_reward, trial_reward)
+            if env_reset:
+                self.print_update(iter_num, trial_count, scenario_name, self.env.attempt_count, self.env.attempt_limit, attempt_reward, trial_reward, self.agent.epsilon)
+                print(self.agent.logger.cur_trial.attempt_seq[-1].action_seq)
+                self.agent.logger.cur_trial.attempt_seq[-1].reward = attempt_reward
+                self.agent.save_reward(attempt_reward, trial_reward)
                 attempt_reward = 0
 
-            # save model
+                # update figure
+                if fig is not None and self.env.attempt_count % fig_update_rate == 0:
+                    show_rewards(self.agent.rewards, self.agent.epsilons, fig)
+
+            # save agent's model
             # if self.env.attempt_count % (self.env.attempt_limit/2) == 0 or self.env.attempt_count == self.env.attempt_limit or self.env.logger.cur_trial.success is True:
             if self.env.attempt_count == 0 or self.env.attempt_count == self.env.attempt_limit:
-                if testing:
-                    save_str = '/agent_test_i_' + str(iter_num) + '_t' + str(trial_count) + '_a' + str(self.env.attempt_count) + '.h5'
-                else:
-                    save_str = '/agent_i_' + str(iter_num) + '_t' + str(trial_count) + '_a' + str(self.env.attempt_count) + '.h5'
-                agent.save_model(save_dir,  save_str)
+                self.agent.save_agent(save_dir, test_trial, iter_num, trial_count, self.env.attempt_count)
 
             # replay to learn
-            if len(agent.memory) > agent.batch_size:
-                agent.replay()
+            if len(self.agent.memory) > self.agent.batch_size:
+                self.agent.replay()
 
-        self.dqn_trial_sanity_checks(agent)
+        self.dqn_trial_sanity_checks()
 
-        self.env.logger.cur_trial.trial_reward = trial_reward
-        self.run_trial_common_finish(trial_selected)
-        agent.trial_switch_points.append(len(agent.rewards))
-        agent.average_trial_rewards.append(trial_reward / self.env.attempt_count)
+        self.agent.logger.cur_trial.trial_reward = trial_reward
+        self.run_trial_common_finish(trial_selected, test_trial=test_trial)
+        self.agent.trial_switch_points.append(len(self.agent.rewards))
+        self.agent.average_trial_rewards.append(trial_reward / self.env.attempt_count)
 
-        return agent
-
-    # code to run a computer trial
-    def run_trial_qtable(self, agent, scenario_name, action_limit, attempt_limit, trial_count, iter_num, testing=False, specified_trial=None):
+    # code to run a computer trial using q-tables (UNFINISHED)
+    def run_trial_qtable(self, scenario_name, action_limit, attempt_limit, trial_count, iter_num, testing=False, specified_trial=None):
         self.env.human_agent = False
         trial_selected = self.run_trial_common_setup(scenario_name, action_limit, attempt_limit, specified_trial)
 
         state = self.env.reset()
-        state = np.reshape(state, [1, agent.state_size])
+        state = np.reshape(state, [1, self.agent.state_size])
 
         save_dir = self.writer.subject_path + '/models'
 
@@ -148,46 +166,130 @@ class SessionManager():
 
         trial_reward = 0
         attempt_reward = 0
-        while self.env.attempt_count < attempt_limit and self.env.logger.cur_trial.success is False:
+        while self.env.attempt_count < attempt_limit and self.agent.logger.cur_trial.success is False:
             # self.env.render()
 
-            action_idx = agent.action(state, train=True)
+            action_idx = self.agent.action(state, train=True)
             # convert idx to Action object (idx -> str -> Action)
             action = self.env.action_map[self.env.action_space[action_idx]]
             next_state, reward, done, opt = self.env.step(action)
 
-            next_state = np.reshape(next_state, [1, agent.state_size])
+            next_state = np.reshape(next_state, [1, self.agent.state_size])
 
-            agent.update(state, action_idx, reward, next_state)
+            self.agent.update(state, action_idx, reward, next_state)
             # self.env.render()
             trial_reward += reward
             attempt_reward += reward
             state = next_state
 
             if done:
-                agent.update_epsilon()
+                self.agent.update_epsilon()
 
             if opt['env_reset']:
                 self.print_update(iter_num, trial_count, scenario_name, self.env.attempt_count, self.env.attempt_limit, attempt_reward, trial_reward, agent.epsilon)
-                print(self.env.logger.cur_trial.attempt_seq[-1].action_seq)
-                agent.save_reward(attempt_reward, trial_reward)
+                print(self.agent.logger.cur_trial.attempt_seq[-1].action_seq)
+                self.agent.save_reward(attempt_reward, trial_reward)
                 attempt_reward = 0
 
         self.run_trial_common_finish(trial_selected)
-        agent.trial_switch_points.append(len(agent.rewards))
-        agent.average_trial_rewards.append(trial_reward / attempt_limit)
-
-        return agent
+        self.agent.trial_switch_points.append(len(self.agent.rewards))
+        self.agent.average_trial_rewards.append(trial_reward / attempt_limit)
 
     def update_scenario(self, scenario):
         self.env.scenario = scenario
-        self.env.observation_space = ObservationSpace(len(scenario.levers))
+        self.env.solutions = scenario.solutions
+        self.env.completed_solutions = []
+        self.env.cur_action_seq = []
+
+    def update_attempt(self):
+        reset = False
+        # above the allowed number of actions, need to increment the attempt count and reset the simulator
+        if self.env.action_count >= self.env.action_limit:
+
+            self.env.attempt_count += 1
+
+            attempt_success = self.env.determine_unique_solution()
+            if attempt_success:
+                self.env.completed_solutions.append(self.env.cur_action_seq)
+
+            self.agent.logger.cur_trial.finish_attempt(attempt_success=attempt_success, results=self.env.results)
+
+            # update the user about their progress
+            trial_finished, pause = self.update_user(attempt_success, multithreaded=False)
+
+            # pauses if the human user unlocked the door but didn't push on the door
+            if self.env.use_physics and self.env.human_agent and pause:
+                # pause for 4 sec to allow user to view lock
+                t_end = time.time() + 4
+                while time.time() < t_end:
+                    self.env.render(self.env)
+                    self.env.update_state_machine()
+
+            # reset attempt if the trial isn't finished or if we are running to the full
+            # attempt limit. If the full attempt is not used, trial will advance
+            # after finding all solutions
+            if not trial_finished or self.env.full_attempt_limit is not False:
+                self.add_attempt()
+
+            self.env.reset()
+            reset = True
+
+        return reset
+
+    def update_user(self, attempt_success, multithreaded=False):
+        pause = False
+        num_solutions_remaining = len(self.env.solutions) - len(self.env.completed_solutions)
+        # continue or end trial
+        if self.env.determine_trial_success():
+            if not multithreaded:
+                print "INFO: You found all of the solutions. "
+            # todo: should we mark that the trial is finished even though the attempt_limit
+            # todo: may not be reached?
+            trial_finished = True
+            pause = True            # pause if they open the door
+        elif self.env.attempt_count < self.env.attempt_limit:
+            # alert user to the number of solutions remaining
+            if attempt_success is True:
+                if not multithreaded:
+                    print "INFO: You found a solution. There are {} unique solutions remaining.".format(num_solutions_remaining)
+                pause = True            # pause if they open the door
+            else:
+                if not multithreaded and self.env.human_agent:
+                    print "INFO: Ending attempt. Action limit reached. There are {} unique solutions remaining. You have {} attempts remaining.".format(num_solutions_remaining, self.env.attempt_limit - self.env.attempt_count)
+                # pause if the door lock is missing and the agent is a human
+                if self.env.human_agent and self.env.get_state()['OBJ_STATES']['door_lock'] == common.ENTITY_STATES['DOOR_UNLOCKED']:
+                    pause = True
+            trial_finished = False
+        else:
+            if not multithreaded:
+                print "INFO: Ending trial. Attempt limit reached. You found {} unique solutions".format(len(self.env.completed_solutions))
+            trial_finished = True
+
+        return trial_finished, pause
+
+    def update_acks(self):
+        env_reset = False
+        if not self.env.action_ack:
+            if self.agent.logger.cur_trial.cur_attempt is None:
+                print 'cur_attempt is none...shouldnt be'
+            self.agent.logger.cur_trial.cur_attempt.add_action(self.env.action.name, self.env.action.start_time)
+            self.env.action_ack = True
+        if not self.env.action_finish_ack:
+            self.agent.logger.cur_trial.cur_attempt.finish_action(self.env.action.end_time)
+            self.env.action_finish_ack = True
+            env_reset = self.update_attempt()
+
+        return env_reset
 
     def set_action_limit(self, action_limit):
         self.env.action_limit = action_limit
 
+    def add_attempt(self):
+        self.env.cur_action_seq = []
+        self.agent.logger.cur_trial.add_attempt()
+
     def print_update(self, iter_num, trial_num, scenario_name, episode, episode_max, a_reward, t_reward, epsilon):
-        print("ID: {}, iter {}, trial {}, scenario {}, episode: {}/{}, attempt_reward {}, trial_reward {}, e: {:.2}".format(self.env.logger.subject_id, iter_num, trial_num, scenario_name, episode, episode_max, a_reward, t_reward, epsilon))
+        print("ID: {}, iter {}, trial {}, scenario {}, episode: {}/{}, attempt_reward {}, trial_reward {}, e: {:.2}".format(self.agent.subject_id, iter_num, trial_num, scenario_name, episode, episode_max, a_reward, t_reward, epsilon))
 
     def verify_fsm_matches_simulator(self, obs_space):
         if obs_space is None:
@@ -205,63 +307,27 @@ class SessionManager():
             print fsm_labels
         return obs_space
 
-    def dqn_trial_sanity_checks(self, agent):
+    def dqn_trial_sanity_checks(self):
         try:
-            if len(agent.trial_switch_points) > 0:
-                assert(len(self.env.logger.cur_trial.attempt_seq) == len(agent.rewards) - agent.trial_switch_points[-1])
-                reward_agent = agent.rewards[agent.trial_switch_points[-1]:]
+            if len(self.agent.trial_switch_points) > 0:
+                assert(len(self.agent.logger.cur_trial.attempt_seq) == len(self.agent.rewards) - self.agent.trial_switch_points[-1])
+                reward_agent = self.agent.rewards[self.agent.trial_switch_points[-1]:]
             else:
-                assert(len(self.env.logger.cur_trial.attempt_seq) == len(agent.rewards))
-                reward_agent = agent.rewards[:]
+                assert(len(self.agent.logger.cur_trial.attempt_seq) == len(self.agent.rewards))
+                reward_agent = self.agent.rewards[:]
             reward_seq = []
-            for attempt in self.env.logger.cur_trial.attempt_seq:
+            for attempt in self.agent.logger.cur_trial.attempt_seq:
                 reward_seq.append(attempt.reward)
             assert(reward_seq == reward_agent)
 
-            if len(self.env.logger.trial_seq) > 0:
+            if len(self.agent.logger.trial_seq) > 0:
                 reward_seq_prev = []
-                for attempt in self.env.logger.trial_seq[-1].attempt_seq:
+                for attempt in self.agent.logger.trial_seq[-1].attempt_seq:
                     reward_seq_prev.append(attempt.reward)
                 assert(reward_seq != reward_seq_prev)
 
         except AssertionError:
             print('reward len does not match attempt len')
-
-    @staticmethod
-    def write_results(logger, writer, agent=None):
-        writer.write(logger, agent)
-
-    @staticmethod
-    def write_trial_results(logger, writer, agent=None):
-        writer.write_trial(logger, agent)
-
-    @staticmethod
-    def finish_trial(logger, writer, human = True, agent = None):
-        logger.finish(time.time())
-        if human:
-            strategy = None
-            transfer_strategy = None
-        else:
-            strategy = 'RL'
-            transfer_strategy = 'RL'
-        logger.strategy = strategy
-        logger.transfer_strategy = transfer_strategy
-
-        SessionManager.write_trial_results(logger, writer, agent)
-
-    @staticmethod
-    def finish_subject(logger, writer, human=True, agent=None):
-        logger.finish(time.time())
-        if human:
-            strategy = SessionManager.prompt_strategy()
-            transfer_strategy = SessionManager.prompt_transfer_strategy()
-        else:
-            strategy = 'RL'
-            transfer_strategy = 'RL'
-        logger.strategy = strategy
-        logger.transfer_strategy = transfer_strategy
-
-        SessionManager.write_results(logger, writer, agent)
 
     @staticmethod
     def get_trial(name, completed_trials=None):
@@ -274,123 +340,3 @@ class SessionManager():
             trial, configs = select_random_trial(completed_trials, 7, 11)
 
         return trial, configs
-
-    @staticmethod
-    def prompt_participant_id():
-        while True:
-            try: 
-                participant_id = int(raw_input('Please enter the participant ID (ask the RA for this): '))
-            except ValueError:
-                print 'Please enter an integer for the participant ID'
-                continue
-            else:
-                return participant_id
-
-    @staticmethod
-    def prompt_age():
-        while True:
-            try:
-                age = int(raw_input('Please enter your age: '))
-            except ValueError:
-                print 'Please enter your age as an integer'
-                continue
-            else:
-                return age
-
-    @staticmethod
-    def prompt_gender():
-        while True:
-            gender = raw_input('Please enter your gender (\'M\' for male, \'F\' for female, or \'O\' for other): ')
-            if gender == 'M' or gender == 'F' or gender == 'O':
-                return gender
-            else:
-                continue
-
-    @staticmethod
-    def prompt_handedness():
-        while True:
-            handedness = raw_input('Please enter your handedness (\'right\' for right-handed or \'left\' for left-handed): ')
-            if handedness == 'right' or handedness == 'left':
-                return handedness
-            else:
-                continue
-
-    @staticmethod
-    def prompt_eyewear():
-        while True:
-            eyewear = raw_input('Please enter \'yes\' if you wear glasses or contacts or \'no\' if you do not wear glasses or contacts: ')
-            if eyewear == 'yes' or eyewear == 'no':
-                return eyewear
-            else:
-                continue
-
-    @staticmethod
-    def prompt_major():
-        major = raw_input('Please enter your major: ')
-        return major
-
-    @staticmethod
-    def prompt_subject():
-        print 'Welcome to OpenLock!'
-        participant_id = SessionManager.prompt_participant_id()
-        age = SessionManager.prompt_age()
-        gender = SessionManager.prompt_gender()
-        handedness = SessionManager.prompt_handedness()
-        eyewear = SessionManager.prompt_eyewear()
-        major = SessionManager.prompt_major()
-        return participant_id, age, gender, handedness, eyewear, major
-
-    @staticmethod
-    def prompt_strategy():
-        strategy = raw_input('Did you develop any particular technique or strategy to solve the problem? If so, what was your technique/strategy? ')
-        return strategy
-
-    @staticmethod
-    def prompt_transfer_strategy():
-        transfer_strategy = raw_input('If you used a particular technique/strategy, did you find that it also worked when the number of colored levers increased from 3 to 4? ')
-        return transfer_strategy
-
-    @staticmethod
-    def make_subject_dir(data_path):
-        subject_id = str(hash(time.time()))
-        subject_path = data_path + '/' + subject_id
-        while True:
-            # make sure directory does not exist
-            if not os.path.exists(subject_path):
-                os.makedirs(subject_path)
-                return subject_id, subject_path
-            else:
-                subject_id = str(hash(time.time()))
-                subject_path = data_path + '/' + subject_id
-                continue
-
-    @staticmethod
-    def setup_subject(data_path, human=True):
-        # human agent
-        if human:
-            participant_id, age, gender, handedness, eyewear, major = SessionManager.prompt_subject()
-            # age, gender, handedness, eyewear = ['25', 'M', 'right', 'no']
-        # robot agent
-        else:
-            age = -1
-            gender = 'robot'
-            handedness = 'none'
-            eyewear = 'no'
-            major = 'robotics'
-            participant_id = -1
-
-        subject_id, subject_path = SessionManager.make_subject_dir(data_path)
-
-        print "Starting trials for subject {}".format(subject_id)
-        sub_logger = logger.SubjectLogger(subject_id=subject_id,
-                                          participant_id=participant_id,
-                                          age=age,
-                                          gender=gender,
-                                          handedness=handedness,
-                                          eyewear=eyewear,
-                                          major=major,
-                                          start_time=time.time())
-        sub_writer = logger.SubjectWriter(subject_path)
-        return sub_logger, sub_writer
-
-

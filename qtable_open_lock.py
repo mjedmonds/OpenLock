@@ -1,21 +1,15 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-import numpy as np
-import random
 import gym
 import numpy as np
 import sys
-import os
-import json
 from distutils.dir_util import copy_tree
 
 # MUST IMPORT FROM gym_lock to properly register the environment
-from gym_lock.session_manager import SessionManager
+from session_manager import SessionManager
 from gym_lock.settings_trial import PARAMS, IDX_TO_PARAMS
 from gym_lock.settings_scenario import select_scenario
-from gym_lock.common import plot_rewards, plot_rewards_trial_switch_points
-
 
 # XXX: ENTIRE FILE IS UNFINISHED
 class OpenLockQ(object):

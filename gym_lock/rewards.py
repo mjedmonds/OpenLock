@@ -105,7 +105,7 @@ def reward_unique_solution(env, action):
     Give reward of REWARD_CHANGE_OBS for chanding the observation state
     Give reward of REWARD_NONE for anything else
     '''
-    unique_seq = env.logger.cur_trial.determine_unique()
+    unique_seq = env.determine_unique_solution() or env.determine_unique_partial_solution()
     # door unlocked, push_door
     if door_open(env, action) and unique_seq:
         reward = REWARD_OPEN
@@ -125,7 +125,7 @@ def reward_change_state_unique_solution(env, action):
     Give reward of REWARD_CHANGE_OBS for chanding the observation state
     Give reward of REWARD_NONE for anything else
     '''
-    unique_seq = env.logger.cur_trial.determine_unique()
+    unique_seq = env.determine_unique_solution() or env.determine_unique_partial_solution()
     # door locked, state change
     if door_open(env, action) and unique_seq:
         reward = REWARD_OPEN
@@ -148,7 +148,7 @@ def reward_negative_immovable_unique_solutions(env, action):
     Give reward of REWARD_IMMOVABLE for interacting with a lever that cannot move
     Give reward of REWARD_NONE for anything else
     '''
-    unique_seq = env.logger.cur_trial.determine_unique()
+    unique_seq = env.determine_unique_solution() or env.determine_unique_partial_solution()
     # door locked, state change
     if door_open(env, action) and unique_seq:
         reward = REWARD_OPEN
@@ -201,7 +201,7 @@ def reward_negative_immovable_partial_seq(env, action):
     elif door_unlocked(env):
         reward = REWARD_UNLOCK
     # determine if partial subsequence of a solution action seq
-    elif env.determine_partial_seq():
+    elif env.determine_partial_solution():
         reward = REWARD_PARTIAL_SEQ
     # determine if movable
     elif action.obj is not 'door' and not env.determine_moveable_action(action):
@@ -251,9 +251,9 @@ def reward_negative_immovable_solution_multiplier(env, action):
     would be 1.5 * REWARD_OPEN, the third 1.5 * 1.5 * REWARD_OPEN. This encourages the
     agent to find unique solutions without penalizing for finding repeated solutions
     '''
-    num_solutions_found = len(env.logger.cur_trial.completed_solutions)
+    num_solutions_found = len(env.completed_solutions)
     multiplier = max(1, 1 * SOLUTION_MULTIPLIER * num_solutions_found)
-    unique_seq = env.logger.cur_trial.determine_unique()
+    unique_seq = env.determine_unique_solution() or env.determine_unique_partial_solution()
     # door unlocked
     if door_open(env, action) and unique_seq:
         reward = REWARD_OPEN * multiplier
@@ -289,9 +289,9 @@ def reward_negative_immovable_partial_seq_solution_multiplier(env, action):
     would be 1.5 * REWARD_OPEN, the third 1.5 * 1.5 * REWARD_OPEN. This encourages the
     agent to find unique solutions without penalizing for finding repeated solutions
     '''
-    num_solutions_found = len(env.logger.cur_trial.completed_solutions)
+    num_solutions_found = len(env.completed_solutions)
     multiplier = max(1, 1 * SOLUTION_MULTIPLIER * num_solutions_found)
-    unique_seq = env.logger.cur_trial.determine_unique()
+    unique_seq = env.determine_unique_solution() or env.determine_unique_partial_solution()
     # door unlocked
     if door_open(env, action) and unique_seq:
         reward = REWARD_OPEN * multiplier
@@ -305,7 +305,7 @@ def reward_negative_immovable_partial_seq_solution_multiplier(env, action):
     elif door_unlocked(env):
         reward = REWARD_UNLOCK
     # determine if partial subsequence of a solution action seq
-    elif env.determine_partial_seq():
+    elif env.determine_partial_solution():
         reward = REWARD_PARTIAL_SEQ
     # determine if movable
     elif action.obj is not 'door' and not env.determine_moveable_action(action):
@@ -330,9 +330,9 @@ def reward_negative_change_state_partial_seq_solution_multiplier(env, action):
     would be 1.5 * REWARD_OPEN, the third 1.5 * 1.5 * REWARD_OPEN. This encourages the
     agent to find unique solutions without penalizing for finding repeated solutions
     '''
-    num_solutions_found = len(env.logger.cur_trial.completed_solutions)
+    num_solutions_found = len(env.completed_solutions)
     multiplier = max(1, 1 * SOLUTION_MULTIPLIER * num_solutions_found)
-    unique_seq = env.logger.cur_trial.determine_unique()
+    unique_seq = env.determine_unique_solution() or env.determine_unique_partial_solution()
     # door unlocked
     if door_open(env, action) and unique_seq:
         reward = REWARD_OPEN * multiplier
@@ -346,7 +346,7 @@ def reward_negative_change_state_partial_seq_solution_multiplier(env, action):
     elif door_unlocked(env):
         reward = REWARD_UNLOCK
     # determine if partial subsequence of a solution action seq
-    elif env.determine_partial_seq():
+    elif env.determine_partial_solution():
         reward = REWARD_PARTIAL_SEQ
     # determine if movable
     elif not env.determine_fluent_change():

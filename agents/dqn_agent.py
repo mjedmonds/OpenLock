@@ -2,7 +2,7 @@
 import numpy as np
 import random
 import os
-from agent import Agent
+from agents.agent import Agent
 
 from collections import deque
 from keras.models import Sequential
@@ -15,6 +15,8 @@ class DAgent(Agent):
     def __init__(self, state_size, action_size, params):
         super(DAgent, self).__init__(params['data_dir'])
         super(DAgent, self).setup_subject(human=False)
+
+        self.params = params
 
         self.state_size = state_size
         self.action_size = action_size
@@ -65,12 +67,12 @@ class DAgent(Agent):
             os.makedirs(save_dir)
         self.save(save_dir + '/' + filename)
 
-    def save_agent(self, agent, save_dir, testing, iter_num, trial_count, attempt_count):
+    def save_agent(self, save_dir, testing, iter_num, trial_count, attempt_count):
         if testing:
             save_str = '/agent_test_i_' + str(iter_num) + '_t' + str(trial_count) + '_a' + str(attempt_count) + '.h5'
         else:
             save_str = '/agent_i_' + str(iter_num) + '_t' + str(trial_count) + '_a' + str(attempt_count) + '.h5'
-        agent.save_weights(save_dir, save_str)
+        self.save_weights(save_dir, save_str)
 
     # load Keras weights (.h5)
     def load(self, name):

@@ -1,11 +1,10 @@
 
 import gym
-import time
 import sys
-from human_agent import HumanAgent
+from agents.human_agent import HumanAgent
 
-from gym_lock.settings_scenario import select_scenario, select_random_scenarios
-from gym_lock.session_manager import SessionManager
+from gym_lock.settings_scenario import select_scenario
+from session_manager import SessionManager
 from gym_lock.settings_trial import PARAMS, IDX_TO_PARAMS
 
 # def exit_handler(signum, frame):
@@ -63,8 +62,7 @@ if __name__ == '__main__':
 
     for trial_num in range(0, params['train_num_trials']):
         manager.run_trial_human(params['train_scenario_name'], params['train_action_limit'], params['train_attempt_limit'], verify=True)
-        manager.finish_trial(manager.env.logger, manager.writer)
-        print 'One trial complete for subject {}'.format(env.logger.subject_id)
+        print 'One trial complete for subject {}'.format(agent.subject_id)
 
     # testing trial
     # print "INFO: STARTING TESTING TRIAL"
@@ -73,14 +71,13 @@ if __name__ == '__main__':
         manager.update_scenario(scenario)
         manager.set_action_limit(params['test_action_limit'])
         # run testing trial with specified trial7
-        manager.run_trial_human(params['test_scenario_name'], params['test_action_limit'], params['test_attempt_limit'], specified_trial='trial7')
-        manager.finish_trial(manager.env.logger, manager.writer)
-        print 'One trial complete for subject {}'.format(env.logger.subject_id)
+        manager.run_trial_human(params['test_scenario_name'], params['test_action_limit'], params['test_attempt_limit'], specified_trial='trial7', test_trial=True)
+        print 'One trial complete for subject {}'.format(agent.subject_id)
 
-    env.render(close=True)          # close the window
+    manager.env.render(manager.env, close=True)          # close the window
     print 'The experiment is over. Thank you for participating.'
     print 'Please answer the following questions:'
-    manager.finish_subject(manager.env.logger, manager.writer)
+    manager.agent.finish_subject()
     print 'You are finished. Please alert the RA. Thank you!'
 
 
