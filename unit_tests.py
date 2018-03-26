@@ -91,6 +91,8 @@ def test_scenario(manager, scenario_name, trials_to_verify):
 
         assert(manager.agent.logger.cur_trial.success is True)
 
+        manager.run_trial_common_finish(trial_selected, False)
+
 
 def execute_solution(manager, action_seq):
     prev_num_solutions = len(manager.agent.logger.cur_trial.completed_solutions)
@@ -131,6 +133,8 @@ def verify_simulator_fsm_match(manager, num_attempts_per_scenario):
             manager.env.step(action)
 
             manager.verify_fsm_matches_simulator(manager.env.observation_space)
+
+        manager.run_trial_common_finish(trial_selected, False)
 
 
 def test_rewards(manager):
@@ -302,6 +306,8 @@ def main():
 
     verify_simulator_fsm_match(manager, 100)
 
+    # bypass physics sim
+    manager.env.use_physics = False
     test_rewards(manager)
 
     print 'All tests passed'
