@@ -242,7 +242,8 @@ def test_rewards(manager):
                 manager.agent.logger.cur_trial.add_attempt()
                 i += 1
 
-            save_reward_file(reward_filepath, rewards, action_seqs)
+            # uncomment to save the rewards to a file
+            #save_reward_file(reward_filepath, rewards, action_seqs)
             reward_file = load_reward_file(reward_filepath)
             assert(reward_file == rewards)
 
@@ -252,10 +253,10 @@ def test_rewards(manager):
 def save_reward_file(path, rewards, action_seqs):
     assert(len(rewards) == len(action_seqs))
 
-    # ans = raw_input('Confirm you want to overwrite saved rewards by entering \'y\': ')
-    # if ans != 'y':
-    #     print('Exiting...')
-    #     sys.exit(0)
+    ans = raw_input('Confirm you want to overwrite saved rewards by entering \'y\': ')
+    if ans != 'y':
+        print('Exiting...')
+        sys.exit(0)
 
     json_str = jsonpickle.encode(rewards)
     SubjectWriter.pretty_write(path, json_str)
