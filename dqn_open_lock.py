@@ -158,10 +158,10 @@ def main():
     #params['use_dynamic_epsilon'] = False
 
     # dummy settings
-    params['train_num_iters'] = 10
-    params['test_num_iters'] = 10
-    params['train_attempt_limit'] = 30
-    params['test_attempt_limit'] = 30
+    #params['train_num_iters'] = 10
+    #params['test_num_iters'] = 10
+    #params['train_attempt_limit'] = 30
+    #params['test_attempt_limit'] = 30
 
     # human comparison settings
     # params['train_num_iters'] = 1

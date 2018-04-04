@@ -391,7 +391,7 @@ def plot_rewards(rewards, epsilons, filename, width=12, height=6):
     plt.savefig(filename)
 
 
-def show_rewards(rewards, epsilons, fig, width=12, height=6):
+def show_rewards(rewards, epsilons, fig, width=12, height=6, window_size=1000):
     # sanity checks for plotting
     assert(fig is not None)
     assert len(epsilons) == len(rewards)
@@ -400,7 +400,7 @@ def show_rewards(rewards, epsilons, fig, width=12, height=6):
 
     plt.figure(fig.number)
     plt.clf()
-    moving_avg = compute_moving_average(rewards, 100)
+    moving_avg = compute_moving_average(rewards, window_size)
     gcf = plt.gcf()
     ax = plt.gca()
     gcf.set_size_inches(width, height)
@@ -415,10 +415,10 @@ def show_rewards(rewards, epsilons, fig, width=12, height=6):
     plt.pause(0.1)
 
 
-def plot_rewards_trial_switch_points(rewards, epsilons, trial_switch_points, filename, plot_xticks=False):
+def plot_rewards_trial_switch_points(rewards, epsilons, trial_switch_points, filename, plot_xticks=False, window_size=1000):
     plt.clf()
     assert len(epsilons) == len(rewards)
-    moving_avg = compute_moving_average(rewards, 100)
+    moving_avg = compute_moving_average(rewards, window_size)
     fig = plt.gcf()
     ax = plt.gca()
     fig.set_size_inches(12, 6)
