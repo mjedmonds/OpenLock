@@ -108,6 +108,20 @@ class SessionManager():
             # convert idx to Action object (idx -> str -> Action)
             action = self.env.action_map[self.env.action_space[action_idx]]
             next_state, reward, done, opt = self.env.step(action)
+            """See the temperature of solutions
+            count1 = 0
+            reward_i = 0
+            for i in range(len(manager.agent.memory)):
+                action_i = manager.agent.memory[i][1]
+                action_j = manager.env.action_map[manager.env.action_space[action_i]]
+                reward_j, success = determine_reward(manager.env, action_j, 'negative_change_state_partial_action_seq_solution_multiplier')
+                count1+=1
+                reward_i += reward_j
+            num_ = len(manager.env.completed_solutions)
+            print "solution: ", num_, " reward_ave: ", reward_i/count1
+            """
+
+
 
             next_state = np.reshape(next_state, [1, self.agent.state_size])
 
@@ -116,7 +130,8 @@ class SessionManager():
             if self.params['full_attempt_limit'] and self.env.attempt_count < attempt_limit:
                 done = False
 
-            self.agent.remember(state, action_idx, reward, next_state, done)
+
+            self.agent.remember(state, action_idx, reward, next_state, done,)
             # agent.remember(state, action_idx, trial_reward, next_state, done)
             # self.env.render()
 
@@ -145,6 +160,79 @@ class SessionManager():
             if len(self.agent.memory) > self.agent.batch_size:
                 self.agent.replay()
 
+        self.dqn_trial_sanity_checks()
+
+        self.agent.logger.cur_trial.trial_reward = trial_reward
+        self.run_trial_common_finish(trial_selected, test_trial=test_trial)
+        self.agent.trial_switch_points.append(len(self.agent.rewards))
+        self.agent.average_trial_rewards.append(trial_reward / self.env.attempt_count)
+
+    # code to run a computer trial ddqn priority memory replay
+    def run_trial_ddqn_prority(self, scenario_name, action_limit, attempt_limit, trial_count, iter_num, test_trial=False, specified_trial=None, fig=None, fig_update_rate=100):
+        self.env.human_agent = False
+        trial_selected = self.run_trial_common_setup(scenario_name, action_limit, attempt_limit, specified_trial)
+
+        state = self.env.reset()
+        state = np.reshape(state, [1, self.agent.state_size])
+
+        save_dir = self.agent.writer.subject_path + '/models'
+
+        print('scenario_name: {}, trial_count: {}, trial_name: {}'.format(scenario_name, trial_count, trial_selected))
+
+        trial_reward = 0
+        attempt_reward = 0
+        train_step = 0
+        while True:
+            # end if attempt limit reached
+            if self.env.attempt_count >= attempt_limit:
+                break
+            # trial is success and not forcing agent to use all attempts
+            elif self.params['full_attempt_limit'] is False and self.agent.logger.cur_trial.success is True:
+                break
+
+            # self.env.render()
+
+            action_idx = self.agent.act(state)
+            # convert idx to Action object (idx -> str -> Action)
+            action = self.env.action_map[self.env.action_space[action_idx]]
+            next_state, reward, done, opt = self.env.step(action)
+
+            next_state = np.reshape(next_state, [1, self.agent.state_size])
+
+            # THIS OVERRIDES done coming from the environment based on whether or not
+            # we are allowing the agent to move to the next trial after finding all solutions
+            if self.params['full_attempt_limit'] and self.env.attempt_count < attempt_limit:
+                done = False
+
+            self.agent._remember(state, action_idx, reward, next_state, done)
+            # agent.remember(state, action_idx, trial_reward, next_state, done)
+            # self.env.render()
+
+            env_reset = self.update_acks()
+            trial_reward += reward
+            attempt_reward += reward
+            state = next_state
+
+            if env_reset:
+                self.print_update(iter_num, trial_count, scenario_name, self.env.attempt_count, self.env.attempt_limit, attempt_reward, trial_reward, self.agent.epsilon)
+                print(self.agent.logger.cur_trial.attempt_seq[-1].action_seq)
+                self.agent.logger.cur_trial.attempt_seq[-1].reward = attempt_reward
+                self.agent.save_reward(attempt_reward, trial_reward)
+                attempt_reward = 0
+
+                # update figure
+                if fig is not None and self.env.attempt_count % fig_update_rate == 0:
+                    show_rewards(self.agent.rewards, self.agent.epsilons, fig)
+
+            # save agent's model
+            # if self.env.attempt_count % (self.env.attempt_limit/2) == 0 or self.env.attempt_count == self.env.attempt_limit or self.env.logger.cur_trial.success is True:
+            if self.env.attempt_count == 0 or self.env.attempt_count == self.env.attempt_limit:
+                self.agent.save_agent(save_dir, test_trial, iter_num, trial_count, self.env.attempt_count)
+
+            # replay to learn
+            if train_step > self.agent.batch_size:
+                self.agent.replay()
+            train_step += 1
         self.dqn_trial_sanity_checks()
 
         self.agent.logger.cur_trial.trial_reward = trial_reward
