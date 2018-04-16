@@ -220,8 +220,6 @@ def test_rewards(manager):
         manager.update_scenario(scenario)
         manager.env.use_physics = True
 
-
-
         if scenario_name == 'CE3' or scenario_name == 'CE4':
             action_seqs = action_seqs_ce
         if scenario_name == 'CC3' or scenario_name == 'CC4':
@@ -297,16 +295,24 @@ def main():
     agent.setup_subject()
     manager = SessionManager(env, agent, params)
 
+    print 'Starting unit tests.'
+
+    print 'Testing CE3.'
     test_ce3(manager)
+    print 'Testing CC3'
     test_cc3(manager)
+    print 'Testing CC4'
     test_cc4(manager)
+    print 'Testing CE4.'
     test_ce4(manager)
 
     # todo: implement verifying file output (json) against a known, correct output
     verify_file_output_matches(manager)
 
+    print 'Verifying physics simulator and FSM output matches.'
     verify_simulator_fsm_match(manager, 100)
 
+    print 'Verifying rewards match saved values.'
     # bypass physics sim
     manager.env.use_physics = False
     test_rewards(manager)
