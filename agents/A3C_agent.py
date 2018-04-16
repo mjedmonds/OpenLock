@@ -98,6 +98,10 @@ class A3CAgent(DAgent):
         trainer = tf.train.AdamOptimizer(learning_rate=self.learning_rate)
         return AC_Network(self.state_size, self.action_size , self.name, trainer, cell_unit)
 
+    def update_dynamic_epsilon(self, epsilon_threshold, new_epsilon, new_epsilon_decay):
+        if self.epsilon < epsilon_threshold:
+            self.epsilon = new_epsilon
+            self.epsilon_decay = new_epsilon_decay
 
     def train(self, rollout, sess, gamma, r, REWARD_FACTOR):
         rollout = np.array(rollout)
@@ -137,6 +141,8 @@ class A3CAgent(DAgent):
                                                self.local_AC.var_norms,
                                                self.local_AC.apply_grads],
                                               feed_dict=feed_dict)
+        if self.epsilon > self.epsilon_min:
+            self.epsilon *= self.epsilon_decay
         return v_l / len(rollout), p_l / len(rollout), e_l / len(rollout), g_n, v_n
 
     # Copies one set of variables to another.
@@ -152,10 +158,15 @@ class A3CAgent(DAgent):
 
     # Weighted random selection returns n_picks random indexes.
     # the chance to pick the index i is give by the weight weights[i].
-    def weighted_pick(self, weights, n_picks):
-        t = np.cumsum(weights)
-        s = np.sum(weights)
-        return np.searchsorted(t, np.random.rand(n_picks) * s)
+    def weighted_pick(self, weights, n_picks,epsilon = 0.005):
+        if np.random.rand(1) > epsilon:
+
+            t = np.cumsum(weights)
+            s = np.sum(weights)
+            index = np.searchsorted(t, np.random.rand(n_picks) * s)
+        else:
+            index = random.randrange(self.action_size)
+        return index
 
     # Discounting function used to calculate discounted returns.
     def discounting(self, x, gamma):
