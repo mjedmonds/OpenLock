@@ -91,7 +91,7 @@ def main(_):
     params['train_attempt_limit'] = 300
     params['test_attempt_limit'] = 300
     params['gamma'] = 0.8  # discount rate
-    params['epsilon'] = 1.0  # exploration rate
+    params['epsilon'] = 0.5  # exploration rate
     params['epsilon_min'] = 0.00
     params['learning_rate'] = 0.0005
     params['batch_size'] = 64
@@ -101,7 +101,7 @@ def main(_):
     ENV_NAME = 'arm_lock-v0'
 
     env = gym.make(ENV_NAME)
-
+    env.use_physics = params['use_physics']
     agent = A3CAgent(1,1,'init',params)
     # create session/trial/experiment manager
     manager = SessionManager(env,agent, params)
@@ -137,7 +137,7 @@ def main(_):
         # For testing and visualisation we only need one worker
         if TEST_MODEL:
             num_workers = 1
-        #num_workers = 6 # set your own proper worker
+        #num_workers = 1 # set your own proper worker
         workers = []
         # Create worker classes
         for i in range(num_workers):

@@ -209,7 +209,6 @@ class ObservationSpace:
 
         return self.solutions_found, self.labels
 
-
 class ArmLockEnv(gym.Env):
     # Set this in SOME subclasses
     metadata = {'render.modes': ['human']}  # TODO what does this do?
@@ -254,9 +253,9 @@ class ArmLockEnv(gym.Env):
         self.completed_solutions = []  # keeps track of which solutions have been completed this trial
         self.cur_action_seq = []       # keeps track of the action sequence executed this attempt
         self.count = 1
-        self.Temperature_threshold = 0.1
+        self.count_threshold = 20
         if self.attempt_limit is not None:
-            self.Temperature_threshold = 1/np.log(1+self.attempt_limit*0.1) # set the temperature of 10% of attempt_limit to threshhold
+            self.count_threshold = self.attempt_limit*3*0.1 # set the temperature of 10% of attempt_limit to threshhold
 
     def reset(self):
         """Resets the state of the environment and returns an initial observation.
@@ -424,14 +423,11 @@ class ArmLockEnv(gym.Env):
 
             if self.cur_action_seq in self.solutions and self.cur_action_seq in self.completed_solutions:
                 self.count += 1
-            self.Temperature = 1/np.log(1+self.count)
+            self.cooling_percent = self.count/self.count_threshold
             #print "temperature: ", self.Temperature,self.Temperature_threshold
-            if self.Temperature > self.Temperature_threshold:
-                # must update reward before potentially reset env (env may reset based on trial status)
-                reward, success = determine_reward(self, action, self.reward_mode,cooling = False)
-            else:
-                print 'cool'
-                reward, success = determine_reward(self, action, self.reward_mode, cooling = True)
+
+            # must update reward before potentially reset env (env may reset based on trial status)
+            reward, success = determine_reward(self, action, self.reward_mode, cooling_percentage = self.cooling_percent)
 
 
 

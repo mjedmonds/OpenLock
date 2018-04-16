@@ -125,7 +125,7 @@ class DQNAgent(DAgent):
 
     def replay(self):
         minibatch = random.sample(self.memory, self.batch_size)
-        for state, action, reward, next_state, done,_,_ in minibatch:
+        for state, action, reward, next_state, done in minibatch:
             target = reward
             if not done:
                 target = (reward + self.gamma *

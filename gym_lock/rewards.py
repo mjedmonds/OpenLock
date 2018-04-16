@@ -11,13 +11,11 @@ REWARD_OPEN = 50
 
 
 
-def determine_reward(env, action, reward_mode, cooling = False):
+def determine_reward(env, action, reward_mode, cooling_percentage):
     # todo: this reward does not consider whether or not the action sequence has been finished before
     # todo: success also has the same limitation
     reward = 0
-    SOLUTION_MULTIPLIER = 1.5
-    if cooling :
-        SOLUTION_MULTIPLIER = 1.0
+    SOLUTION_MULTIPLIER = 1.5 - 0.5*cooling_percentage
 
     success = door_open(env, action)
     if reward_mode == 'basic':

@@ -5,17 +5,14 @@ import os
 from agents.agent import Agent
 
 from collections import deque
-from keras.models import Sequential, Model
-from keras.layers import Dense, Dropout, Input, Embedding
-from keras.optimizers import Adam
 from A3C_LSTM.ac_network import AC_Network
 import tensorflow as tf
 import scipy.signal
 
-class DAgent(Agent):
+class ActorCriticAgent(Agent):
     def __init__(self, state_size, action_size, name, params):
-        super(DAgent, self).__init__(params['data_dir'])
-        super(DAgent, self).setup_subject(human=False)
+        super(ActorCriticAgent, self).__init__(params['data_dir'])
+        super(ActorCriticAgent, self).setup_subject(human=False)
 
         self.params = params
 
@@ -42,27 +39,12 @@ class DAgent(Agent):
         self.reward_mode = params['reward_mode']
 
     def finish_subject(self, strategy='Deep Q-Learning', transfer_strategy='Deep Q-Learning'):
-        super(DAgent, self).finish_subject(strategy, transfer_strategy)
-
-    def remember(self, state, action, reward, next_state, done):
-        self.memory.append((state, action, reward, next_state, done))
-
-    def act(self, state):
-        if np.random.rand() <= self.epsilon:
-            return random.randrange(self.action_size)
-        act_values = self.model.predict(state)
-        return np.argmax(act_values[0])  # returns action
+        super(ActorCriticAgent, self).finish_subject(strategy, transfer_strategy)
 
     def save_reward(self, reward, trial_reward):
         self.epsilons.append(self.epsilon)
         self.rewards.append(reward)
         self.trial_rewards.append(trial_reward)
-
-    # update the epsilon after every trial once it drops below epsilon_threshold
-    def update_dynamic_epsilon(self, epsilon_threshold, new_epsilon, new_epsilon_decay):
-        if self.epsilon < epsilon_threshold:
-            self.epsilon = new_epsilon
-            self.epsilon_decay = new_epsilon_decay
 
     def save_weights(self, save_dir, filename):
         if not os.path.exists(save_dir):
@@ -76,15 +58,7 @@ class DAgent(Agent):
             save_str = '/agent_i_' + str(iter_num) + '_t' + str(trial_count) + '_a' + str(attempt_count) + '.h5'
         self.save_weights(save_dir, save_str)
 
-    # load Keras weights (.h5)
-    def load(self, name):
-        self.model.load_weights(name)
-
-    # save Keras weights (.h5)
-    def save(self, name):
-        self.model.save_weights(name)
-
-class A3CAgent(DAgent):
+class A3CAgent(ActorCriticAgent):
     def __init__(self, state_size, action_size, name, params):
         super(A3CAgent, self).__init__(state_size, action_size, name, params)
         self.local_AC = self._build_model()
@@ -98,6 +72,10 @@ class A3CAgent(DAgent):
         trainer = tf.train.AdamOptimizer(learning_rate=self.learning_rate)
         return AC_Network(self.state_size, self.action_size , self.name, trainer, cell_unit)
 
+    def update_dynamic_epsilon(self, epsilon_threshold, new_epsilon, new_epsilon_decay):
+        if self.epsilon < epsilon_threshold:
+            self.epsilon = new_epsilon
+            self.epsilon_decay = new_epsilon_decay
 
     def train(self, rollout, sess, gamma, r, REWARD_FACTOR):
         rollout = np.array(rollout)
@@ -137,6 +115,8 @@ class A3CAgent(DAgent):
                                                self.local_AC.var_norms,
                                                self.local_AC.apply_grads],
                                               feed_dict=feed_dict)
+        if self.epsilon > self.epsilon_min:
+            self.epsilon *= self.epsilon_decay
         return v_l / len(rollout), p_l / len(rollout), e_l / len(rollout), g_n, v_n
 
     # Copies one set of variables to another.
@@ -152,10 +132,15 @@ class A3CAgent(DAgent):
 
     # Weighted random selection returns n_picks random indexes.
     # the chance to pick the index i is give by the weight weights[i].
-    def weighted_pick(self, weights, n_picks):
-        t = np.cumsum(weights)
-        s = np.sum(weights)
-        return np.searchsorted(t, np.random.rand(n_picks) * s)
+    def weighted_pick(self, weights, n_picks,epsilon = 0.005):
+        if np.random.rand(1) > epsilon:
+
+            t = np.cumsum(weights)
+            s = np.sum(weights)
+            index = np.searchsorted(t, np.random.rand(n_picks) * s)
+        else:
+            index = random.randrange(self.action_size)
+        return index
 
     # Discounting function used to calculate discounted returns.
     def discounting(self, x, gamma):
