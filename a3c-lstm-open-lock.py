@@ -91,7 +91,7 @@ def main(_):
     params['train_attempt_limit'] = 300
     params['test_attempt_limit'] = 300
     params['gamma'] = 0.8  # discount rate
-    params['epsilon'] = 1.0  # exploration rate
+    params['epsilon'] = 0.5  # exploration rate
     params['epsilon_min'] = 0.00
     params['learning_rate'] = 0.0005
     params['batch_size'] = 64
