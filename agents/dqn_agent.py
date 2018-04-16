@@ -125,7 +125,7 @@ class DQNAgent(DAgent):
 
     def replay(self):
         minibatch = random.sample(self.memory, self.batch_size)
-        for state, action, reward, next_state, done in minibatch:
+        for state, action, reward, next_state, done,_,_ in minibatch:
             target = reward
             if not done:
                 target = (reward + self.gamma *
@@ -194,9 +194,9 @@ class DDQNAgent(DAgent):
         if self.epsilon > self.epsilon_min:
             self.epsilon *= self.epsilon_decay
 
-class DDQN_PRIORITY_Agent(DAgent):
+class DDQNPriorityAgent(DAgent):
     def __init__(self, state_size, action_size, params, capacity = 200000):
-        super(DDQN_PRIORITY_Agent, self).__init__(state_size, action_size, params)
+        super(DDQNPriorityAgent, self).__init__(state_size, action_size, params)
         self.weights = [
                         ('dense', 128),
                         # ('dropout', 0.5),

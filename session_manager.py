@@ -9,7 +9,8 @@ from gym_lock.settings_trial import select_random_trial, select_trial
 from gym_lock.envs.arm_lock_env import ObservationSpace
 import logger
 from gym_lock.common import show_rewards
-
+from matplotlib import pyplot as plt
+import tensorflow as tf
 
 class SessionManager():
 
@@ -50,7 +51,7 @@ class SessionManager():
 
         if not multithreaded:
             print "INFO: New trial. There are {} unique solutions remaining.".format(len(self.env.scenario.solutions))
-
+        self.env.use_physics = False
         self.env.reset()
 
         return trial_selected
@@ -88,6 +89,7 @@ class SessionManager():
         state = np.reshape(state, [1, self.agent.state_size])
 
         save_dir = self.agent.writer.subject_path + '/models'
+        print self.agent.writer.subject_path
 
         print('scenario_name: {}, trial_count: {}, trial_name: {}'.format(scenario_name, trial_count, trial_selected))
 
@@ -108,20 +110,6 @@ class SessionManager():
             # convert idx to Action object (idx -> str -> Action)
             action = self.env.action_map[self.env.action_space[action_idx]]
             next_state, reward, done, opt = self.env.step(action)
-            """See the temperature of solutions
-            count1 = 0
-            reward_i = 0
-            for i in range(len(manager.agent.memory)):
-                action_i = manager.agent.memory[i][1]
-                action_j = manager.env.action_map[manager.env.action_space[action_i]]
-                reward_j, success = determine_reward(manager.env, action_j, 'negative_change_state_partial_action_seq_solution_multiplier')
-                count1+=1
-                reward_i += reward_j
-            num_ = len(manager.env.completed_solutions)
-            print "solution: ", num_, " reward_ave: ", reward_i/count1
-            """
-
-
 
             next_state = np.reshape(next_state, [1, self.agent.state_size])
 
@@ -130,8 +118,7 @@ class SessionManager():
             if self.params['full_attempt_limit'] and self.env.attempt_count < attempt_limit:
                 done = False
 
-
-            self.agent.remember(state, action_idx, reward, next_state, done,)
+            self.agent.remember(state, action_idx, reward, next_state, done)
             # agent.remember(state, action_idx, trial_reward, next_state, done)
             # self.env.render()
 
@@ -240,6 +227,182 @@ class SessionManager():
         self.agent.trial_switch_points.append(len(self.agent.rewards))
         self.agent.average_trial_rewards.append(trial_reward / self.env.attempt_count)
 
+    # code for a3c
+    def run_trial_a3c(self, sess, global_episodes, number, testing_trial, params, coord,attempt_limit,
+                      scenario_name, trial_count,is_test,a_size,MINI_BATCH,gamma,episode_rewards,episode_lengths,episode_mean_values,
+                      summary_writer, name, saver, model_path, REWARD_FACTOR, fig=None):
+        episode_count = sess.run(global_episodes)
+        increment = global_episodes.assign_add(1)
+
+        total_steps = 0
+        print("Starting worker " + str(number))
+        with sess.as_default(), sess.graph.as_default():
+
+            sess.run(self.agent.update_target_graph('global', name))
+            episode_buffer = []
+            episode_mini_buffer = []
+            episode_values = []
+            episode_states = []
+            episode_reward = 0
+            attempt_reward = 0
+            episode_step_count = 0
+
+            if not testing_trial:
+                trial_selected = self.run_trial_common_setup(params['train_scenario_name'],
+                                                             params['train_action_limit'],
+                                                             params['train_attempt_limit'],
+                                                             multithreaded=True)
+            else:
+                trial_selected = self.run_trial_common_setup(params['test_scenario_name'],
+                                                             params['test_action_limit'],
+                                                             params['test_attempt_limit'],
+                                                             specified_trial='trial7', multithreaded=True)
+            if name == 'worker_0':
+                print(
+                    'scenario_name: {}, trial_count: {}, trial_name: {}'.format(scenario_name, trial_count,
+                                                                                trial_selected))
+            terminal = False
+            state = self.env.reset()
+            rnn_state = self.agent.local_AC.state_init
+
+            while not coord.should_stop():
+                # end if attempt limit reached
+                if self.env.attempt_count >= attempt_limit or self.params['full_attempt_limit'] is False and self.agent.logger.cur_trial.success is True:
+
+                    sess.run(self.agent.update_target_graph('global', name))
+                    episode_buffer = []
+                    episode_mini_buffer = []
+                    episode_values = []
+                    episode_states = []
+                    episode_reward = 0
+                    attempt_reward = 0
+                    episode_step_count = 0
+
+                    if not testing_trial:
+                        trial_selected = self.run_trial_common_setup(params['train_scenario_name'],
+                                                                             params['train_action_limit'],
+                                                                             params['train_attempt_limit'],
+                                                                             multithreaded=True)
+                    else:
+                        trial_selected = self.run_trial_common_setup(params['test_scenario_name'],
+                                                                             params['test_action_limit'],
+                                                                             params['test_attempt_limit'],
+                                                                             specified_trial='trial7', multithreaded=True)
+                    if name == 'worker_0':
+                        print(
+                        'scenario_name: {}, trial_count: {}, trial_name: {}'.format(scenario_name, trial_count,
+                                                                                trial_selected))
+                    terminal = False
+                    state = self.env.reset()
+                    rnn_state = self.agent.local_AC.state_init
+
+                # Run an episode
+                while not terminal:
+                    # end if attempt limit reached
+                    if self.env.attempt_count >= attempt_limit:
+                        break
+                    # trial is success and not forcing agent to use all attempts
+                    elif self.params['full_attempt_limit'] is False and self.agent.logger.cur_trial.success is True:
+                        break
+
+                    episode_states.append(state)
+                    if is_test:
+                        self.env.render()
+
+                    # Get preferred action distribution
+                    a_dist, v, rnn_state = sess.run(
+                        [self.agent.local_AC.policy, self.agent.local_AC.value, self.agent.local_AC.state_out],
+                        feed_dict={self.agent.local_AC.inputs: [state],
+                                   self.agent.local_AC.state_in[0]: rnn_state[0],
+                                   self.agent.local_AC.state_in[1]: rnn_state[1]})
+
+                    a0 = self.agent.weighted_pick(a_dist[0], 1)  # Use stochastic distribution sampling
+                    if is_test:
+                        a0 = np.argmax(a_dist[0])  # Use maximum when testing
+                    a = np.zeros(a_size)
+                    a[a0] = 1
+                    action_idx = np.argmax(a)
+                    action = self.env.action_map[self.env.action_space[action_idx]]
+
+                    next_state, reward, terminal, opt = self.env.step(action)
+                    episode_reward += reward
+                    attempt_reward += reward
+
+                    episode_buffer.append([state,a,reward,next_state,terminal,v[0,0]])
+                    episode_mini_buffer.append([state,a,reward,next_state,terminal,v[0,0]])
+
+                    episode_values.append(v[0,0])
+
+                    # THIS OVERRIDES done coming from the environment based on whether or not
+                    # we are allowing the agent to move to the next trial after finding all solutions
+                    if self.params['full_attempt_limit'] and self.env.attempt_count < attempt_limit:
+                        terminal = False
+
+                    # Train on mini batches from episode
+                    if len(episode_mini_buffer) == MINI_BATCH and not is_test:
+                        v1 = sess.run([self.agent.local_AC.value],
+                                      feed_dict={self.agent.local_AC.inputs: [state],
+                                                 self.agent.local_AC.state_in[0]: rnn_state[0],
+                                                 self.agent.local_AC.state_in[1]: rnn_state[1]})
+                        v_l, p_l, e_l, g_n, v_n = self.agent.train(episode_mini_buffer, sess, gamma, v1[0][0], REWARD_FACTOR)
+                        episode_mini_buffer = []
+
+                    env_reset = self.update_attempt(multithread=True)
+                    state = next_state
+                    total_steps += 1
+                    episode_step_count += 1
+
+                    if env_reset:
+                        self.agent.logger.cur_trial.attempt_seq[-1].reward = attempt_reward
+                        self.agent.save_reward(attempt_reward, episode_reward)
+                        attempt_reward = 0
+
+
+                episode_rewards.append(episode_reward)
+                episode_lengths.append(episode_step_count)
+
+                self.run_trial_common_finish(trial_selected,False)
+
+
+
+                if episode_count % 100 == 0 and not episode_count % 1000 == 0 and not is_test:
+                    mean_reward = np.mean(episode_rewards[-5:])
+                    mean_length = np.mean(episode_lengths[-5:])
+                    mean_value = np.mean(episode_mean_values[-5:])
+                    summary = tf.Summary()
+
+                    # summary.text.add(tag='Scenario name', simple_value=str(self.env.scenario.name))
+                    # summary.text.add(tag='trial count', simple_value=str(trial_count))
+                    # summary.text.add(tag='trial name', simple_value=str(trial_selected))
+                    summary.value.add(tag='Perf/Reward', simple_value=float(mean_reward))
+                    summary.value.add(tag='Perf/Length', simple_value=float(mean_length))
+                    summary.value.add(tag='Perf/Value', simple_value=float(mean_value))
+                    summary.value.add(tag='Losses/Value Loss', simple_value=float(v_l))
+                    summary.value.add(tag='Losses/Policy Loss', simple_value=float(p_l))
+                    summary.value.add(tag='Losses/Entropy', simple_value=float(e_l))
+                    summary.value.add(tag='Losses/Grad Norm', simple_value=float(g_n))
+                    summary.value.add(tag='Losses/Var Norm', simple_value=float(v_n))
+                    summary_writer.add_summary(summary, episode_count)
+
+                    summary_writer.flush()
+
+                if name == 'worker_0':
+                    # creating the figure
+                    if episode_count % 20 == 0 and not is_test:
+                        saver.save(sess, model_path + '/model-' + str(episode_count) + '.cptk')
+                        if fig == None:
+                            fig = plt.figure()
+                            fig.set_size_inches(12, 6)
+                        else:
+                            show_rewards(self.agent.rewards, self.agent.epsilons, fig)
+                    if (episode_count) % 1 == 0 and not is_test:
+                        print("| Reward: " + str(episode_reward), " | Episode", episode_count)
+                    sess.run(increment)  # Next global episode
+
+                episode_count += 1
+                trial_count +=1
+
+
     # code to run a computer trial using q-tables (UNFINISHED)
     def run_trial_qtable(self, scenario_name, action_limit, attempt_limit, trial_count, iter_num, testing=False, specified_trial=None):
         self.env.human_agent = False
@@ -289,7 +452,7 @@ class SessionManager():
         self.env.completed_solutions = []
         self.env.cur_action_seq = []
 
-    def update_attempt(self):
+    def update_attempt(self,multithread = False):
         reset = False
         # above the allowed number of actions, need to increment the attempt count and reset the simulator
         if self.env.action_count >= self.env.action_limit:
@@ -303,7 +466,7 @@ class SessionManager():
             self.agent.logger.cur_trial.finish_attempt(attempt_success=attempt_success, results=self.env.results)
 
             # update the user about their progress
-            trial_finished, pause = self.update_user(attempt_success, multithreaded=False)
+            trial_finished, pause = self.update_user(attempt_success, multithreaded=multithread)
 
             # pauses if the human user unlocked the door but didn't push on the door
             if self.env.use_physics and self.env.human_agent and pause:
@@ -355,7 +518,7 @@ class SessionManager():
 
         return trial_finished, pause
 
-    def update_acks(self):
+    def update_acks(self,multithread = False):
         env_reset = False
         if not self.env.action_ack:
             if self.agent.logger.cur_trial.cur_attempt is None:
@@ -365,7 +528,7 @@ class SessionManager():
         if not self.env.action_finish_ack:
             self.agent.logger.cur_trial.cur_attempt.finish_action(self.env.action.end_time)
             self.env.action_finish_ack = True
-            env_reset = self.update_attempt()
+            env_reset = self.update_attempt(multithread= multithread)
 
         return env_reset
 
