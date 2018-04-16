@@ -17,6 +17,7 @@ from gym_lock.rewards import determine_reward, REWARD_IMMOVABLE, REWARD_OPEN
 from gym_lock.settings_trial import CONFIG_TO_IDX, NUM_LEVERS
 from gym.spaces import MultiDiscrete
 from logger import ActionLog
+from gym_lock.rewards import door_open,door_unlocked
 
 from glob import glob
 
@@ -75,6 +76,7 @@ class ObservationSpace:
         self.num_levers = num_levers
         self.state = None
         self.state_labels = None
+
 
     @property
     def shape(self):
@@ -251,6 +253,10 @@ class ArmLockEnv(gym.Env):
         self.solutions = []            # keeps track of solutions for this trial/scenario
         self.completed_solutions = []  # keeps track of which solutions have been completed this trial
         self.cur_action_seq = []       # keeps track of the action sequence executed this attempt
+        self.count = 1
+        self.Temperature_threshold = 0.1
+        if self.attempt_limit is not None:
+            self.Temperature_threshold = 1/np.log(1+self.attempt_limit*0.1) # set the temperature of 10% of attempt_limit to threshhold
 
     def reset(self):
         """Resets the state of the environment and returns an initial observation.
@@ -409,8 +415,25 @@ class ArmLockEnv(gym.Env):
                 self.action_finish_ack = False
                 self.cur_action_seq.append(self.action)
 
-            # must update reward before potentially reset env (env may reset based on trial status)
-            reward, success = determine_reward(self, action, self.reward_mode)
+            '''
+            check if this solution or partial solution is unique, as well as a solution already found, if true , count++
+            track the temperature by adding the count number, if temperature is lower than a threshold, cool down the reward multiplier
+            '''
+            if (door_unlocked(self) or door_open(self,action)) and (self.determine_unique_solution() or self.determine_unique_partial_solution()):
+                self.count = 1
+
+            if self.cur_action_seq in self.solutions and self.cur_action_seq in self.completed_solutions:
+                self.count += 1
+            self.Temperature = 1/np.log(1+self.count)
+            #print "temperature: ", self.Temperature,self.Temperature_threshold
+            if self.Temperature > self.Temperature_threshold:
+                # must update reward before potentially reset env (env may reset based on trial status)
+                reward, success = determine_reward(self, action, self.reward_mode,cooling = False)
+            else:
+                print 'cool'
+                reward, success = determine_reward(self, action, self.reward_mode, cooling = True)
+
+
 
             self.action_executing = False
 
