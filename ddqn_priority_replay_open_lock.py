@@ -11,7 +11,7 @@ from gym_lock.settings_trial import PARAMS, IDX_TO_PARAMS
 from gym_lock.settings_scenario import select_scenario
 from gym_lock.common import plot_rewards, plot_rewards_trial_switch_points
 from gym_lock.envs.arm_lock_env import ObservationSpace
-from agents.dqn_agent import DDQN_PRIORITY_Agent
+from agents.dqn_agent import DDQNPriorityAgent
 
 EPISODES = 1000
 
@@ -188,7 +188,7 @@ def main():
     env.reward_mode = params['reward_mode']
     print 'Reward mode: {}'.format(env.reward_mode)
 
-    agent = DDQN_PRIORITY_Agent(1, 1, params)
+    agent = DDQNPriorityAgent(1, 1, params)
 
     # create session/trial/experiment manager
     # TODO: passing a fake agent here is a hack
@@ -203,7 +203,7 @@ def main():
     action_size = len(manager.env.action_space)
 
     # agent = DQNAgent(state_size, action_size, params)
-    agent = DDQN_PRIORITY_Agent(state_size, action_size, params)
+    agent = DDQNPriorityAgent(state_size, action_size, params)
     # update agent to be a properly initialized agent
     # TODO: this is also a hack
     manager.agent = agent
