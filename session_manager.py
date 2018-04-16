@@ -51,7 +51,7 @@ class SessionManager():
 
         if not multithreaded:
             print "INFO: New trial. There are {} unique solutions remaining.".format(len(self.env.scenario.solutions))
-        self.env.use_physics = False
+
         self.env.reset()
 
         return trial_selected
@@ -89,7 +89,6 @@ class SessionManager():
         state = np.reshape(state, [1, self.agent.state_size])
 
         save_dir = self.agent.writer.subject_path + '/models'
-        print self.agent.writer.subject_path
 
         print('scenario_name: {}, trial_count: {}, trial_name: {}'.format(scenario_name, trial_count, trial_selected))
 
@@ -233,7 +232,6 @@ class SessionManager():
                       summary_writer, name, saver, model_path, REWARD_FACTOR, fig=None):
         episode_count = sess.run(global_episodes)
         increment = global_episodes.assign_add(1)
-
         total_steps = 0
         print("Starting worker " + str(number))
         with sess.as_default(), sess.graph.as_default():
@@ -316,7 +314,7 @@ class SessionManager():
                                    self.agent.local_AC.state_in[0]: rnn_state[0],
                                    self.agent.local_AC.state_in[1]: rnn_state[1]})
 
-                    a0 = self.agent.weighted_pick(a_dist[0], 1)  # Use stochastic distribution sampling
+                    a0 = self.agent.weighted_pick(a_dist[0], 1, self.agent.epsilon)  # Use stochastic distribution sampling
                     if is_test:
                         a0 = np.argmax(a_dist[0])  # Use maximum when testing
                     a = np.zeros(a_size)
@@ -328,15 +326,16 @@ class SessionManager():
                     episode_reward += reward
                     attempt_reward += reward
 
+                    # THIS OVERRIDES done coming from the environment based on whether or not
+                    # we are allowing the agent to move to the next trial after finding all solutions
+                    if self.params['full_attempt_limit'] and self.env.attempt_count < attempt_limit:
+                        terminal = False
+
                     episode_buffer.append([state,a,reward,next_state,terminal,v[0,0]])
                     episode_mini_buffer.append([state,a,reward,next_state,terminal,v[0,0]])
 
                     episode_values.append(v[0,0])
 
-                    # THIS OVERRIDES done coming from the environment based on whether or not
-                    # we are allowing the agent to move to the next trial after finding all solutions
-                    if self.params['full_attempt_limit'] and self.env.attempt_count < attempt_limit:
-                        terminal = False
 
                     # Train on mini batches from episode
                     if len(episode_mini_buffer) == MINI_BATCH and not is_test:
@@ -396,8 +395,10 @@ class SessionManager():
                         else:
                             show_rewards(self.agent.rewards, self.agent.epsilons, fig)
                     if (episode_count) % 1 == 0 and not is_test:
-                        print("| Reward: " + str(episode_reward), " | Episode", episode_count)
+                        print("| Reward: " + str(episode_reward), " | Episode", episode_count, " | Epsilon", self.agent.epsilon)
                     sess.run(increment)  # Next global episode
+
+                self.agent.update_dynamic_epsilon(self.agent.epsilon_min, params['dynamic_epsilon_max'], params['dynamic_epsilon_decay'])
 
                 episode_count += 1
                 trial_count +=1

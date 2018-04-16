@@ -50,7 +50,7 @@ class Worker():
         self.manager = SessionManager(env, agent,params)
         self.manager.update_scenario(self.scenario)
         self.manager.env.reward_mode = params['reward_mode']
-
+        self.manager.env.use_physics = params['use_physics']
         self.trial_count = 0
         self.manager.env.seed(seed)
     def get_env(self):
