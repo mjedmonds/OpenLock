@@ -1,4 +1,5 @@
 from gym_lock.common import ENTITY_STATES
+import numpy as np
 
 REWARD_NONE = 0
 REWARD_CHANGE_OBS = 0.5
@@ -7,13 +8,17 @@ REWARD_REPEATED_ACTION = -0.25
 REWARD_PARTIAL_SEQ = 1
 REWARD_UNLOCK = 10
 REWARD_OPEN = 50
-SOLUTION_MULTIPLIER = 1.5
 
 
-def determine_reward(env, action, reward_mode):
+
+def determine_reward(env, action, reward_mode, cooling = False):
     # todo: this reward does not consider whether or not the action sequence has been finished before
     # todo: success also has the same limitation
     reward = 0
+    SOLUTION_MULTIPLIER = 1.5
+    if cooling :
+        SOLUTION_MULTIPLIER = 1.0
+
     success = door_open(env, action)
     if reward_mode == 'basic':
         reward = reward_basic(env, action)
@@ -32,11 +37,11 @@ def determine_reward(env, action, reward_mode):
     elif reward_mode == 'negative_immovable_negative_repeat':
         reward = reward_negative_immovable_negative_repeat(env, action)
     elif reward_mode == 'negative_immovable_solution_multiplier':
-        reward = reward_negative_immovable_solution_multiplier(env, action)
+        reward = reward_negative_immovable_solution_multiplier(env, action,SOLUTION_MULTIPLIER)
     elif reward_mode == 'negative_immovable_partial_action_seq_solution_multiplier':
-        reward = reward_negative_immovable_partial_seq_solution_multiplier(env, action)
+        reward = reward_negative_immovable_partial_seq_solution_multiplier(env, action,SOLUTION_MULTIPLIER)
     elif reward_mode == 'negative_change_state_partial_action_seq_solution_multiplier':
-        reward = reward_negative_change_state_partial_seq_solution_multiplier(env, action)
+        reward = reward_negative_change_state_partial_seq_solution_multiplier(env, action,SOLUTION_MULTIPLIER)
     else:
         raise ValueError(str('Unknown reward function mode: %s'.format(reward_mode)))
 
@@ -238,7 +243,7 @@ def reward_negative_immovable_negative_repeat(env, action):
     return reward
 
 
-def reward_negative_immovable_solution_multiplier(env, action):
+def reward_negative_immovable_solution_multiplier(env, action,SOLUTION_MULTIPLIER):
     '''
     Give reward of REWARD_UNLOCK for unlocking the door with a new action sequence
     Give reward of REWARD_OPEN for opening the door with a new action sequence
@@ -275,7 +280,7 @@ def reward_negative_immovable_solution_multiplier(env, action):
     return reward
 
 
-def reward_negative_immovable_partial_seq_solution_multiplier(env, action):
+def reward_negative_immovable_partial_seq_solution_multiplier(env, action,SOLUTION_MULTIPLIER):
     '''
     Give reward of REWARD_UNLOCK for unlocking the door with a new action sequence
     Give reward of REWARD_OPEN for opening the door with a new action sequence
@@ -316,7 +321,7 @@ def reward_negative_immovable_partial_seq_solution_multiplier(env, action):
     return reward
 
 
-def reward_negative_change_state_partial_seq_solution_multiplier(env, action):
+def reward_negative_change_state_partial_seq_solution_multiplier(env, action,SOLUTION_MULTIPLIER):
     '''
     Give reward of REWARD_UNLOCK for unlocking the door with a new action sequence
     Give reward of REWARD_OPEN for opening the door with a new action sequence
@@ -330,6 +335,7 @@ def reward_negative_change_state_partial_seq_solution_multiplier(env, action):
     would be 1.5 * REWARD_OPEN, the third 1.5 * 1.5 * REWARD_OPEN. This encourages the
     agent to find unique solutions without penalizing for finding repeated solutions
     '''
+
     num_solutions_found = len(env.completed_solutions)
     multiplier = max(1, 1 * SOLUTION_MULTIPLIER * num_solutions_found)
     unique_seq = env.determine_unique_solution() or env.determine_unique_partial_solution()
