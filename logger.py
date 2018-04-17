@@ -33,7 +33,7 @@ class AttemptLog(object):
     attempt_num = None
     action_seq = []
     start_time = None
-    success = None
+    success = False
     end_time = None
     cur_action = None
     results = None
@@ -60,6 +60,7 @@ class AttemptLog(object):
         self.cur_action = None
 
     def finish(self, success, results, end_time):
+
         self.success = success
         self.results = results
         self.end_time = end_time
