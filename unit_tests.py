@@ -104,7 +104,7 @@ def execute_action_seq(manager, action_seq):
     for action_log in action_seq:
         action = manager.env.action_map[action_log.name]
         state, reward, done, opt = manager.env.step(action)
-        manager.update_acks()
+        manager.finish_action()
 
 
 def verify_file_output_matches(manager):
@@ -133,6 +133,8 @@ def verify_simulator_fsm_match(manager, num_attempts_per_scenario):
             manager.env.step(action)
 
             manager.verify_fsm_matches_simulator(manager.env.observation_space)
+
+            manager.finish_action()
 
         manager.run_trial_common_finish(trial_selected, False)
 
@@ -278,7 +280,7 @@ def run_reward_test(manager, action_seq, reward_function):
         action_test.reward = reward
         rewards.append(action_test)
 
-        manager.update_acks()
+        manager.finish_action()
 
     print 'Rewards: {}'.format(str(rewards))
     return rewards

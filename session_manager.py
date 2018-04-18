@@ -73,7 +73,7 @@ class SessionManager():
         while self.env.attempt_count < attempt_limit and self.env.determine_trial_success() is False:
             self.env.render(self.env)
             # acknowledge any acks that may have occurred (action executed, attempt ended, etc)
-            env_reset = self.update_acks()
+            env_reset = self.finish_action()
             # used to verify simulator and fsm states are always the same (they should be)
             if verify:
                 obs_space = self.verify_fsm_matches_simulator(obs_space)
@@ -121,7 +121,7 @@ class SessionManager():
             # agent.remember(state, action_idx, trial_reward, next_state, done)
             # self.env.render()
 
-            env_reset = self.update_acks()
+            env_reset = self.finish_action()
             trial_reward += reward
             attempt_reward += reward
             state = next_state
@@ -194,7 +194,7 @@ class SessionManager():
             # agent.remember(state, action_idx, trial_reward, next_state, done)
             # self.env.render()
 
-            env_reset = self.update_acks()
+            env_reset = self.finish_action()
             trial_reward += reward
             attempt_reward += reward
             state = next_state
@@ -519,7 +519,7 @@ class SessionManager():
 
         return trial_finished, pause
 
-    def update_acks(self,multithread = False):
+    def finish_action(self, multithread = False):
         env_reset = False
         if not self.env.action_ack:
             if self.agent.logger.cur_trial.cur_attempt is None:
