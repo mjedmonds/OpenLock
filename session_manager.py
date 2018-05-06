@@ -19,7 +19,7 @@ class SessionManager():
     params = None
     completed_trials = []
 
-    def __init__(self, env, agent, params):
+    def __init__(self, env, agent=None, params=None):
         self.env = env
         self.params = params
         self.agent = agent

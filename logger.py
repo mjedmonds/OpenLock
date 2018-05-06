@@ -151,6 +151,10 @@ class SubjectLogger(object):
     def finish(self, end_time):
         self.end_time = end_time
 
+# SubjectLogger used to be called SubjectLog, so we'll allow the pickler to
+# properly instantiate the class
+SubjectLog = SubjectLogger
+
 
 class SubjectWriter:
     subject_path = None

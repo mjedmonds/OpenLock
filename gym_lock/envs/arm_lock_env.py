@@ -697,6 +697,7 @@ class ArmLockEnv(gym.Env):
         cur_action_seq = self.cur_action_seq
         solutions = self.solutions
         for solution in solutions:
+            assert(len(cur_action_seq) <= len(solution), 'Action sequence is somehow longer than solution')
             comparison = [solution[i] == cur_action_seq[i] for i in range(len(cur_action_seq))]
             if all(comparison):
                 return True
