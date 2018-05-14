@@ -4,7 +4,7 @@ import random
 import os
 from agents.agent import Agent
 
-from Sum_tree import SumTree
+from .Sum_tree import SumTree
 from collections import deque
 from keras.models import Sequential, Model
 from keras.layers import Dense, Dropout, Input, Embedding

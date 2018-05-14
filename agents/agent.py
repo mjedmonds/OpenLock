@@ -20,7 +20,7 @@ class Agent(object):
         self.writer = SubjectWriter(self.data_path)
         self.subject_id = self.writer.subject_id
 
-        print "Starting trials for subject {}".format(self.subject_id)
+        print("Starting trials for subject {}".format(self.subject_id))
         self.logger = SubjectLogger(subject_id=self.subject_id,
                                     participant_id=participant_id,
                                     age=age,

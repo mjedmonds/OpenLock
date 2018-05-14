@@ -170,7 +170,7 @@ class Box2DRenderer():
 
         # draw markers
         if RENDER_SETTINGS['DRAW_MARKERS']:
-            for _, val in self.markers.items():
+            for _, val in list(self.markers.items()):
                 type_, args = val
                 if type_ == 'arrow':
                     self._draw_arrow(*args)

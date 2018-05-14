@@ -244,8 +244,14 @@ def test_rewards(manager):
 
             # uncomment to save the rewards to a file
             #save_reward_file(reward_filepath, rewards, action_seqs)
+
             reward_file = load_reward_file(reward_filepath)
-            assert(reward_file == rewards)
+            if rewards != reward_file:
+                mismatches = [i for i in reward_file if rewards[i] != reward_file[i]]
+                reward_file_mismatches = [reward_file[i] for i in mismatches]
+                rewards_mismatches = [rewards[i] for i in mismatches]
+                assert_err = 'Reward does not match in {} reward function. Received reward of {}. Expected reward of {}'.format(reward_function, rewards_mismatches, reward_file_mismatches)
+                assert reward_file == rewards, assert_err
 
             manager.run_trial_common_finish(trial_selected, False)
 
@@ -253,7 +259,7 @@ def test_rewards(manager):
 def save_reward_file(path, rewards, action_seqs):
     assert(len(rewards) == len(action_seqs))
 
-    ans = raw_input('Confirm you want to overwrite saved rewards by entering \'y\': ')
+    ans = eval(input('Confirm you want to overwrite saved rewards by entering \'y\': '))
     if ans != 'y':
         print('Exiting...')
         sys.exit(0)
@@ -282,7 +288,7 @@ def run_reward_test(manager, action_seq, reward_function):
 
         manager.finish_action()
 
-    print 'Rewards: {}'.format(str(rewards))
+    print('Rewards: {}'.format(str(rewards)))
     return rewards
 
 
@@ -297,29 +303,29 @@ def main():
     agent.setup_subject()
     manager = SessionManager(env, agent, params)
 
-    print 'Starting unit tests.'
+    print('Starting unit tests.')
 
-    print 'Testing CE3.'
+    print('Testing CE3.')
     test_ce3(manager)
-    print 'Testing CC3'
+    print('Testing CC3')
     test_cc3(manager)
-    print 'Testing CC4'
+    print('Testing CC4')
     test_cc4(manager)
-    print 'Testing CE4.'
+    print('Testing CE4.')
     test_ce4(manager)
 
     # todo: implement verifying file output (json) against a known, correct output
     verify_file_output_matches(manager)
 
-    print 'Verifying physics simulator and FSM output matches.'
+    print('Verifying physics simulator and FSM output matches.')
     verify_simulator_fsm_match(manager, 100)
 
-    print 'Verifying rewards match saved values.'
+    print('Verifying rewards match saved values.')
     # bypass physics sim
     manager.env.use_physics = False
     test_rewards(manager)
 
-    print 'All tests passed'
+    print('All tests passed')
 
 
 

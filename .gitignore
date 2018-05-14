@@ -2,3 +2,4 @@
 *.egg-info
 .idea
 unit-test-output
+*.bak

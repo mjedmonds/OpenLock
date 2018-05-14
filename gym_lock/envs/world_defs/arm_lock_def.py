@@ -352,7 +352,7 @@ class ArmLockDef(object):
         levers = []
         lever_regex = '^l[0-9]+'
         inactive_lever_regex = '^inactive[0-9]+$'
-        for obj, val in self.obj_map.items():
+        for obj, val in list(self.obj_map.items()):
             if re.search(lever_regex, obj) or re.search(inactive_lever_regex, obj):
                 levers.append(val)
         levers = sorted(levers, key=lambda lever: lever.name)
@@ -361,7 +361,7 @@ class ArmLockDef(object):
     def get_state(self):
         end_effector_position = self.get_abs_config()[-1]
         end_effector_force = common.TwoDForce(self.contact_listener.norm_force, self.contact_listener.tan_force)
-        obj_states = {name: val.ext_test(val.joint) for name, val in self.obj_map.items() if 'button' not in name}
+        obj_states = {name: val.ext_test(val.joint) for name, val in list(self.obj_map.items()) if 'button' not in name}
         lock_state = self.door.int_test(self.door.joint)
         fsm_state = self.scenario.fsmm.get_internal_state()
         state = {

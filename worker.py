@@ -10,8 +10,6 @@ from agents.A3C_agent import A3CAgent
 # Size of mini batches to run training on
 
 
-
-
 class Worker():
     def __init__(self, name, s_size, a_size, trainer, model_path, global_episodes, env_name, seed, test, cell_units, params, testing_trial=False):
         self.name = "worker_" + str(name)
@@ -53,11 +51,11 @@ class Worker():
         self.manager.env.use_physics = params['use_physics']
         self.trial_count = 0
         self.manager.env.seed(seed)
+
     def get_env(self):
         return self.manager.env
 
     def work(self, gamma, sess, coord, saver):
-
         self.manager.run_trial_a3c(sess = sess, global_episodes = self.global_episodes,
                                    number = self.number, testing_trial = self.testing_trial,
                                    params = self.params, coord = coord,attempt_limit = self.attempt_limit,

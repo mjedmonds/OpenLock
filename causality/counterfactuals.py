@@ -1,6 +1,6 @@
 import scipy.io
 import numpy as np
-import common as cc
+from . import common as cc
 
 
 def main():

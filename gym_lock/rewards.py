@@ -2,7 +2,7 @@ from gym_lock.common import ENTITY_STATES
 import numpy as np
 
 
-class rewards_strategy(object):
+class RewardStrategy(object):
 
     def __init__(self ):
         self.REWARD_NONE = 0
