@@ -10,3 +10,4 @@ keras
 tensorflow
 h5py
 matplotlib
+zmq
