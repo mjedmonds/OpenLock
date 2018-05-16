@@ -52,10 +52,11 @@ class AttemptLog(object):
             t = time.time()
         self.cur_action = ActionLog(name, t)
 
-    def finish_action(self, t=None):
+    def finish_action(self, results, t=None):
         if t is None:
             t = time.time()
         self.cur_action.finish(t)
+        self.results = results
         self.action_seq.append(copy.deepcopy(self.cur_action))
         self.cur_action = None
 

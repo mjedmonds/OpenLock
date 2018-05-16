@@ -104,17 +104,26 @@ if __name__ == '__main__':
             # action sequence
             if isinstance(receive_msg, dict) and 'action_sequence' in receive_msg.keys():
                 for action in receive_msg['action_sequence']:
+                    print('Executing action {}'.format(action))
                     execute_action(manager, action)
-                    send_zipped_pickle(socket, manager.agent.logger.cur_trial.cur_attempt)
-                    finish_action(manager)
+                    env_reset = finish_action(manager)
+                    if env_reset:
+                        send_zipped_pickle(socket, {'env_reset': env_reset, 'attempt': manager.agent.logger.cur_trial.attempt_seq[-1]})
+                    else:
+                        send_zipped_pickle(socket, {'env_reset': env_reset, 'attempt': manager.agent.logger.cur_trial.cur_attempt})
 
                 print('Sent attempt sequence to client')
             # single action
             if isinstance(receive_msg, dict) and 'action' in receive_msg.keys():
                 action = receive_msg['action']
+                print('Executing action {}'.format(action))
                 execute_action(manager, action)
-                send_zipped_pickle(socket, manager.agent.logger.cur_trial.cur_attempt)
-                finish_action(manager)
+                env_reset = finish_action(manager)
+                if env_reset:
+                    send_zipped_pickle(socket, {'env_reset': env_reset, 'attempt': manager.agent.logger.cur_trial.attempt_seq[-1]})
+                else:
+                    send_zipped_pickle(socket, {'env_reset': env_reset, 'attempt': manager.agent.logger.cur_trial.cur_attempt})
+
                 print('Sent action result to client')
 
     manager.env.render(manager.env, close=True)          # close the window

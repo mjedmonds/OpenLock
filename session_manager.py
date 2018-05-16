@@ -523,7 +523,7 @@ class SessionManager():
             self.agent.logger.cur_trial.cur_attempt.add_action(self.env.action.name, self.env.action.start_time)
             self.env.action_ack = True
         if not self.env.action_finish_ack:
-            self.agent.logger.cur_trial.cur_attempt.finish_action(self.env.action.end_time)
+            self.agent.logger.cur_trial.cur_attempt.finish_action(self.env.results, self.env.action.end_time)
             self.env.action_finish_ack = True
             env_reset = self.update_attempt(multithread= multithread)
 
