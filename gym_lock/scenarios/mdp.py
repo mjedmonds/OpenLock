@@ -22,6 +22,6 @@ class StateMachineMDP(object):
 
     def run(self):
         self.alg.run()
-        print len(self.alg.policy)
+        print(len(self.alg.policy))
         for i in range(0, len(self.alg.policy)):
-            print 'in state {} take action {}'.format(self.fsm.states[i], self.fsm.actions[self.alg.policy[i]])
+            print('in state {} take action {}'.format(self.fsm.states[i], self.fsm.actions[self.alg.policy[i]]))

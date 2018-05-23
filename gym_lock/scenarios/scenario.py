@@ -152,7 +152,7 @@ class Scenario(object):
         if self.use_physics:
             # execute state transitions
             # check locks
-            for name, obj in self.world_def.obj_map.items():
+            for name, obj in list(self.world_def.obj_map.items()):
                 fsm_name = name + ':'
                 if 'button' not in name and 'door' not in name and 'inactive' not in name:
                     if obj.int_test(obj.joint):
@@ -235,7 +235,7 @@ class Scenario(object):
 
     def _update_latent_objs(self):
         latent_states = self.fsmm.get_latent_states()
-        for latent_var in latent_states.keys():
+        for latent_var in list(latent_states.keys()):
             # ---------------------------------------------------------------
             # Add code to change part of the environment corresponding to a latent variable here
             # ---------------------------------------------------------------

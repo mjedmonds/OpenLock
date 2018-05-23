@@ -15,7 +15,7 @@ def normalized_columns_initializer(std=1.0):
 
 class AC_Network():
     def __init__(self, s_size, a_size, scope, trainer,cell_units):
-        print scope
+        print(scope)
         with tf.variable_scope(scope):
             # Input
             self.inputs = tf.placeholder(shape=[None, s_size], dtype=tf.float32)
@@ -75,4 +75,4 @@ class AC_Network():
 
                 # Apply local gradients to global network
                 global_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'global')
-                self.apply_grads = trainer.apply_gradients(zip(grads, global_vars))
+                self.apply_grads = trainer.apply_gradients(list(zip(grads, global_vars)))

@@ -19,7 +19,7 @@ class SessionManager():
     params = None
     completed_trials = []
 
-    def __init__(self, env, agent, params):
+    def __init__(self, env, agent=None, params=None):
         self.env = env
         self.params = params
         self.agent = agent
@@ -50,7 +50,7 @@ class SessionManager():
         self.agent.logger.cur_trial.add_attempt()
 
         if not multithreaded:
-            print "INFO: New trial. There are {} unique solutions remaining.".format(len(self.env.scenario.solutions))
+            print("INFO: New trial. There are {} unique solutions remaining.".format(len(self.env.scenario.solutions)))
 
         self.env.reset()
 
@@ -73,7 +73,7 @@ class SessionManager():
         while self.env.attempt_count < attempt_limit and self.env.determine_trial_success() is False:
             self.env.render(self.env)
             # acknowledge any acks that may have occurred (action executed, attempt ended, etc)
-            env_reset = self.update_acks()
+            env_reset = self.finish_action()
             # used to verify simulator and fsm states are always the same (they should be)
             if verify:
                 obs_space = self.verify_fsm_matches_simulator(obs_space)
@@ -121,7 +121,7 @@ class SessionManager():
             # agent.remember(state, action_idx, trial_reward, next_state, done)
             # self.env.render()
 
-            env_reset = self.update_acks()
+            env_reset = self.finish_action()
             trial_reward += reward
             attempt_reward += reward
             state = next_state
@@ -163,7 +163,7 @@ class SessionManager():
 
         save_dir = self.agent.writer.subject_path + '/models'
 
-        print('scenario_name: {}, trial_count: {}, trial_name: {}'.format(scenario_name, trial_count, trial_selected))
+        print(('scenario_name: {}, trial_count: {}, trial_name: {}'.format(scenario_name, trial_count, trial_selected)))
 
         trial_reward = 0
         attempt_reward = 0
@@ -190,11 +190,11 @@ class SessionManager():
             if self.params['full_attempt_limit'] and self.env.attempt_count < attempt_limit:
                 done = False
 
-            self.agent._remember(state, action_idx, reward, next_state, done)
+            self.agent.remember(state, action_idx, reward, next_state, done)
             # agent.remember(state, action_idx, trial_reward, next_state, done)
             # self.env.render()
 
-            env_reset = self.update_acks()
+            env_reset = self.finish_action()
             trial_reward += reward
             attempt_reward += reward
             state = next_state
@@ -258,9 +258,7 @@ class SessionManager():
                                                              params['test_attempt_limit'],
                                                              specified_trial='trial7', multithreaded=True)
             if name == 'worker_0':
-                print(
-                    'scenario_name: {}, trial_count: {}, trial_name: {}'.format(scenario_name, trial_count,
-                                                                                trial_selected))
+                print('scenario_name: {}, trial_count: {}, trial_name: {}'.format(scenario_name, trial_count, trial_selected))
             terminal = False
             state = self.env.reset()
             rnn_state = self.agent.local_AC.state_init
@@ -290,9 +288,7 @@ class SessionManager():
                                                                              params['test_attempt_limit'],
                                                                              specified_trial='trial7', multithreaded=True)
                     if name == 'worker_0':
-                        print(
-                        'scenario_name: {}, trial_count: {}, trial_name: {}'.format(scenario_name, trial_count,
-                                                                                trial_selected))
+                        print('scenario_name: {}, trial_count: {}, trial_name: {}'.format(scenario_name, trial_count, trial_selected))
                     terminal = False
                     state = self.env.reset()
                     rnn_state = self.agent.local_AC.state_init
@@ -464,7 +460,7 @@ class SessionManager():
         self.env.completed_solutions = []
         self.env.cur_action_seq = []
 
-    def update_attempt(self,multithread = False):
+    def update_attempt(self, multithread=False):
         reset = False
         # above the allowed number of actions, need to increment the attempt count and reset the simulator
         if self.env.action_count >= self.env.action_limit:
@@ -505,7 +501,7 @@ class SessionManager():
         # continue or end trial
         if self.env.determine_trial_success():
             if not multithreaded:
-                print "INFO: You found all of the solutions. "
+                print("INFO: You found all of the solutions. ")
             # todo: should we mark that the trial is finished even though the attempt_limit
             # todo: may not be reached?
             trial_finished = True
@@ -514,23 +510,23 @@ class SessionManager():
             # alert user to the number of solutions remaining
             if attempt_success is True:
                 if not multithreaded:
-                    print "INFO: You found a solution. There are {} unique solutions remaining.".format(num_solutions_remaining)
+                    print("INFO: You found a solution. There are {} unique solutions remaining.".format(num_solutions_remaining))
                 pause = True            # pause if they open the door
             else:
                 if not multithreaded and self.env.human_agent:
-                    print "INFO: Ending attempt. Action limit reached. There are {} unique solutions remaining. You have {} attempts remaining.".format(num_solutions_remaining, self.env.attempt_limit - self.env.attempt_count)
+                    print("INFO: Ending attempt. Action limit reached. There are {} unique solutions remaining. You have {} attempts remaining.".format(num_solutions_remaining, self.env.attempt_limit - self.env.attempt_count))
                 # pause if the door lock is missing and the agent is a human
                 if self.env.human_agent and self.env.get_state()['OBJ_STATES']['door_lock'] == common.ENTITY_STATES['DOOR_UNLOCKED']:
                     pause = True
             trial_finished = False
         else:
             if not multithreaded:
-                print "INFO: Ending trial. Attempt limit reached. You found {} unique solutions".format(len(self.env.completed_solutions))
+                print("INFO: Ending trial. Attempt limit reached. You found {} unique solutions".format(len(self.env.completed_solutions)))
             trial_finished = True
 
         return trial_finished, pause
 
-    def update_acks(self,multithread = False):
+    def finish_action(self, multithread=False):
         env_reset = False
         if not self.env.action_ack:
             if self.agent.logger.cur_trial.cur_attempt is None:
@@ -539,11 +535,10 @@ class SessionManager():
                 self.agent.logger.cur_trial.add_attempt()
                 self.env.reset()
                 return True
-
             self.agent.logger.cur_trial.cur_attempt.add_action(self.env.action.name, self.env.action.start_time)
             self.env.action_ack = True
         if not self.env.action_finish_ack:
-            self.agent.logger.cur_trial.cur_attempt.finish_action(self.env.action.end_time)
+            self.agent.logger.cur_trial.cur_attempt.finish_action(self.env.results, self.env.action.end_time)
             self.env.action_finish_ack = True
             env_reset = self.update_attempt(multithread= multithread)
 
@@ -568,11 +563,11 @@ class SessionManager():
             assert(state == fsm_state)
             assert(labels == fsm_labels)
         except AssertionError:
-            print 'FSM does not match simulator data'
-            print state
-            print fsm_state
-            print labels
-            print fsm_labels
+            print('FSM does not match simulator data')
+            print(state)
+            print(fsm_state)
+            print(labels)
+            print(fsm_labels)
         return obs_space
 
     def dqn_trial_sanity_checks(self):

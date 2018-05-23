@@ -45,7 +45,7 @@ def run_single_trial(manager, trial_num, iter_num, scenario_name, action_limit, 
                                    iter_num=iter_num,
                                    test_trial=test_trial,
                                    fig=fig)
-    print 'One trial complete for subject {}'.format(manager.agent.logger.subject_id)
+    print('One trial complete for subject {}'.format(manager.agent.logger.subject_id))
     # reset the epsilon after each trial (to allow more exploration)
     if use_dynamic_epsilon:
         manager.agent.update_dynamic_epsilon(manager.agent.epsilon_min, dynamic_max, dynamic_decay)
@@ -186,7 +186,7 @@ def main():
 
     # set reward mode
     env.reward_mode = params['reward_mode']
-    print 'Reward mode: {}'.format(env.reward_mode)
+    print('Reward mode: {}'.format(env.reward_mode))
 
     agent = DDQNPriorityAgent(1, 1, params)
 
@@ -219,7 +219,7 @@ def main():
     #manager, env, agent = train_single_trial(manager, env, agent, params, fig)
 
     manager.agent.finish_subject()
-    print 'Training & testing complete for subject {}'.format(manager.agent.logger.subject_id)
+    print('Training & testing complete for subject {}'.format(manager.agent.logger.subject_id))
 
 
 def replot_training_results(path):

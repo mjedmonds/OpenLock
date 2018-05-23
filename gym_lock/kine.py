@@ -1,4 +1,4 @@
-from __future__ import division
+
 
 import numpy as np
 
@@ -365,7 +365,7 @@ def main():
 
         # while err > epsilon, converge
         err = invk.get_error()  # prime the loop
-        print 'converging'
+        print('converging')
         a = 0
         while (err > epsilon):
             a = a + 1
@@ -389,12 +389,12 @@ def main():
             # update err
             err = invk.get_error()
 
-        print 'converged in {} iterations'.format(a)
+        print('converged in {} iterations'.format(a))
         # converged on that waypoint
 
         # plot
         if i % 1 == 0:
-            print i
+            print(i)
             con = invk.kinematic_chain.get_abs_config()
             x = [c.x for c in con]
             y = [c.y for c in con]

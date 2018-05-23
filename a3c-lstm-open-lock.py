@@ -176,7 +176,7 @@ def main(_):
         else:
             # This is where the asynchronous magic happens.
             # Start the "work" process for each worker in a separate thread.
-            print 'Launching workers...'
+            print('Launching workers...')
             worker_threads = []
             for worker in workers:
                 worker_work = lambda: worker.work(GAMMA, sess, coord, saver)

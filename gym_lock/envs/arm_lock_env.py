@@ -13,7 +13,7 @@ import gym_lock.common as common
 from gym_lock.envs.world_defs.arm_lock_def import ArmLockDef
 from gym_lock.kine import KinematicChain, discretize_path, InverseKinematics, generate_five_arm, TwoDKinematicTransform
 from gym_lock.settings_render import RENDER_SETTINGS, BOX2D_SETTINGS, ENV_SETTINGS
-from gym_lock.rewards import rewards_strategy #determine_reward, REWARD_IMMOVABLE, REWARD_OPEN
+from gym_lock.rewards import RewardStrategy #determine_reward, REWARD_IMMOVABLE, REWARD_OPEN
 from gym_lock.settings_trial import CONFIG_TO_IDX, NUM_LEVERS
 from gym.spaces import MultiDiscrete
 from logger import ActionLog
@@ -37,7 +37,7 @@ class ActionSpace:
         pull_action_space = [None] * NUM_LEVERS
         door_action_space = []
         action_map = dict()
-        for obj, val in obj_map.items():
+        for obj, val in list(obj_map.items()):
             if 'button' not in obj and 'door' not in obj:
                 # use position to map to an integer index
                 twod_config = val.config
@@ -237,7 +237,7 @@ class ArmLockEnv(gym.Env):
         self.reward_mode = 'basic'
 
         self.observation_space = None
-        self.reward_strategy = rewards_strategy()
+        self.reward_strategy = RewardStrategy()
         self.reward_range = (self.reward_strategy.REWARD_IMMOVABLE, self.reward_strategy.REWARD_OPEN)
 
         self.use_physics = True
@@ -414,8 +414,6 @@ class ArmLockEnv(gym.Env):
             # must update reward before potentially reset env (env may reset based on trial status)
             reward, success = self.reward_strategy.determine_reward(self, action, self.reward_mode)
 
-
-
             self.action_executing = False
 
             if self.action_count > self.action_limit:
@@ -505,7 +503,7 @@ class ArmLockEnv(gym.Env):
     def _create_state_entry(self, state, frame):
         entry = [0] * len(self.col_label)
         entry[0] = frame
-        for name, val in state['OBJ_STATES'].items():
+        for name, val in list(state['OBJ_STATES'].items()):
             entry[self.index_map[name]] = int(val)
 
         return entry
@@ -581,8 +579,8 @@ class ArmLockEnv(gym.Env):
                                          KinematicChain(self.base, initial_config))
 
     def _print_observation(self, state, count):
-        print str(count) + ': ' + str(state['OBJ_STATES'])
-        print str(count) + ': ' + str(state['_FSM_STATE'])
+        print(str(count) + ': ' + str(state['OBJ_STATES']))
+        print(str(count) + ': ' + str(state['_FSM_STATE']))
 
     def _append_result(self, cur_result):
         self.results.append(cur_result)
@@ -615,7 +613,7 @@ class ArmLockEnv(gym.Env):
         lock_regex = '^l[0-9]+'
         inactive_lock_regex = '^inactive[0-9]+$'
         # register clickable regions
-        for b2_object_name, b2_object_data in self.world_def.obj_map.items():
+        for b2_object_name, b2_object_data in list(self.world_def.obj_map.items()):
             if re.search(lock_regex, b2_object_name) or re.search(inactive_lock_regex, b2_object_name):
                 lock = b2_object_data
 
@@ -682,6 +680,7 @@ class ArmLockEnv(gym.Env):
         cur_action_seq = self.cur_action_seq
         solutions = self.solutions
         for solution in solutions:
+            assert len(cur_action_seq) <= len(solution), 'Action sequence is somehow longer than solution'
             comparison = [solution[i] == cur_action_seq[i] for i in range(len(cur_action_seq))]
             if all(comparison):
                 return True
@@ -806,7 +805,7 @@ class ArmLockEnv(gym.Env):
         # succesfully reached target config
 
         # delete target arrow
-        if 'targ_arrow' in self.viewer.markers.keys():
+        if 'targ_arrow' in list(self.viewer.markers.keys()):
             del self.viewer.markers['targ_arrow']
 
         return True

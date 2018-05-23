@@ -1,6 +1,6 @@
 # TODO prepend terms _
 
-from common import wrapToMinusPiToPi
+from .common import wrapToMinusPiToPi
 
 
 class PIDController(object):
@@ -34,8 +34,8 @@ class PIDController(object):
 
         self.previous_error = self.error
 
-        print out
-        print self.setpoint
+        print(out)
+        print(self.setpoint)
         return out
 
     def set_setpoint(self, setpoint):

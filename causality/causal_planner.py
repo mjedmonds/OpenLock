@@ -1,5 +1,5 @@
 import numpy as np
-import common
+from . import common
 import copy
 import sys
 
@@ -54,7 +54,7 @@ class CausalPlanner:
         # build shortest action seqs
         self.compute_shortest_action_seqs()
 
-        reachable_fluent_states = self.known_action_seqs.keys()
+        reachable_fluent_states = list(self.known_action_seqs.keys())
         unreachable_fluent_states = [x for x in range(pow(2, self.n_fluents)) if x not in reachable_fluent_states]
 
         self.possible_action_seqs = self.compute_possible_action_seqs(unreachable_fluent_states)
@@ -73,12 +73,12 @@ class CausalPlanner:
 
     def compute_shortest_action_seqs(self):
         self.known_shortest_action_seqs = dict()
-        for known_starting_fluent in self.known_action_seqs.keys():
+        for known_starting_fluent in list(self.known_action_seqs.keys()):
             self.known_shortest_action_seqs[known_starting_fluent] = self.shortest_known_action_seq(known_starting_fluent)
 
     def compute_possible_complete_action_seqs(self):
         possible_complete_plans = dict()
-        for unreachable_fluent_state in self.possible_action_seqs.keys():
+        for unreachable_fluent_state in list(self.possible_action_seqs.keys()):
             possible_tuples = self.possible_action_seqs[unreachable_fluent_state]
 
             # construct complete action sequences to execute. These will be used to check if the unreachable state can be reached
@@ -129,7 +129,7 @@ class CausalPlanner:
                 continue  # no action executed
 
             # add on the current action as a way to reach this fluent state
-            if lin_fluent_vec in known_action_seqs.keys():
+            if lin_fluent_vec in list(known_action_seqs.keys()):
                 known_action_seqs[lin_fluent_vec].append(ActionSequence(copy.copy(action_seq)))
             else:
                 known_action_seqs[lin_fluent_vec] = [ActionSequence(copy.copy(action_seq))]
@@ -251,7 +251,7 @@ class CausalPlanner:
 
         starting_fluent_vec = []
         distances = []
-        for known_action_seq in known_action_seqs.keys():
+        for known_action_seq in list(known_action_seqs.keys()):
             known_fluent_vec = common.delinearize_fluent_vec(known_action_seq, self.n_fluents)
             dist = self.fluent_dist(unreachable_fluent_vec, known_fluent_vec)
             starting_fluent_vec.append(known_action_seq)

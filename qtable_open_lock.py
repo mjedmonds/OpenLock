@@ -142,7 +142,7 @@ def main():
 
     # set reward mode
     env.reward_mode = params['reward_mode']
-    print 'Reward mode: {}'.format(env.reward_mode)
+    print('Reward mode: {}'.format(env.reward_mode))
 
     state_size = env.observation_space.multi_discrete.shape
     action_size = len(env.action_space)

@@ -1,0 +1,13 @@
+gym
+numpy
+pyglet
+pygraphviz
+pymdptoolbox
+transitions
+shapely
+jsonpickle
+keras
+tensorflow
+h5py
+matplotlib
+zmq

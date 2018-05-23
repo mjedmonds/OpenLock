@@ -9,7 +9,7 @@ import time
 def create_state_entry(state, i, col_label, index_map):
     entry = [0] * len(col_label)
     entry[0] = i
-    for name, val in state['OBJ_STATES'].items():
+    for name, val in list(state['OBJ_STATES'].items()):
         entry[index_map[name]] = int(val)
     return entry
 
@@ -42,24 +42,24 @@ def main():
     # append initial observation
     results.append(create_state_entry(env.reset(), i, col_label, index_map))
 
-    print 'Hello! Welcome to the game!'
+    print('Hello! Welcome to the game!')
 
-    print '''See that door on your right? It is the vertical vertical on your right, with the
-             red circle (the door hinge) and black circle (it's lock). That is your only escape.'''
+    print('''See that door on your right? It is the vertical vertical on your right, with the
+             red circle (the door hinge) and black circle (it's lock). That is your only escape.''')
 
-    print '''To open it, you must manipulate the three locks (the rectangles above, below, and
+    print('''To open it, you must manipulate the three locks (the rectangles above, below, and
              to your left). Their behavior is unknown! You'll know that you unlocked the door
-             when the black circle goes away'''
+             when the black circle goes away''')
 
-    print 'ready...'
-    print 'set...'
-    print 'go!'
+    print('ready...')
+    print('set...')
+    print('go!')
 
     env.render()
 
     obs = env.reset()
-    print obs['OBJ_STATES']
-    print obs['_FSM_STATE']
+    print(obs['OBJ_STATES'])
+    print(obs['_FSM_STATE'])
 
     causal_planner, env, results, i = explore_fluent_space(causal_planner, env, index_map, results, col_label, i)
 
@@ -73,7 +73,7 @@ def explore_fluent_space(causal_planner, env, index_map, results, col_label, i):
     # hypothesize possible plans to unobserved fluent
     possible_complete_plans = causal_planner.compute_possible_complete_action_seqs()
 
-    for unobserved_fluent in possible_complete_plans.keys():
+    for unobserved_fluent in list(possible_complete_plans.keys()):
         possible_action_seq_list = possible_complete_plans[unobserved_fluent]
 
         for possible_action_seq in possible_action_seq_list:
@@ -91,8 +91,8 @@ def explore_fluent_space(causal_planner, env, index_map, results, col_label, i):
                     # take action
                     obs, rew, done, info = env.step(exec_action)
                     # import time
-                    print obs['OBJ_STATES']
-                    print obs['_FSM_STATE']
+                    print(obs['OBJ_STATES'])
+                    print(obs['_FSM_STATE'])
                     # #time.sleep(5)
 
                     # append post-observation entry to results list
@@ -108,7 +108,7 @@ def explore_fluent_space(causal_planner, env, index_map, results, col_label, i):
             # we reached the desired state
             if np.array_equal(unobserved_fluent_vec, final_fluent_vec):
                 # add the action sequence to the known paths
-                if unobserved_fluent not in causal_planner.known_action_seqs.keys():
+                if unobserved_fluent not in list(causal_planner.known_action_seqs.keys()):
                     causal_planner.known_action_seqs[unobserved_fluent] = [possible_action_seq]
                 else:
                     causal_planner.known_action_seqs[unobserved_fluent].append(possible_action_seq)
@@ -116,8 +116,8 @@ def explore_fluent_space(causal_planner, env, index_map, results, col_label, i):
             # reset the environment for next possible sequence
             obs = env.reset()
             print('env reset')
-            print obs['OBJ_STATES']
-            print obs['_FSM_STATE']
+            print(obs['OBJ_STATES'])
+            print(obs['_FSM_STATE'])
 
             time.sleep(1)
 

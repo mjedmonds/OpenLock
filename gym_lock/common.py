@@ -7,8 +7,6 @@ from matplotlib import pyplot as plt
 from Box2D import *
 
 
-
-
 ENTITY_STATES = {
     'LEVER_PUSHED': 0,
     'LEVER_PULLED': 1,
@@ -472,20 +470,20 @@ def create_xtick_labels(trial_switch_points):
 
 
 def print_instructions():
-    print 'Hello! Welcome to the game!'
+    print('Hello! Welcome to the game!')
 
     # time.sleep(1)
 
     # time.sleep(1)
-    print '''See that door on your right? It is the vertical vertical on your right, with the
-             red circle (the door hinge) and black circle (it's lock). That is your only escape.'''
+    print('''See that door on your right? It is the vertical vertical on your right, with the
+             red circle (the door hinge) and black circle (it's lock). That is your only escape.''')
     # time.sleep(1)
-    print    '''To open it, you must manipulate the three locks (the rectangles above, below, and
+    print('''To open it, you must manipulate the three locks (the rectangles above, below, and
              to your left). Their behavior is unknown! You'll know that you unlocked the door
-             when the black circle goes away'''
+             when the black circle goes away''')
     # time.sleep(1)
-    print 'ready...'
+    print('ready...')
     # time.sleep(1)
-    print 'set...'
+    print('set...')
     # time.sleep(1)
-    print 'go!'
+    print('go!')

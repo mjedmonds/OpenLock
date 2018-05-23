@@ -62,7 +62,7 @@ if __name__ == '__main__':
 
     for trial_num in range(0, params['train_num_trials']):
         manager.run_trial_human(params['train_scenario_name'], params['train_action_limit'], params['train_attempt_limit'], verify=True)
-        print 'One trial complete for subject {}'.format(agent.subject_id)
+        print('One trial complete for subject {}'.format(agent.subject_id))
 
     # testing trial
     # print "INFO: STARTING TESTING TRIAL"
@@ -72,12 +72,12 @@ if __name__ == '__main__':
         manager.set_action_limit(params['test_action_limit'])
         # run testing trial with specified trial7
         manager.run_trial_human(params['test_scenario_name'], params['test_action_limit'], params['test_attempt_limit'], specified_trial='trial7', test_trial=True)
-        print 'One trial complete for subject {}'.format(agent.subject_id)
+        print('One trial complete for subject {}'.format(agent.subject_id))
 
     manager.env.render(manager.env, close=True)          # close the window
-    print 'The experiment is over. Thank you for participating.'
-    print 'Please answer the following questions:'
+    print('The experiment is over. Thank you for participating.')
+    print('Please answer the following questions:')
     manager.agent.finish_subject()
-    print 'You are finished. Please alert the RA. Thank you!'
+    print('You are finished. Please alert the RA. Thank you!')
 
 

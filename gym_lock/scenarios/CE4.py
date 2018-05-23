@@ -119,7 +119,7 @@ class CommonEffect4Scenario(Scenario):
         updates observable objects in the Box2D environment based on the observable state of the finite state machine
         '''
         observable_states = self.fsmm.get_observable_states()
-        for observable_var in observable_states.keys():
+        for observable_var in list(observable_states.keys()):
             # ---------------------------------------------------------------
             # add code to change part of the environment based on the state of an observable variable here
             # ---------------------------------------------------------------

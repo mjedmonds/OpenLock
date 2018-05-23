@@ -100,7 +100,7 @@ class MultiLockScenario(object):
 
         # execute state transitions
         # check locks
-        for name, obj in self.world_def.obj_map.items():
+        for name, obj in list(self.world_def.obj_map.items()):
             fsm_name = name + ':'
             if 'button' not in name and 'door' not in name:
                 if obj.int_test(obj.joint):
@@ -144,7 +144,7 @@ class MultiLockScenario(object):
         updates latent objects in the Box2D environment based on state of the latent finite state machine
         '''
         latent_states = self.fsmm.get_latent_states()
-        for latent_var in latent_states.keys():
+        for latent_var in list(latent_states.keys()):
             # ---------------------------------------------------------------
             # Add code to change part of the environment corresponding to a latent variable here
             # ---------------------------------------------------------------
@@ -159,7 +159,7 @@ class MultiLockScenario(object):
         updates observable objects in the Box2D environment based on the observable state of the finite state machine
         '''
         observable_states = self.fsmm.get_observable_states()
-        for observable_var in observable_states.keys():
+        for observable_var in list(observable_states.keys()):
             # ---------------------------------------------------------------
             # add code to change part of the environment based on the state of an observable variable here
             # ---------------------------------------------------------------

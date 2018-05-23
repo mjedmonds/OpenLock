@@ -41,8 +41,8 @@ class SimpleDoorLockMDP(StateMachineMDP):
 
         self.add_reward('l-o+', 10)
 
-        print self.transitions
-        print self.rewards
+        print(self.transitions)
+        print(self.rewards)
         self.alg = mdptoolbox.mdp.PolicyIteration(self.transitions,
                                                   self.rewards,
                                                   0.9,
