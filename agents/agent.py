@@ -15,7 +15,7 @@ class Agent(object):
         self.human = False
 
     # default args are for non-human agent
-    def setup_subject(self, human=False, participant_id=-1, age=-1, gender='robot', handedness='none', eyewear='no', major='robotics'):
+    def setup_subject(self, human=False, participant_id=-1, age=-1, gender='robot', handedness='none', eyewear='no', major='robotics', random_seed = None):
         self.human = human
         self.writer = SubjectWriter(self.data_path)
         self.subject_id = self.writer.subject_id
@@ -28,7 +28,8 @@ class Agent(object):
                                     handedness=handedness,
                                     eyewear=eyewear,
                                     major=major,
-                                    start_time=time.time())
+                                    start_time=time.time(),
+                                    random_seed= random_seed)
 
         # copy the entire code base; this is unnecessary but prevents worrying about a particular
         # source code version when trying to reproduce exact parameters
@@ -41,12 +42,12 @@ class Agent(object):
     def write_results(self):
         self.writer.write(self.logger, self)
 
-    def write_trial(self, test_trial=False):
+    def write_trial(self, test_trial=False, random_seed = None):
         self.writer.write_trial(self.logger, test_trial)
 
-    def finish_trial(self, test_trial):
+    def finish_trial(self, test_trial, random_seed):
         self.logger.finish_trial()
-        self.write_trial(test_trial)
+        self.write_trial(test_trial, random_seed)
 
     def finish_subject(self, strategy, transfer_strategy):
         self.logger.finish(time.time())
