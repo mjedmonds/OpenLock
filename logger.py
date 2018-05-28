@@ -79,8 +79,9 @@ class TrialLog(object):
     solutions = []
     completed_solutions = []
     solution_found = []
+    random_seed = None
 
-    def __init__(self, name, scenario_name, solutions, start_time):
+    def __init__(self, name, scenario_name, solutions, start_time, random_seed):
         self.name = name
         self.start_time = start_time
         self.scenario_name = scenario_name
@@ -90,6 +91,7 @@ class TrialLog(object):
         self.attempt_seq = []
         self.solution_found = []
         self.trial_reward = None
+        self.random_seed = random_seed
 
     def add_attempt(self):
         self.cur_attempt = AttemptLog(len(self.attempt_seq), time.time())
@@ -128,8 +130,9 @@ class SubjectLogger(object):
     cur_scenario_name = None
 
     strategy = None
+    random_seed = None
 
-    def __init__(self, subject_id, participant_id, age, gender, handedness, eyewear, major, start_time, human=True):
+    def __init__(self, subject_id, participant_id, age, gender, handedness, eyewear, major, start_time, human=True, random_seed = None):
         self.subject_id = subject_id
         self.participant_id = participant_id
         self.start_time = start_time
@@ -139,9 +142,10 @@ class SubjectLogger(object):
         self.eyewear = eyewear
         self.major = major
         self.human = human
+        self.random_seed = random_seed
 
-    def add_trial(self, trial_name, scenario_name, solutions):
-        self.cur_trial = TrialLog(trial_name, scenario_name, solutions, time.time())
+    def add_trial(self, trial_name, scenario_name, solutions, random_seed):
+        self.cur_trial = TrialLog(trial_name, scenario_name, solutions, time.time(), random_seed)
 
     def finish_trial(self):
         success = self.cur_trial.finish(time.time())
