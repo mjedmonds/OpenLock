@@ -7,7 +7,16 @@ from logger import SubjectLogger, SubjectWriter
 
 # base class for all agents; each agent has a logger
 class Agent(object):
+    """
+    Manage the agent's internals (e.g. neural network for DQN/DDQN, or q-table for Q-table)
+    and maintain a logger to record the outcomes the agent achieves.
+    """
     def __init__(self, data_path):
+        """
+        Initialize logger, writer, subject_id, human to None; data_path to data_path.
+
+        :param data_path: path to directory to write log files to
+        """
         self.logger = None
         self.writer = None
         self.subject_id = None
@@ -16,6 +25,19 @@ class Agent(object):
 
     # default args are for non-human agent
     def setup_subject(self, human=False, participant_id=-1, age=-1, gender='robot', handedness='none', eyewear='no', major='robotics', random_seed = None):
+        """
+        Set internal variables for subject, initialize logger, and create a copy of the code base for reproduction.
+
+        :param human: True if human agent, default: False
+        :param participant_id: default: -1
+        :param age: default: -1
+        :param gender: default: 'robot'
+        :param handedness: default: 'none'
+        :param eyewear: default: 'no'
+        :param major: default: 'robotics'
+        :param random_seed: default: None
+        :return: Nothing
+        """
         self.human = human
         self.writer = SubjectWriter(self.data_path)
         self.subject_id = self.writer.subject_id
@@ -40,16 +62,42 @@ class Agent(object):
                                                                                   '.gitmodules'))
 
     def write_results(self):
+        """
+        Log current agent state.
+
+        :return: Nothing
+        """
         self.writer.write(self.logger, self)
 
     def write_trial(self, test_trial=False, random_seed = None):
+        """
+        Log trial.
+
+        :param test_trial: true if test trial, default: False
+        :param random_seed: default: None
+        :return: Nothing
+        """
         self.writer.write_trial(self.logger, test_trial)
 
     def finish_trial(self, test_trial, random_seed):
+        """
+        Finish trial and log it.
+
+        :param test_trial: true if test trial
+        :param random_seed:
+        :return:
+        """
         self.logger.finish_trial()
         self.write_trial(test_trial, random_seed)
 
     def finish_subject(self, strategy, transfer_strategy):
+        """
+        Finish subject at current time, set strategy and transfer_strategy, call write_results().
+
+        :param strategy:
+        :param transfer_strategy:
+        :return: Nothing
+        """
         self.logger.finish(time.time())
         self.logger.strategy = strategy
         self.logger.transfer_strategy = transfer_strategy
