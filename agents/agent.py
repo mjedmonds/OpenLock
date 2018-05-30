@@ -24,7 +24,7 @@ class Agent(object):
         self.human = False
 
     # default args are for non-human agent
-    def setup_subject(self, human=False, participant_id=-1, age=-1, gender='robot', handedness='none', eyewear='no', major='robotics'):
+    def setup_subject(self, human=False, participant_id=-1, age=-1, gender='robot', handedness='none', eyewear='no', major='robotics', random_seed = None):
         """
         Set internal variables for subject, initialize logger, and create a copy of the code base for reproduction.
 
@@ -35,6 +35,7 @@ class Agent(object):
         :param handedness: default: 'none'
         :param eyewear: default: 'no'
         :param major: default: 'robotics'
+        :param random_seed: default: None
         :return: Nothing
         """
         self.human = human
@@ -49,7 +50,8 @@ class Agent(object):
                                     handedness=handedness,
                                     eyewear=eyewear,
                                     major=major,
-                                    start_time=time.time())
+                                    start_time=time.time(),
+                                    random_seed= random_seed)
 
         # copy the entire code base; this is unnecessary but prevents worrying about a particular
         # source code version when trying to reproduce exact parameters
@@ -67,24 +69,26 @@ class Agent(object):
         """
         self.writer.write(self.logger, self)
 
-    def write_trial(self, test_trial=False):
+    def write_trial(self, test_trial=False, random_seed = None):
         """
         Log trial.
 
         :param test_trial: true if test trial, default: False
+        :param random_seed: default: None
         :return: Nothing
         """
         self.writer.write_trial(self.logger, test_trial)
 
-    def finish_trial(self, test_trial):
+    def finish_trial(self, test_trial, random_seed):
         """
         Finish trial and log it.
 
         :param test_trial: true if test trial
+        :param random_seed:
         :return:
         """
         self.logger.finish_trial()
-        self.write_trial(test_trial)
+        self.write_trial(test_trial, random_seed)
 
     def finish_subject(self, strategy, transfer_strategy):
         """

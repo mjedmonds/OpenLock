@@ -27,17 +27,19 @@ class SessionManager():
     params = None
     completed_trials = []
 
-    def __init__(self, env, agent=None, params=None):
+    def __init__(self, env, agent=None, params=None, random_seed = None):
         """
         Set the instance's env, agent, and params. Initialize completed_trials to the empty list.
 
         :param env: environment managed by this session (e.g. an object returned by gym.make())
         :param agent: agent managed by this session (some Agent object)
         :param params: dictionary of other parameters
+        :param random_seed: default: None
         """
         self.env = env
         self.params = params
         self.agent = agent
+        self.random_seed = random_seed
 
         self.completed_trials = []
 
@@ -74,7 +76,7 @@ class SessionManager():
         self.env.scenario.set_lever_configs(lever_configs)
         self.env.observation_space = ObservationSpace(len(self.env.scenario.levers))
         self.env.solutions = self.env.scenario.solutions
-        self.agent.logger.add_trial(trial_selected, scenario_name, self.env.scenario.solutions)
+        self.agent.logger.add_trial(trial_selected, scenario_name, self.env.scenario.solutions, self.random_seed)
         self.agent.logger.cur_trial.add_attempt()
 
         if not multithreaded:
@@ -94,7 +96,7 @@ class SessionManager():
         :return: Nothing
         """
         # todo: detect whether or not all possible successful paths were uncovered
-        self.agent.finish_trial(test_trial)
+        self.agent.finish_trial(test_trial, self.random_seed)
         self.completed_trials.append(copy.deepcopy(trial_selected))
         self.env.completed_solutions = []
         self.env.cur_action_seq = []
@@ -264,7 +266,7 @@ class SessionManager():
             if self.params['full_attempt_limit'] and self.env.attempt_count < attempt_limit:
                 done = False
 
-            self.agent.remember(state, action_idx, reward, next_state, done)
+            self.agent._remember(state, action_idx, reward, next_state, done)
             # agent.remember(state, action_idx, trial_reward, next_state, done)
             # self.env.render()
 
@@ -448,7 +450,7 @@ class SessionManager():
                         v_l, p_l, e_l, g_n, v_n = self.agent.train(episode_mini_buffer, sess, gamma, v1[0][0], REWARD_FACTOR)
                         episode_mini_buffer = []
 
-                    env_reset = self.update_acks(multithread = True)
+                    env_reset = self.update_attempt(multithread = True)
                     state = next_state
                     total_steps += 1
                     episode_step_count += 1

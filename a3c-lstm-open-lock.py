@@ -152,7 +152,7 @@ def main(_):
                                   seed=RANDOM_SEED,
                                   test=TEST_MODEL,
                                   cell_units=CELL_UNITS,
-                                  params=params,testing_trial= TEST_MODEL))
+                                  params=params, testing_trial= TEST_MODEL))
         saver = tf.train.Saver(max_to_keep=num_workers)
 
         # Gym monitor

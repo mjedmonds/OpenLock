@@ -12,6 +12,8 @@ from gym_lock.settings_scenario import select_scenario
 from gym_lock.common import plot_rewards, plot_rewards_trial_switch_points
 from gym_lock.envs.arm_lock_env import ObservationSpace
 from agents.dqn_agent import DDQNPriorityAgent
+import tensorflow as tf
+import numpy as np
 
 EPISODES = 1000
 
@@ -131,6 +133,7 @@ def main():
     human_decay_median = 0.5480 # from human data
 
     # RL specific settings
+    RANDOM_SEED = 1234
     params['use_physics'] = False
     params['full_attempt_limit'] = True # run to the full attempt limit, regardless of whether or not all solutions were found
     params['train_num_iters'] = 30
@@ -192,11 +195,15 @@ def main():
 
     # create session/trial/experiment manager
     # TODO: passing a fake agent here is a hack
-    manager = SessionManager(env, agent, params)
+    np.random.seed(RANDOM_SEED)
+    tf.set_random_seed(RANDOM_SEED)
+    manager = SessionManager(env, agent, params,RANDOM_SEED)
+    manager.env.seed(RANDOM_SEED)
     manager.update_scenario(scenario)
     trial_selected = manager.run_trial_common_setup(scenario_name=params['train_scenario_name'],
                                                     action_limit=params['train_action_limit'],
                                                     attempt_limit=params['train_attempt_limit'])
+
 
     # setup agent
     state_size = manager.env.observation_space.multi_discrete.shape[0]

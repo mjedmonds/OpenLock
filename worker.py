@@ -45,7 +45,7 @@ class Worker():
         env = gym.make(env_name)
 
         agent = A3CAgent(self.s_size, self.a_size,self.name,self.params)
-        self.manager = SessionManager(env, agent,params)
+        self.manager = SessionManager(env, agent,params,random_seed=seed)
         self.manager.update_scenario(self.scenario)
         self.manager.env.reward_mode = params['reward_mode']
         self.manager.env.use_physics = params['use_physics']
