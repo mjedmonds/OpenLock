@@ -1,10 +1,10 @@
 
 import time
-import copy
 import jsonpickle
 import os
 import json
 import copy
+import texttable
 
 
 class ActionLog(object):
@@ -47,6 +47,9 @@ class AttemptLog(object):
     def __eq__(self, other):
         return self.action_seq == other.action_seq
 
+    def __str__(self):
+        return self.pretty_print_results()
+
     def add_action(self, name, t=None):
         if t is None:
             t = time.time()
@@ -66,6 +69,15 @@ class AttemptLog(object):
         self.results = results
         self.end_time = end_time
         return self.success
+
+    def pretty_print_results(self):
+        table = texttable.Texttable()
+        col_labels = self.results[0]
+        table.set_cols_align(['l' for i in range(len(col_labels))])
+        table.add_rows(self.results[1:len(self.results)])
+        table.header(col_labels)
+        table.set_cols_width([12 for i in range(len(col_labels))])
+        return table.draw()
 
 
 class TrialLog(object):

@@ -20,7 +20,7 @@ class Agent(object):
         self.writer = SubjectWriter(self.data_path)
         self.subject_id = self.writer.subject_id
 
-        print("Starting trials for subject {}".format(self.subject_id))
+        print("Starting trials for subject {}. Saving to {}".format(self.subject_id, self.writer.subject_path))
         self.logger = SubjectLogger(subject_id=self.subject_id,
                                     participant_id=participant_id,
                                     age=age,
@@ -37,6 +37,21 @@ class Agent(object):
                                                                                   '.git',
                                                                                   '.gitignore',
                                                                                   '.gitmodules'))
+
+    def get_current_attempt_logged_actions(self, idx):
+        results = self.logger.cur_trial.cur_attempt.results
+        agent_idx = results[0].index('agent')
+        actions = results[idx][agent_idx+1:len(results[idx])]
+        action_labels = results[0][agent_idx+1:len(results[idx])]
+        return actions, action_labels
+
+    def get_current_attempt_logged_states(self, idx):
+        results = self.logger.cur_trial.cur_attempt.results
+        agent_idx = results[0].index('agent')
+        # frame is stored in 0
+        states = results[idx][1:agent_idx]
+        state_labels = results[0][1:agent_idx]
+        return states, state_labels
 
     def write_results(self):
         self.writer.write(self.logger, self)

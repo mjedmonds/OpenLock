@@ -96,7 +96,16 @@ if __name__ == '__main__':
     while True:
         receive_msg = recv_zipped_pickle(socket)
         if receive_msg == 'quit':
+            send_zipped_pickle(socket, 'quitting')
             break
+        elif receive_msg == 'reset':
+            agent = FileControlAgent(params)
+            manager.agent = agent
+            trial_selected = manager.run_trial_common_setup(scenario_name=params['train_scenario_name'],
+                                                            action_limit=params['train_action_limit'],
+                                                            attempt_limit=params['train_attempt_limit'])
+            print('Reset simulator with new agent')
+            send_zipped_pickle(socket, 'env_reset')
         elif receive_msg == 'get_current_trial':
             send_zipped_pickle(socket, agent.logger.cur_trial)
             print('Sent current trial to client')
@@ -125,6 +134,14 @@ if __name__ == '__main__':
                     send_zipped_pickle(socket, {'env_reset': env_reset, 'attempt': manager.agent.logger.cur_trial.cur_attempt})
 
                 print('Sent action result to client')
+            if isinstance(receive_msg, dict) and 'trial' in receive_msg.keys():
+                trial_selected = receive_msg['trial']
+                trial_selected = manager.run_trial_common_setup(scenario_name=params['train_scenario_name'],
+                                                                action_limit=params['train_action_limit'],
+                                                                attempt_limit=params['train_attempt_limit'],
+                                                                specified_trial=trial_selected)
+                print('Set trial to {}'.format(trial_selected))
+                send_zipped_pickle(socket, 'trial selected')
 
     manager.env.render(manager.env, close=True)          # close the window
     manager.agent.finish_subject()
