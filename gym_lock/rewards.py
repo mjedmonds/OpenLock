@@ -19,20 +19,24 @@ class RewardStrategy(object):
     def determine_multiplier(self, env, action):
 
         self.SOLUTION_MULTIPLIER = 1.0
+        num_solutions_found = len(env.completed_solutions)
         unique_seq = env.determine_unique_solution() or env.determine_unique_partial_solution()
         index = self.get_index(env.solutions, env.cur_action_seq)
-        if unique_seq and (self.door_open(env, action) or self.door_unlocked(env)) and self.counter[index] == 0:
+        first_solution_index = -1
+        if num_solutions_found != 0:
+            first_solution_index = self.get_index(env.solutions, env.completed_solutions[0])
+        if unique_seq and (self.door_open(env, action) or self.door_unlocked(env)) and num_solutions_found == 0:
 
             # if see a unique solution,  set the counter, init
             self.SOLUTION_MULTIPLIER = 1.0 # set multiplier to 1.0 for the first time
 
-        if self.get_index(env.solutions, env.cur_action_seq) != -1 and (self.door_open(env, action) or self.door_unlocked(env)) :
+        if index != -1 and num_solutions_found != 0 and index != first_solution_index and (self.door_open(env, action) or self.door_unlocked(env)) :
 
             # if already seen this solution, cool the temperature, increase the counter
             self.counter[index] += 1
             cooling_percentage = self.counter[index]/(env.attempt_limit*0.3) # set threshold as 0.3 * attempt
             self.SOLUTION_MULTIPLIER = max(1.5 - 0.5*cooling_percentage, 1.0) # if smaller than 1.0, set as 1.0
-        # print self.counter, self.SOLUTION_MULTIPLIER
+        #print self.counter, self.SOLUTION_MULTIPLIER
 
     def get_index(self, solutions, action_seq):
         # get the index of cur_action_seq in solutions, if none, return -1

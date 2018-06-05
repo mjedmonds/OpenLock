@@ -81,9 +81,9 @@ def main(_):
     params['test_num_iters'] = 10
     # params['epsilon_decay'] = 0.9955
     # params['epsilon_decay'] = 0.9999
-    params['epsilon_decay'] = 0.99999
-    params['dynamic_epsilon_decay'] = 0.9955
-    params['dynamic_epsilon_max'] = 0.5
+    params['epsilon_decay'] = 0.9996
+    params['dynamic_epsilon_decay'] = 0.999
+    params['dynamic_epsilon_max'] = 0.1
     params['use_dynamic_epsilon'] = True
     params['test_num_trials'] = 5
 
@@ -91,8 +91,8 @@ def main(_):
     params['train_attempt_limit'] = 300
     params['test_attempt_limit'] = 300
     params['gamma'] = 0.8  # discount rate
-    params['epsilon'] = 0.5  # exploration rate
-    params['epsilon_min'] = 0.00
+    params['epsilon'] =0.005 # exploration rate0.01 0.05
+    params['epsilon_min'] = 0.001
     params['learning_rate'] = 0.0005
     params['batch_size'] = 64
 
@@ -121,11 +121,12 @@ def main(_):
     env.close()
 
     tf.reset_default_graph()
+    config = tf.ConfigProto(allow_soft_placement=True)
 
     if not os.path.exists(MODEL_DIR):
         os.makedirs(MODEL_DIR)
 
-    with tf.device("/cpu:0"):
+    with tf.device("/gpu:0"):
         np.random.seed(RANDOM_SEED)
         tf.set_random_seed(RANDOM_SEED)
 
@@ -137,7 +138,7 @@ def main(_):
         # For testing and visualisation we only need one worker
         if TEST_MODEL:
             num_workers = 1
-        #num_workers = 1 # set your own proper worker
+        num_workers = 8 # set your own proper worker
         workers = []
         # Create worker classes
         for i in range(num_workers):
@@ -151,15 +152,15 @@ def main(_):
                                   seed=RANDOM_SEED,
                                   test=TEST_MODEL,
                                   cell_units=CELL_UNITS,
-                                  params=params))
-        saver = tf.train.Saver(max_to_keep=num_workers+2)
+                                  params=params, testing_trial= TEST_MODEL))
+        saver = tf.train.Saver(max_to_keep=num_workers)
 
         # Gym monitor
         if not TEST_MODEL:
             env = workers[0].get_env()
             env = gym.wrappers.Monitor(env, MONITOR_DIR, video_callable=False, force=True)
 
-    with tf.Session() as sess:
+    with tf.Session(config=config) as sess:
         coord = tf.train.Coordinator()
         if LOAD_MODEL or TEST_MODEL:
             print('Loading Model...')
@@ -181,7 +182,7 @@ def main(_):
                 worker_work = lambda: worker.work(GAMMA, sess, coord, saver)
                 t = threading.Thread(target=(worker_work))
                 t.start()
-                time.sleep(0.5)
+                time.sleep(1)
                 worker_threads.append(t)
             coord.join(worker_threads)
 

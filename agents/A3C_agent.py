@@ -5,7 +5,7 @@ import os
 from agents.agent import Agent
 
 from collections import deque
-from A3C_LSTM.ac_network import AC_Network
+from ac_network import AC_Network
 import tensorflow as tf
 import scipy.signal
 
