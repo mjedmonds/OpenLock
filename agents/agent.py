@@ -76,6 +76,16 @@ class Agent(object):
         state_labels = results[0][1:agent_idx]
         return states, state_labels
 
+    def get_last_attempt_results(self):
+        if self.logger.cur_trial is not None:
+            trial = self.logger.cur_trial
+        else:
+            trial = self.logger.trial_seq[-1]
+        if trial.cur_attempt is not None:
+            return trial.cur_attempt.results
+        else:
+            return trial.attempt_seq[-1].results
+
     def write_results(self):
         """
         Log current agent state.

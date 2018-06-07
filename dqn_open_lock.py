@@ -179,7 +179,7 @@ def main():
     env = gym.make('arm_lock-v0')
 
     env.use_physics = params['use_physics']
-    env.full_attempt_limit = True
+    env.full_attempt_limit = params['full_attempt_limit']
 
     # set up observation space
     env.observation_space = ObservationSpace(len(scenario.levers), append_solutions_remaining=False)
