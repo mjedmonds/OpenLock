@@ -662,7 +662,16 @@ class ArmLockEnv(gym.Env):
 
     def get_simulator_state(self):
         return self.world_def.get_state()
-
+        
+    def determine_door_seq(self):
+        # we want the last action to always be push the door, the agent will be punished if the last action is not push the door.
+        cur_action_seq = self.cur_action_seq
+        if len(cur_action_seq)==3:
+            door_act = ActionLog("push_door",None)
+            if cur_action_seq[-1] == door_act:
+                return 1
+            else: return -1
+        return 0
     # this function also determines if the action sequence is a duplicate to unlock the door, not just open the door
     def determine_unique_solution(self):
         if len(self.cur_action_seq) != len(self.solutions[0]):

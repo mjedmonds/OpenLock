@@ -12,6 +12,7 @@ class RewardStrategy(object):
         self.REWARD_PARTIAL_SEQ = 1
         self.REWARD_UNLOCK = 10
         self.REWARD_OPEN = 50
+        self.REWARD_DOOR_SEQ = 0.5
         self.SOLUTION_MULTIPLIER = 1.5
         self.counter = np.zeros(10)
         self.attempt_count = 0
@@ -78,6 +79,8 @@ class RewardStrategy(object):
             reward = self.reward_negative_immovable_partial_seq_solution_multiplier(env, action)
         elif reward_mode == 'negative_change_state_partial_action_seq_solution_multiplier':
             reward = self.reward_negative_change_state_partial_seq_solution_multiplier(env, action)
+        elif reward_mode == 'reward_negative_change_state_partial_seq_solution_multiplier_door_seq':
+            reward = self.reward_negative_change_state_partial_seq_solution_multiplier_door_seq(env, action)
         else:
             raise ValueError(str('Unknown reward function mode: %s'.format(reward_mode)))
 
@@ -396,4 +399,46 @@ class RewardStrategy(object):
         # door locked, no state change
         else:
             reward = self.REWARD_NONE
+        return reward
+    def reward_negative_change_state_partial_seq_solution_multiplier_door_seq(self, env, action):
+        '''
+        Give reward of REWARD_UNLOCK for unlocking the door with a new action sequence
+        Give reward of REWARD_OPEN for opening the door with a new action sequence
+        Give reward of REWARD_PARTIAL_SEQ for any partial subsquence
+        Give reward of REWARD_IMMOVABLE for interacting with a lever that cannot move
+        Give reward of REWARD_NONE for anything else
+
+        Each new, unique solution found is multiplied by 1.5x the previous multiplier.
+        The multiplier starts at 1. For instance, the reward for finding the first unique
+        solution would be REWARD_OPEN, but the reward for finding the section unique solution
+        would be 1.5 * REWARD_OPEN, the third 1.5 * 1.5 * REWARD_OPEN. This encourages the
+        agent to find unique solutions without penalizing for finding repeated solutions
+        '''
+
+        num_solutions_found = len(env.completed_solutions)
+        multiplier = max(1, 1 * self.SOLUTION_MULTIPLIER * num_solutions_found)
+        unique_seq = env.determine_unique_solution() or env.determine_unique_partial_solution()
+        # door unlocked
+        if self.door_open(env, action) and unique_seq:
+            reward = self.REWARD_OPEN * multiplier
+        # door unlocked
+        elif self.door_open(env, action):
+            reward = self.REWARD_OPEN
+        # door unlocked
+        elif self.door_unlocked(env) and unique_seq:
+            reward = self.REWARD_UNLOCK * multiplier
+        # door unlocked
+        elif self.door_unlocked(env):
+            reward = self.REWARD_UNLOCK
+        # determine if partial subsequence of a solution action seq
+        elif env.determine_partial_solution():
+            reward = self.REWARD_PARTIAL_SEQ
+        # determine if movable
+        elif not env.determine_fluent_change():
+            reward = self.REWARD_IMMOVABLE
+        # door locked, no state change
+        else:
+            reward = self.REWARD_NONE
+        # detemine if the door_seq is right
+            reward += env.determine_door_seq()*self.REWARD_DOOR_SEQ
         return reward

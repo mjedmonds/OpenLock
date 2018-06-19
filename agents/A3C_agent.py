@@ -57,12 +57,13 @@ class ActorCriticAgent(Agent):
         else:
             save_str = '/agent_i_' + str(iter_num) + '_t' + str(trial_count) + '_a' + str(attempt_count) + '.h5'
         self.save_weights(save_dir, save_str)
-
+num_dynamic = 2
 class A3CAgent(ActorCriticAgent):
     def __init__(self, state_size, action_size, name, params):
         super(A3CAgent, self).__init__(state_size, action_size, name, params)
         self.local_AC = self._build_model()
         self.name = name
+        self.epsilon_dynamic = 0
 
     def finish_subject(self, strategy='A3C_LSTM', transfer_strategy='A3C_LSTM'):
         super(DAgent, self).finish_subject(strategy, transfer_strategy)
@@ -73,9 +74,10 @@ class A3CAgent(ActorCriticAgent):
         return AC_Network(self.state_size, self.action_size , self.name, trainer, cell_unit)
 
     def update_dynamic_epsilon(self, epsilon_threshold, new_epsilon, new_epsilon_decay):
-        if self.epsilon < epsilon_threshold:
+        if self.epsilon < epsilon_threshold and self.epsilon_dynamic < num_dynamic:
             self.epsilon = new_epsilon
             self.epsilon_decay = new_epsilon_decay
+            self.epsilon_dynamic+=1
 
     def train(self, rollout, sess, gamma, r, REWARD_FACTOR):
         rollout = np.array(rollout)
