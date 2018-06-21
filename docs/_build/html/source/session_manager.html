@@ -1,0 +1,497 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>session_manager module &#8212; OpenLock  documentation</title>
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="module-session_manager">
+<span id="session-manager-module"></span><h1>session_manager module<a class="headerlink" href="#module-session_manager" title="Permalink to this headline">¶</a></h1>
+<dl class="class">
+<dt id="session_manager.SessionManager">
+<em class="property">class </em><code class="descclassname">session_manager.</code><code class="descname">SessionManager</code><span class="sig-paren">(</span><em>env</em>, <em>agent=None</em>, <em>params=None</em>, <em>random_seed=None</em><span class="sig-paren">)</span><a class="headerlink" href="#session_manager.SessionManager" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Manage an environment and an agent in order to enforce a common routine across all scenarios and agents.</p>
+<p>The class provides an interface for different sessions with different environments and agents
+to operate the same way from a high level perspective. It has an environment and an agent
+as class variables, which it coordinates using several methods, some to be used for all
+scenarios and agents, and others for running trials with specific agents.</p>
+<dl class="method">
+<dt id="session_manager.SessionManager.add_attempt">
+<code class="descname">add_attempt</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#session_manager.SessionManager.add_attempt" title="Permalink to this definition">¶</a></dt>
+<dd><p>Log the attempt and reset env.cur_action_seq.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">Nothing</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="session_manager.SessionManager.completed_trials">
+<code class="descname">completed_trials</code><em class="property"> = []</em><a class="headerlink" href="#session_manager.SessionManager.completed_trials" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="session_manager.SessionManager.dqn_trial_sanity_checks">
+<code class="descname">dqn_trial_sanity_checks</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#session_manager.SessionManager.dqn_trial_sanity_checks" title="Permalink to this definition">¶</a></dt>
+<dd><p>Used by dqn &amp; ddqn trials to make sure attempt_seq and reward_seq are valid.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">Nothing</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="session_manager.SessionManager.env">
+<code class="descname">env</code><em class="property"> = None</em><a class="headerlink" href="#session_manager.SessionManager.env" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="session_manager.SessionManager.finish_action">
+<code class="descname">finish_action</code><span class="sig-paren">(</span><em>multithread=False</em><span class="sig-paren">)</span><a class="headerlink" href="#session_manager.SessionManager.finish_action" title="Permalink to this definition">¶</a></dt>
+<dd><p>Log an action and determine whether or not to reset by calling update_attempt.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>multithread</strong> – </td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">env_reset: False or update_attempt()</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="staticmethod">
+<dt id="session_manager.SessionManager.get_trial">
+<em class="property">static </em><code class="descname">get_trial</code><span class="sig-paren">(</span><em>name</em>, <em>completed_trials=None</em><span class="sig-paren">)</span><a class="headerlink" href="#session_manager.SessionManager.get_trial" title="Permalink to this definition">¶</a></dt>
+<dd><p>Apply specific rules for selecting random trials.
+Namely, For CE4 &amp; CC4, only selects from trials 7-11, otherwise only selects from trials 1-6.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>name</strong> – Name of trial</li>
+<li><strong>completed_trials</strong> – </li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">trial and configs</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="session_manager.SessionManager.params">
+<code class="descname">params</code><em class="property"> = None</em><a class="headerlink" href="#session_manager.SessionManager.params" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="session_manager.SessionManager.print_update">
+<code class="descname">print_update</code><span class="sig-paren">(</span><em>iter_num</em>, <em>trial_num</em>, <em>scenario_name</em>, <em>episode</em>, <em>episode_max</em>, <em>a_reward</em>, <em>t_reward</em>, <em>epsilon</em><span class="sig-paren">)</span><a class="headerlink" href="#session_manager.SessionManager.print_update" title="Permalink to this definition">¶</a></dt>
+<dd><p>Print ID, iteration number, trial number, scenario, episode, attempt_reward, trial_reward, epsilon.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>iter_num</strong> – </li>
+<li><strong>trial_num</strong> – </li>
+<li><strong>scenario_name</strong> – </li>
+<li><strong>episode</strong> – </li>
+<li><strong>episode_max</strong> – </li>
+<li><strong>a_reward</strong> – </li>
+<li><strong>t_reward</strong> – </li>
+<li><strong>epsilon</strong> – </li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">Nothing</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="session_manager.SessionManager.run_trial_a3c">
+<code class="descname">run_trial_a3c</code><span class="sig-paren">(</span><em>sess</em>, <em>global_episodes</em>, <em>number</em>, <em>testing_trial</em>, <em>params</em>, <em>coord</em>, <em>attempt_limit</em>, <em>scenario_name</em>, <em>trial_count</em>, <em>is_test</em>, <em>a_size</em>, <em>MINI_BATCH</em>, <em>gamma</em>, <em>episode_rewards</em>, <em>episode_lengths</em>, <em>episode_mean_values</em>, <em>summary_writer</em>, <em>name</em>, <em>saver</em>, <em>model_path</em>, <em>REWARD_FACTOR</em>, <em>fig=None</em><span class="sig-paren">)</span><a class="headerlink" href="#session_manager.SessionManager.run_trial_a3c" title="Permalink to this definition">¶</a></dt>
+<dd><p>Run a trial for a3c.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>sess</strong> – </li>
+<li><strong>global_episodes</strong> – </li>
+<li><strong>number</strong> – </li>
+<li><strong>testing_trial</strong> – </li>
+<li><strong>params</strong> – </li>
+<li><strong>coord</strong> – </li>
+<li><strong>attempt_limit</strong> – </li>
+<li><strong>scenario_name</strong> – </li>
+<li><strong>trial_count</strong> – </li>
+<li><strong>is_test</strong> – </li>
+<li><strong>a_size</strong> – </li>
+<li><strong>MINI_BATCH</strong> – </li>
+<li><strong>gamma</strong> – </li>
+<li><strong>episode_rewards</strong> – </li>
+<li><strong>episode_lengths</strong> – </li>
+<li><strong>episode_mean_values</strong> – </li>
+<li><strong>summary_writer</strong> – </li>
+<li><strong>name</strong> – </li>
+<li><strong>saver</strong> – </li>
+<li><strong>model_path</strong> – </li>
+<li><strong>REWARD_FACTOR</strong> – </li>
+<li><strong>fig</strong> – </li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last"></p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="session_manager.SessionManager.run_trial_common_finish">
+<code class="descname">run_trial_common_finish</code><span class="sig-paren">(</span><em>trial_selected</em>, <em>test_trial</em><span class="sig-paren">)</span><a class="headerlink" href="#session_manager.SessionManager.run_trial_common_finish" title="Permalink to this definition">¶</a></dt>
+<dd><p>Reset variables after finishing trial and call agent.finish_trial(). Add finished trial to completed_trials.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>trial_selected</strong> – trial to add to completed_trials</li>
+<li><strong>test_trial</strong> – trial used for agent.finish_trial()</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">Nothing</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="session_manager.SessionManager.run_trial_common_setup">
+<code class="descname">run_trial_common_setup</code><span class="sig-paren">(</span><em>scenario_name</em>, <em>action_limit</em>, <em>attempt_limit</em>, <em>specified_trial=None</em>, <em>multithreaded=False</em><span class="sig-paren">)</span><a class="headerlink" href="#session_manager.SessionManager.run_trial_common_setup" title="Permalink to this definition">¶</a></dt>
+<dd><p>Set the env class variables and select a trial (specified if provided, otherwise a random trial from the scenario name).</p>
+<p>This method should be called before running human and computer trials.
+Returns the trial selected (string).</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>scenario_name</strong> – name of scenario (e.g. those defined in settings_trial.PARAMS)</li>
+<li><strong>action_limit</strong> – number of actions permitted</li>
+<li><strong>attempt_limit</strong> – number of attempts permitted</li>
+<li><strong>specified_trial</strong> – optional specified trial. If none, get_trial is used to select trial</li>
+<li><strong>multithreaded</strong> – </li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">the selected_trial as returned by get_trial or select_trial</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="session_manager.SessionManager.run_trial_ddqn_prority">
+<code class="descname">run_trial_ddqn_prority</code><span class="sig-paren">(</span><em>scenario_name</em>, <em>action_limit</em>, <em>attempt_limit</em>, <em>trial_count</em>, <em>iter_num</em>, <em>test_trial=False</em>, <em>specified_trial=None</em>, <em>fig=None</em>, <em>fig_update_rate=100</em><span class="sig-paren">)</span><a class="headerlink" href="#session_manager.SessionManager.run_trial_ddqn_prority" title="Permalink to this definition">¶</a></dt>
+<dd><p>Run a computer trial (ddqn priority memory replay).</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>scenario_name</strong> – </li>
+<li><strong>action_limit</strong> – </li>
+<li><strong>attempt_limit</strong> – </li>
+<li><strong>trial_count</strong> – </li>
+<li><strong>iter_num</strong> – </li>
+<li><strong>test_trial</strong> – </li>
+<li><strong>specified_trial</strong> – </li>
+<li><strong>fig</strong> – </li>
+<li><strong>fig_update_rate</strong> – </li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last"></p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="session_manager.SessionManager.run_trial_dqn">
+<code class="descname">run_trial_dqn</code><span class="sig-paren">(</span><em>scenario_name</em>, <em>action_limit</em>, <em>attempt_limit</em>, <em>trial_count</em>, <em>iter_num</em>, <em>test_trial=False</em>, <em>specified_trial=None</em>, <em>fig=None</em>, <em>fig_update_rate=100</em><span class="sig-paren">)</span><a class="headerlink" href="#session_manager.SessionManager.run_trial_dqn" title="Permalink to this definition">¶</a></dt>
+<dd><p>Run a computer trial.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>scenario_name</strong> – </li>
+<li><strong>action_limit</strong> – </li>
+<li><strong>attempt_limit</strong> – </li>
+<li><strong>trial_count</strong> – </li>
+<li><strong>iter_num</strong> – </li>
+<li><strong>test_trial</strong> – </li>
+<li><strong>specified_trial</strong> – </li>
+<li><strong>fig</strong> – </li>
+<li><strong>fig_update_rate</strong> – </li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last"></p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="session_manager.SessionManager.run_trial_human">
+<code class="descname">run_trial_human</code><span class="sig-paren">(</span><em>scenario_name</em>, <em>action_limit</em>, <em>attempt_limit</em>, <em>specified_trial=None</em>, <em>verify=False</em>, <em>test_trial=False</em><span class="sig-paren">)</span><a class="headerlink" href="#session_manager.SessionManager.run_trial_human" title="Permalink to this definition">¶</a></dt>
+<dd><p>Run trial for a human subject.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>scenario_name</strong> – name of scenario (e.g. those defined in settings_trial.PARAMS)</li>
+<li><strong>action_limit</strong> – number of actions permitted</li>
+<li><strong>attempt_limit</strong> – number of attempts permitted</li>
+<li><strong>specified_trial</strong> – optional specified trial</li>
+<li><strong>verify</strong> – flag to indicate whether or not to call verify_fsm_matches_simulator()</li>
+<li><strong>test_trial</strong> – default: False</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">Nothing</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="session_manager.SessionManager.run_trial_qtable">
+<code class="descname">run_trial_qtable</code><span class="sig-paren">(</span><em>scenario_name</em>, <em>action_limit</em>, <em>attempt_limit</em>, <em>trial_count</em>, <em>iter_num</em>, <em>testing=False</em>, <em>specified_trial=None</em><span class="sig-paren">)</span><a class="headerlink" href="#session_manager.SessionManager.run_trial_qtable" title="Permalink to this definition">¶</a></dt>
+<dd><p>Run a computer trial using q-tables.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>scenario_name</strong> – </li>
+<li><strong>action_limit</strong> – </li>
+<li><strong>attempt_limit</strong> – </li>
+<li><strong>trial_count</strong> – </li>
+<li><strong>iter_num</strong> – </li>
+<li><strong>testing</strong> – </li>
+<li><strong>specified_trial</strong> – </li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last"></p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="session_manager.SessionManager.set_action_limit">
+<code class="descname">set_action_limit</code><span class="sig-paren">(</span><em>action_limit</em><span class="sig-paren">)</span><a class="headerlink" href="#session_manager.SessionManager.set_action_limit" title="Permalink to this definition">¶</a></dt>
+<dd><p>Set self.env.action_limit.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>action_limit</strong> – new self.env.action_limit</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">Nothing</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="session_manager.SessionManager.update_attempt">
+<code class="descname">update_attempt</code><span class="sig-paren">(</span><em>multithread=False</em><span class="sig-paren">)</span><a class="headerlink" href="#session_manager.SessionManager.update_attempt" title="Permalink to this definition">¶</a></dt>
+<dd><p>Check if the action count has reached the action limit.
+If so, increment the environment attempt_count and call the env.reset() method.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>multithread</strong> – default: False</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">boolean representing whether or not the environment was reset</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="session_manager.SessionManager.update_scenario">
+<code class="descname">update_scenario</code><span class="sig-paren">(</span><em>scenario</em><span class="sig-paren">)</span><a class="headerlink" href="#session_manager.SessionManager.update_scenario" title="Permalink to this definition">¶</a></dt>
+<dd><p>Set the environment’s scenario to the specified scenario.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>scenario</strong> – new scenario to use</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">Nothing</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="session_manager.SessionManager.update_user">
+<code class="descname">update_user</code><span class="sig-paren">(</span><em>attempt_success</em>, <em>multithreaded=False</em><span class="sig-paren">)</span><a class="headerlink" href="#session_manager.SessionManager.update_user" title="Permalink to this definition">¶</a></dt>
+<dd><p>Print update to the user.
+Either all solutions have been found, there are solutions remaining, or the user has
+reached the attempt limit and the trial is over without finding all solutions.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>attempt_success</strong> – </li>
+<li><strong>multithreaded</strong> – </li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">two booleans, the first representing whether the trial is finished, the second representing whether the simulator should pause (for when the user opened the door).</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="session_manager.SessionManager.verify_fsm_matches_simulator">
+<code class="descname">verify_fsm_matches_simulator</code><span class="sig-paren">(</span><em>obs_space</em><span class="sig-paren">)</span><a class="headerlink" href="#session_manager.SessionManager.verify_fsm_matches_simulator" title="Permalink to this definition">¶</a></dt>
+<dd><p>Ensure that the simulator data matches the FSM.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>obs_space</strong> – </td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">obs_space</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="session_manager.SessionManager.writer">
+<code class="descname">writer</code><em class="property"> = None</em><a class="headerlink" href="#session_manager.SessionManager.writer" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  </ul></li>
+</ul>
+</div>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="../_sources/source/session_manager.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, Mark Edmonds.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.7.5</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.11</a>
+      
+      |
+      <a href="../_sources/source/session_manager.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>
