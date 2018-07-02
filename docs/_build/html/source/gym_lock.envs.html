@@ -1,0 +1,358 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>gym_lock.envs package &#8212; OpenLock  documentation</title>
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="gym-lock-envs-package">
+<h1>gym_lock.envs package<a class="headerlink" href="#gym-lock-envs-package" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="subpackages">
+<h2>Subpackages<a class="headerlink" href="#subpackages" title="Permalink to this headline">¶</a></h2>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="gym_lock.envs.world_defs.html">gym_lock.envs.world_defs package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="gym_lock.envs.world_defs.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="gym_lock.envs.world_defs.html#module-gym_lock.envs.world_defs.arm_lock_def">gym_lock.envs.world_defs.arm_lock_def module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="gym_lock.envs.world_defs.html#module-gym_lock.envs.world_defs">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</div>
+<div class="section" id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="module-gym_lock.envs.arm_lock_env">
+<span id="gym-lock-envs-arm-lock-env-module"></span><h2>gym_lock.envs.arm_lock_env module<a class="headerlink" href="#module-gym_lock.envs.arm_lock_env" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="gym_lock.envs.arm_lock_env.ActionSpace">
+<em class="property">class </em><code class="descclassname">gym_lock.envs.arm_lock_env.</code><code class="descname">ActionSpace</code><a class="headerlink" href="#gym_lock.envs.arm_lock_env.ActionSpace" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="staticmethod">
+<dt id="gym_lock.envs.arm_lock_env.ActionSpace.create_action_space">
+<em class="property">static </em><code class="descname">create_action_space</code><span class="sig-paren">(</span><em>obj_map</em><span class="sig-paren">)</span><a class="headerlink" href="#gym_lock.envs.arm_lock_env.ActionSpace.create_action_space" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="gym_lock.envs.arm_lock_env.ArmLockEnv">
+<em class="property">class </em><code class="descclassname">gym_lock.envs.arm_lock_env.</code><code class="descname">ArmLockEnv</code><a class="headerlink" href="#gym_lock.envs.arm_lock_env.ArmLockEnv" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">gym.core.Env</span></code></p>
+<dl class="method">
+<dt id="gym_lock.envs.arm_lock_env.ArmLockEnv.determine_door_seq">
+<code class="descname">determine_door_seq</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#gym_lock.envs.arm_lock_env.ArmLockEnv.determine_door_seq" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="gym_lock.envs.arm_lock_env.ArmLockEnv.determine_fluent_change">
+<code class="descname">determine_fluent_change</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#gym_lock.envs.arm_lock_env.ArmLockEnv.determine_fluent_change" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="gym_lock.envs.arm_lock_env.ArmLockEnv.determine_moveable_action">
+<code class="descname">determine_moveable_action</code><span class="sig-paren">(</span><em>action</em><span class="sig-paren">)</span><a class="headerlink" href="#gym_lock.envs.arm_lock_env.ArmLockEnv.determine_moveable_action" title="Permalink to this definition">¶</a></dt>
+<dd><p>determines if the action is movable. Treats all active levers as movable, regardless of FSM
+If you need to detect if the action will cause an effect, negative the determine_fluent_change function
+:param action:
+:return:</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="gym_lock.envs.arm_lock_env.ArmLockEnv.determine_partial_solution">
+<code class="descname">determine_partial_solution</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#gym_lock.envs.arm_lock_env.ArmLockEnv.determine_partial_solution" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="gym_lock.envs.arm_lock_env.ArmLockEnv.determine_repeated_action">
+<code class="descname">determine_repeated_action</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#gym_lock.envs.arm_lock_env.ArmLockEnv.determine_repeated_action" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="gym_lock.envs.arm_lock_env.ArmLockEnv.determine_trial_success">
+<code class="descname">determine_trial_success</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#gym_lock.envs.arm_lock_env.ArmLockEnv.determine_trial_success" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="gym_lock.envs.arm_lock_env.ArmLockEnv.determine_unique_partial_solution">
+<code class="descname">determine_unique_partial_solution</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#gym_lock.envs.arm_lock_env.ArmLockEnv.determine_unique_partial_solution" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="gym_lock.envs.arm_lock_env.ArmLockEnv.determine_unique_solution">
+<code class="descname">determine_unique_solution</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#gym_lock.envs.arm_lock_env.ArmLockEnv.determine_unique_solution" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="gym_lock.envs.arm_lock_env.ArmLockEnv.get_avail_actions">
+<code class="descname">get_avail_actions</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#gym_lock.envs.arm_lock_env.ArmLockEnv.get_avail_actions" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="gym_lock.envs.arm_lock_env.ArmLockEnv.get_fsm_state">
+<code class="descname">get_fsm_state</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#gym_lock.envs.arm_lock_env.ArmLockEnv.get_fsm_state" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="gym_lock.envs.arm_lock_env.ArmLockEnv.get_simulator_state">
+<code class="descname">get_simulator_state</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#gym_lock.envs.arm_lock_env.ArmLockEnv.get_simulator_state" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="gym_lock.envs.arm_lock_env.ArmLockEnv.get_state">
+<code class="descname">get_state</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#gym_lock.envs.arm_lock_env.ArmLockEnv.get_state" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="gym_lock.envs.arm_lock_env.ArmLockEnv.init_inverse_kine">
+<code class="descname">init_inverse_kine</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#gym_lock.envs.arm_lock_env.ArmLockEnv.init_inverse_kine" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="gym_lock.envs.arm_lock_env.ArmLockEnv.metadata">
+<code class="descname">metadata</code><em class="property"> = {'render.modes': ['human']}</em><a class="headerlink" href="#gym_lock.envs.arm_lock_env.ArmLockEnv.metadata" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="gym_lock.envs.arm_lock_env.ArmLockEnv.render">
+<code class="descname">render</code><span class="sig-paren">(</span><em>mode='human'</em>, <em>close=False</em><span class="sig-paren">)</span><a class="headerlink" href="#gym_lock.envs.arm_lock_env.ArmLockEnv.render" title="Permalink to this definition">¶</a></dt>
+<dd><p>Renders the environment.</p>
+<p>The set of supported modes varies per environment. (And some
+environments do not support rendering at all.) By convention,
+if mode is:</p>
+<ul class="simple">
+<li><dl class="first docutils">
+<dt>human: render to the current display or terminal and</dt>
+<dd>return nothing. Usually for human consumption.</dd>
+</dl>
+</li>
+<li><dl class="first docutils">
+<dt>rgb_array: Return an numpy.ndarray with shape (x, y, 3),</dt>
+<dd>representing RGB values for an x-by-y pixel image, suitable
+for turning into a video.</dd>
+</dl>
+</li>
+<li><dl class="first docutils">
+<dt>ansi: Return a string (str) or StringIO.StringIO containing a</dt>
+<dd>terminal-style text representation. The text can include newlines
+and ANSI escape sequences (e.g. for colors).</dd>
+</dl>
+</li>
+</ul>
+<dl class="docutils">
+<dt>Note:</dt>
+<dd><dl class="first last docutils">
+<dt>Make sure that your class’s metadata ‘render.modes’ key includes</dt>
+<dd>the list of supported modes. It’s recommended to call super()
+in implementations to use the functionality of this method.</dd>
+</dl>
+</dd>
+<dt>Args:</dt>
+<dd>mode (str): the mode to render with
+close (bool): close all open renderings</dd>
+</dl>
+<p>Example:</p>
+<dl class="docutils">
+<dt>class MyEnv(Env):</dt>
+<dd><p class="first">metadata = {‘render.modes’: [‘human’, ‘rgb_array’]}</p>
+<dl class="last docutils">
+<dt>def render(self, mode=’human’):</dt>
+<dd><dl class="first last docutils">
+<dt>if mode == ‘rgb_array’:</dt>
+<dd>return np.array(…) # return RGB frame suitable for video</dd>
+<dt>elif mode is ‘human’:</dt>
+<dd>… # pop up a window and render</dd>
+<dt>else:</dt>
+<dd>super(MyEnv, self).render(mode=mode) # just raise an exception</dd>
+</dl>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="gym_lock.envs.arm_lock_env.ArmLockEnv.reset">
+<code class="descname">reset</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#gym_lock.envs.arm_lock_env.ArmLockEnv.reset" title="Permalink to this definition">¶</a></dt>
+<dd><p>Resets the state of the environment and returns an initial observation.</p>
+<dl class="docutils">
+<dt>Returns: observation (object): the initial observation of the</dt>
+<dd>space.</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="gym_lock.envs.arm_lock_env.ArmLockEnv.step">
+<code class="descname">step</code><span class="sig-paren">(</span><em>action</em><span class="sig-paren">)</span><a class="headerlink" href="#gym_lock.envs.arm_lock_env.ArmLockEnv.step" title="Permalink to this definition">¶</a></dt>
+<dd><p>Run one __timestep of the environment’s dynamics. When end of
+episode is reached, you are responsible for calling <cite>reset()</cite>
+to reset this environment’s state.
+Accepts an action and returns a tuple (observation, reward, done, info).
+Args:</p>
+<blockquote>
+<div>action (Action): desired Action</div></blockquote>
+<dl class="docutils">
+<dt>Returns:</dt>
+<dd><dl class="first docutils">
+<dt>observation (dict): END_EFFECTOR_POS <span class="classifier-delimiter">:</span> <span class="classifier">current end effector position</span></dt>
+<dd>LOCK_STATE : true if door is locked</dd>
+</dl>
+<p class="last">reward (float) : amount of reward returned after previous action
+done (boolean): whether the episode has ended, in which case further step() calls will return undefined results
+info (dict): CONVERGED : whether algorithm succesfully coverged on action</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="method">
+<dt id="gym_lock.envs.arm_lock_env.ArmLockEnv.update_state_machine">
+<code class="descname">update_state_machine</code><span class="sig-paren">(</span><em>action=None</em><span class="sig-paren">)</span><a class="headerlink" href="#gym_lock.envs.arm_lock_env.ArmLockEnv.update_state_machine" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="gym_lock.envs.arm_lock_env.ArmLockEnv.update_state_machine_at_frame_rate">
+<code class="descname">update_state_machine_at_frame_rate</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#gym_lock.envs.arm_lock_env.ArmLockEnv.update_state_machine_at_frame_rate" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="gym_lock.envs.arm_lock_env.ObservationSpace">
+<em class="property">class </em><code class="descclassname">gym_lock.envs.arm_lock_env.</code><code class="descname">ObservationSpace</code><span class="sig-paren">(</span><em>num_levers</em>, <em>append_solutions_remaining=False</em><span class="sig-paren">)</span><a class="headerlink" href="#gym_lock.envs.arm_lock_env.ObservationSpace" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="method">
+<dt id="gym_lock.envs.arm_lock_env.ObservationSpace.create_discrete_observation_from_fsm">
+<code class="descname">create_discrete_observation_from_fsm</code><span class="sig-paren">(</span><em>env</em><span class="sig-paren">)</span><a class="headerlink" href="#gym_lock.envs.arm_lock_env.ObservationSpace.create_discrete_observation_from_fsm" title="Permalink to this definition">¶</a></dt>
+<dd><p>constructs a discrete observation from the underlying FSM
+Used when the physics simulator is being bypassed
+:param fsmm:
+:return:</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="gym_lock.envs.arm_lock_env.ObservationSpace.create_discrete_observation_from_simulator">
+<code class="descname">create_discrete_observation_from_simulator</code><span class="sig-paren">(</span><em>env</em><span class="sig-paren">)</span><a class="headerlink" href="#gym_lock.envs.arm_lock_env.ObservationSpace.create_discrete_observation_from_simulator" title="Permalink to this definition">¶</a></dt>
+<dd><p>Constructs a discrete observation from the physics simulator
+:param world_def:
+:return:</p>
+</dd></dl>
+
+<dl class="staticmethod">
+<dt id="gym_lock.envs.arm_lock_env.ObservationSpace.create_observation_space">
+<em class="property">static </em><code class="descname">create_observation_space</code><span class="sig-paren">(</span><em>num_levers</em>, <em>num_solutions=0</em><span class="sig-paren">)</span><a class="headerlink" href="#gym_lock.envs.arm_lock_env.ObservationSpace.create_observation_space" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="gym_lock.envs.arm_lock_env.ObservationSpace.determine_solutions_remaining">
+<code class="descname">determine_solutions_remaining</code><span class="sig-paren">(</span><em>logger</em><span class="sig-paren">)</span><a class="headerlink" href="#gym_lock.envs.arm_lock_env.ObservationSpace.determine_solutions_remaining" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="gym_lock.envs.arm_lock_env.ObservationSpace.shape">
+<code class="descname">shape</code><a class="headerlink" href="#gym_lock.envs.arm_lock_env.ObservationSpace.shape" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="gym_lock.envs.arm_lock_env.main">
+<code class="descclassname">gym_lock.envs.arm_lock_env.</code><code class="descname">main</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#gym_lock.envs.arm_lock_env.main" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</div>
+<div class="section" id="module-gym_lock.envs">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-gym_lock.envs" title="Permalink to this headline">¶</a></h2>
+</div>
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="../index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">gym_lock.envs package</a><ul>
+<li><a class="reference internal" href="#subpackages">Subpackages</a></li>
+<li><a class="reference internal" href="#submodules">Submodules</a></li>
+<li><a class="reference internal" href="#module-gym_lock.envs.arm_lock_env">gym_lock.envs.arm_lock_env module</a></li>
+<li><a class="reference internal" href="#module-gym_lock.envs">Module contents</a></li>
+</ul>
+</li>
+</ul>
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  </ul></li>
+</ul>
+</div>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="../_sources/source/gym_lock.envs.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, Mark Edmonds.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.7.5</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.11</a>
+      
+      |
+      <a href="../_sources/source/gym_lock.envs.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

@@ -1,0 +1,577 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>logger module &#8212; OpenLock  documentation</title>
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="module-logger">
+<span id="logger-module"></span><h1>logger module<a class="headerlink" href="#module-logger" title="Permalink to this headline">¶</a></h1>
+<dl class="class">
+<dt id="logger.ActionLog">
+<em class="property">class </em><code class="descclassname">logger.</code><code class="descname">ActionLog</code><span class="sig-paren">(</span><em>name</em>, <em>start_time</em><span class="sig-paren">)</span><a class="headerlink" href="#logger.ActionLog" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Represents an action for the purpose of logging. Actions have a name, start time, and end time.</p>
+<dl class="attribute">
+<dt id="logger.ActionLog.end_time">
+<code class="descname">end_time</code><em class="property"> = None</em><a class="headerlink" href="#logger.ActionLog.end_time" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="logger.ActionLog.finish">
+<code class="descname">finish</code><span class="sig-paren">(</span><em>end_time</em><span class="sig-paren">)</span><a class="headerlink" href="#logger.ActionLog.finish" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="logger.ActionLog.name">
+<code class="descname">name</code><em class="property"> = None</em><a class="headerlink" href="#logger.ActionLog.name" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="logger.ActionLog.start_time">
+<code class="descname">start_time</code><em class="property"> = None</em><a class="headerlink" href="#logger.ActionLog.start_time" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="logger.AttemptLog">
+<em class="property">class </em><code class="descclassname">logger.</code><code class="descname">AttemptLog</code><span class="sig-paren">(</span><em>attempt_num</em>, <em>start_time</em><span class="sig-paren">)</span><a class="headerlink" href="#logger.AttemptLog" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Represents an attempt for the purpose of logging.</p>
+<dl class="attribute">
+<dt id="logger.AttemptLog.action_seq">
+<code class="descname">action_seq</code><em class="property"> = []</em><a class="headerlink" href="#logger.AttemptLog.action_seq" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="logger.AttemptLog.add_action">
+<code class="descname">add_action</code><span class="sig-paren">(</span><em>name</em>, <em>t=None</em><span class="sig-paren">)</span><a class="headerlink" href="#logger.AttemptLog.add_action" title="Permalink to this definition">¶</a></dt>
+<dd><p>Add an action to this attempt. Set it to current action.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>name</strong> – Name of the action.</li>
+<li><strong>t</strong> – Start time of the action.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">Nothing.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="logger.AttemptLog.attempt_num">
+<code class="descname">attempt_num</code><em class="property"> = None</em><a class="headerlink" href="#logger.AttemptLog.attempt_num" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="logger.AttemptLog.cur_action">
+<code class="descname">cur_action</code><em class="property"> = None</em><a class="headerlink" href="#logger.AttemptLog.cur_action" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="logger.AttemptLog.end_time">
+<code class="descname">end_time</code><em class="property"> = None</em><a class="headerlink" href="#logger.AttemptLog.end_time" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="logger.AttemptLog.finish">
+<code class="descname">finish</code><span class="sig-paren">(</span><em>success</em>, <em>results</em>, <em>end_time</em><span class="sig-paren">)</span><a class="headerlink" href="#logger.AttemptLog.finish" title="Permalink to this definition">¶</a></dt>
+<dd><p>Finish the attempt.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>success</strong> – Success of the attempt.</li>
+<li><strong>results</strong> – Environment results.</li>
+<li><strong>end_time</strong> – Time of end of the attempt.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">success (same as param).</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="logger.AttemptLog.finish_action">
+<code class="descname">finish_action</code><span class="sig-paren">(</span><em>results</em>, <em>t=None</em><span class="sig-paren">)</span><a class="headerlink" href="#logger.AttemptLog.finish_action" title="Permalink to this definition">¶</a></dt>
+<dd><p>Finish the current action.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>results</strong> – Environment results.</li>
+<li><strong>t</strong> – Finish time of the action.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">Nothing</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="logger.AttemptLog.pretty_print_results">
+<code class="descname">pretty_print_results</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#logger.AttemptLog.pretty_print_results" title="Permalink to this definition">¶</a></dt>
+<dd><p>Print results in an ASCII table.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">Results table as a string.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="logger.AttemptLog.results">
+<code class="descname">results</code><em class="property"> = None</em><a class="headerlink" href="#logger.AttemptLog.results" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="logger.AttemptLog.reward">
+<code class="descname">reward</code><em class="property"> = None</em><a class="headerlink" href="#logger.AttemptLog.reward" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="logger.AttemptLog.start_time">
+<code class="descname">start_time</code><em class="property"> = None</em><a class="headerlink" href="#logger.AttemptLog.start_time" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="logger.AttemptLog.success">
+<code class="descname">success</code><em class="property"> = False</em><a class="headerlink" href="#logger.AttemptLog.success" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="attribute">
+<dt id="logger.SubjectLog">
+<code class="descclassname">logger.</code><code class="descname">SubjectLog</code><a class="headerlink" href="#logger.SubjectLog" title="Permalink to this definition">¶</a></dt>
+<dd><p>alias of <a class="reference internal" href="#logger.SubjectLogger" title="logger.SubjectLogger"><code class="xref py py-class docutils literal notranslate"><span class="pre">logger.SubjectLogger</span></code></a></p>
+</dd></dl>
+
+<dl class="class">
+<dt id="logger.SubjectLogger">
+<em class="property">class </em><code class="descclassname">logger.</code><code class="descname">SubjectLogger</code><span class="sig-paren">(</span><em>subject_id</em>, <em>participant_id</em>, <em>age</em>, <em>gender</em>, <em>handedness</em>, <em>eyewear</em>, <em>major</em>, <em>start_time</em>, <em>human=True</em>, <em>random_seed=None</em><span class="sig-paren">)</span><a class="headerlink" href="#logger.SubjectLogger" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Represents a subject for the purpose of logger.</p>
+<dl class="method">
+<dt id="logger.SubjectLogger.add_trial">
+<code class="descname">add_trial</code><span class="sig-paren">(</span><em>trial_name</em>, <em>scenario_name</em>, <em>solutions</em>, <em>random_seed</em><span class="sig-paren">)</span><a class="headerlink" href="#logger.SubjectLogger.add_trial" title="Permalink to this definition">¶</a></dt>
+<dd><p>Set the current trial to a new TrialLog object.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>trial_name</strong> – Name of the trial.</li>
+<li><strong>scenario_name</strong> – Name of the scenario.</li>
+<li><strong>solutions</strong> – Solutions of trial.</li>
+<li><strong>random_seed</strong> – </li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">Nothing.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="logger.SubjectLogger.age">
+<code class="descname">age</code><em class="property"> = None</em><a class="headerlink" href="#logger.SubjectLogger.age" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="logger.SubjectLogger.cur_scenario_name">
+<code class="descname">cur_scenario_name</code><em class="property"> = None</em><a class="headerlink" href="#logger.SubjectLogger.cur_scenario_name" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="logger.SubjectLogger.cur_trial">
+<code class="descname">cur_trial</code><em class="property"> = None</em><a class="headerlink" href="#logger.SubjectLogger.cur_trial" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="logger.SubjectLogger.end_time">
+<code class="descname">end_time</code><em class="property"> = None</em><a class="headerlink" href="#logger.SubjectLogger.end_time" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="logger.SubjectLogger.eyewear">
+<code class="descname">eyewear</code><em class="property"> = None</em><a class="headerlink" href="#logger.SubjectLogger.eyewear" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="logger.SubjectLogger.finish">
+<code class="descname">finish</code><span class="sig-paren">(</span><em>end_time</em><span class="sig-paren">)</span><a class="headerlink" href="#logger.SubjectLogger.finish" title="Permalink to this definition">¶</a></dt>
+<dd><p>Set end time of the subject.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>end_time</strong> – End time of the subject.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">Nothing.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="logger.SubjectLogger.finish_trial">
+<code class="descname">finish_trial</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#logger.SubjectLogger.finish_trial" title="Permalink to this definition">¶</a></dt>
+<dd><p>Finish the current trial.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">True if trial was successful, False otherwise.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="logger.SubjectLogger.gender">
+<code class="descname">gender</code><em class="property"> = None</em><a class="headerlink" href="#logger.SubjectLogger.gender" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="logger.SubjectLogger.handedness">
+<code class="descname">handedness</code><em class="property"> = None</em><a class="headerlink" href="#logger.SubjectLogger.handedness" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="logger.SubjectLogger.major">
+<code class="descname">major</code><em class="property"> = None</em><a class="headerlink" href="#logger.SubjectLogger.major" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="logger.SubjectLogger.random_seed">
+<code class="descname">random_seed</code><em class="property"> = None</em><a class="headerlink" href="#logger.SubjectLogger.random_seed" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="logger.SubjectLogger.start_time">
+<code class="descname">start_time</code><em class="property"> = None</em><a class="headerlink" href="#logger.SubjectLogger.start_time" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="logger.SubjectLogger.strategy">
+<code class="descname">strategy</code><em class="property"> = None</em><a class="headerlink" href="#logger.SubjectLogger.strategy" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="logger.SubjectLogger.subject_id">
+<code class="descname">subject_id</code><em class="property"> = None</em><a class="headerlink" href="#logger.SubjectLogger.subject_id" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="logger.SubjectLogger.trial_seq">
+<code class="descname">trial_seq</code><em class="property"> = []</em><a class="headerlink" href="#logger.SubjectLogger.trial_seq" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="logger.SubjectWriter">
+<em class="property">class </em><code class="descclassname">logger.</code><code class="descname">SubjectWriter</code><span class="sig-paren">(</span><em>data_path</em><span class="sig-paren">)</span><a class="headerlink" href="#logger.SubjectWriter" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Writes the log files for a subject.</p>
+<dl class="staticmethod">
+<dt id="logger.SubjectWriter.pretty_write">
+<em class="property">static </em><code class="descname">pretty_write</code><span class="sig-paren">(</span><em>filename</em>, <em>json_str</em><span class="sig-paren">)</span><a class="headerlink" href="#logger.SubjectWriter.pretty_write" title="Permalink to this definition">¶</a></dt>
+<dd><p>Write json_str to filename with sort_keys=True, indents=4.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>filename</strong> – Name of file to be output.</li>
+<li><strong>json_str</strong> – JSON str to write (e.g. from jsonpickle.encode()).</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">Nothing.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="logger.SubjectWriter.subject_path">
+<code class="descname">subject_path</code><em class="property"> = None</em><a class="headerlink" href="#logger.SubjectWriter.subject_path" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="logger.SubjectWriter.write">
+<code class="descname">write</code><span class="sig-paren">(</span><em>logger</em>, <em>agent</em><span class="sig-paren">)</span><a class="headerlink" href="#logger.SubjectWriter.write" title="Permalink to this definition">¶</a></dt>
+<dd><p>Write subject summary log.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>logger</strong> – SubjectLogger object.</li>
+<li><strong>agent</strong> – Agent object.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">Nothing.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="logger.SubjectWriter.write_trial">
+<code class="descname">write_trial</code><span class="sig-paren">(</span><em>logger</em>, <em>test_trial=False</em><span class="sig-paren">)</span><a class="headerlink" href="#logger.SubjectWriter.write_trial" title="Permalink to this definition">¶</a></dt>
+<dd><p>Make trial directory, trial summary, and write trial summary.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>logger</strong> – SubjectLogger.</li>
+<li><strong>test_trial</strong> – True if test trial, False otherwise. Default False.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">Nothing.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="logger.TrialLog">
+<em class="property">class </em><code class="descclassname">logger.</code><code class="descname">TrialLog</code><span class="sig-paren">(</span><em>name</em>, <em>scenario_name</em>, <em>solutions</em>, <em>start_time</em>, <em>random_seed</em><span class="sig-paren">)</span><a class="headerlink" href="#logger.TrialLog" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Represents a trial for the purpose of logging.</p>
+<dl class="method">
+<dt id="logger.TrialLog.add_attempt">
+<code class="descname">add_attempt</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#logger.TrialLog.add_attempt" title="Permalink to this definition">¶</a></dt>
+<dd><p>Add attempt to the trial with current time as start time. Set it to current attempt.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">Nothing</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="logger.TrialLog.attempt_seq">
+<code class="descname">attempt_seq</code><em class="property"> = []</em><a class="headerlink" href="#logger.TrialLog.attempt_seq" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="logger.TrialLog.completed_solutions">
+<code class="descname">completed_solutions</code><em class="property"> = []</em><a class="headerlink" href="#logger.TrialLog.completed_solutions" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="logger.TrialLog.cur_attempt">
+<code class="descname">cur_attempt</code><em class="property"> = None</em><a class="headerlink" href="#logger.TrialLog.cur_attempt" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="logger.TrialLog.end_time">
+<code class="descname">end_time</code><em class="property"> = None</em><a class="headerlink" href="#logger.TrialLog.end_time" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="logger.TrialLog.finish">
+<code class="descname">finish</code><span class="sig-paren">(</span><em>end_time</em><span class="sig-paren">)</span><a class="headerlink" href="#logger.TrialLog.finish" title="Permalink to this definition">¶</a></dt>
+<dd><p>Finish the trial.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>end_time</strong> – Time that the trial ended.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">True if all solutions were completed, False otherwise.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="logger.TrialLog.finish_attempt">
+<code class="descname">finish_attempt</code><span class="sig-paren">(</span><em>attempt_success</em>, <em>results</em><span class="sig-paren">)</span><a class="headerlink" href="#logger.TrialLog.finish_attempt" title="Permalink to this definition">¶</a></dt>
+<dd><p>Mark the current attempt as finished.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>attempt_success</strong> – Whether or not the attempt is a success.</li>
+<li><strong>results</strong> – Environment results.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">Nothing.</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="logger.TrialLog.name">
+<code class="descname">name</code><em class="property"> = None</em><a class="headerlink" href="#logger.TrialLog.name" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="logger.TrialLog.random_seed">
+<code class="descname">random_seed</code><em class="property"> = None</em><a class="headerlink" href="#logger.TrialLog.random_seed" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="logger.TrialLog.scenario_name">
+<code class="descname">scenario_name</code><em class="property"> = None</em><a class="headerlink" href="#logger.TrialLog.scenario_name" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="logger.TrialLog.solution_found">
+<code class="descname">solution_found</code><em class="property"> = []</em><a class="headerlink" href="#logger.TrialLog.solution_found" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="logger.TrialLog.solutions">
+<code class="descname">solutions</code><em class="property"> = []</em><a class="headerlink" href="#logger.TrialLog.solutions" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="logger.TrialLog.start_time">
+<code class="descname">start_time</code><em class="property"> = None</em><a class="headerlink" href="#logger.TrialLog.start_time" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="logger.TrialLog.success">
+<code class="descname">success</code><em class="property"> = False</em><a class="headerlink" href="#logger.TrialLog.success" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="function">
+<dt id="logger.obj_dict">
+<code class="descclassname">logger.</code><code class="descname">obj_dict</code><span class="sig-paren">(</span><em>obj</em><span class="sig-paren">)</span><a class="headerlink" href="#logger.obj_dict" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get object dict.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>obj</strong> – An object.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">__dict__ of the object passed in.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper"><div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  </ul></li>
+</ul>
+</div>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="../_sources/source/logger.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, Mark Edmonds.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.7.5</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.11</a>
+      
+      |
+      <a href="../_sources/source/logger.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

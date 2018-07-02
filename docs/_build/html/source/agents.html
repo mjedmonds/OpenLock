@@ -1,0 +1,684 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>agents package &#8212; OpenLock  documentation</title>
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="agents-package">
+<h1>agents package<a class="headerlink" href="#agents-package" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="module-agents.A3C_agent">
+<span id="agents-a3c-agent-module"></span><h2>agents.A3C_agent module<a class="headerlink" href="#module-agents.A3C_agent" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="agents.A3C_agent.A3CAgent">
+<em class="property">class </em><code class="descclassname">agents.A3C_agent.</code><code class="descname">A3CAgent</code><span class="sig-paren">(</span><em>state_size</em>, <em>action_size</em>, <em>name</em>, <em>params</em><span class="sig-paren">)</span><a class="headerlink" href="#agents.A3C_agent.A3CAgent" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#agents.A3C_agent.ActorCriticAgent" title="agents.A3C_agent.ActorCriticAgent"><code class="xref py py-class docutils literal notranslate"><span class="pre">agents.A3C_agent.ActorCriticAgent</span></code></a></p>
+<dl class="method">
+<dt id="agents.A3C_agent.A3CAgent.discounting">
+<code class="descname">discounting</code><span class="sig-paren">(</span><em>x</em>, <em>gamma</em><span class="sig-paren">)</span><a class="headerlink" href="#agents.A3C_agent.A3CAgent.discounting" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="agents.A3C_agent.A3CAgent.finish_subject">
+<code class="descname">finish_subject</code><span class="sig-paren">(</span><em>strategy='A3C_LSTM'</em>, <em>transfer_strategy='A3C_LSTM'</em><span class="sig-paren">)</span><a class="headerlink" href="#agents.A3C_agent.A3CAgent.finish_subject" title="Permalink to this definition">¶</a></dt>
+<dd><p>Finish subject at current time, set strategy and transfer_strategy, call write_results().</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>strategy</strong> – </li>
+<li><strong>transfer_strategy</strong> – </li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">Nothing</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="agents.A3C_agent.A3CAgent.norm">
+<code class="descname">norm</code><span class="sig-paren">(</span><em>x</em>, <em>upper</em>, <em>lower=0.0</em><span class="sig-paren">)</span><a class="headerlink" href="#agents.A3C_agent.A3CAgent.norm" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="agents.A3C_agent.A3CAgent.train">
+<code class="descname">train</code><span class="sig-paren">(</span><em>rollout</em>, <em>sess</em>, <em>gamma</em>, <em>r</em>, <em>REWARD_FACTOR</em><span class="sig-paren">)</span><a class="headerlink" href="#agents.A3C_agent.A3CAgent.train" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="agents.A3C_agent.A3CAgent.update_dynamic_epsilon">
+<code class="descname">update_dynamic_epsilon</code><span class="sig-paren">(</span><em>epsilon_threshold</em>, <em>new_epsilon</em>, <em>new_epsilon_decay</em><span class="sig-paren">)</span><a class="headerlink" href="#agents.A3C_agent.A3CAgent.update_dynamic_epsilon" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="agents.A3C_agent.A3CAgent.update_target_graph">
+<code class="descname">update_target_graph</code><span class="sig-paren">(</span><em>from_scope</em>, <em>to_scope</em><span class="sig-paren">)</span><a class="headerlink" href="#agents.A3C_agent.A3CAgent.update_target_graph" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="agents.A3C_agent.A3CAgent.weighted_pick">
+<code class="descname">weighted_pick</code><span class="sig-paren">(</span><em>weights</em>, <em>n_picks</em>, <em>epsilon=0.005</em><span class="sig-paren">)</span><a class="headerlink" href="#agents.A3C_agent.A3CAgent.weighted_pick" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="agents.A3C_agent.ActorCriticAgent">
+<em class="property">class </em><code class="descclassname">agents.A3C_agent.</code><code class="descname">ActorCriticAgent</code><span class="sig-paren">(</span><em>state_size</em>, <em>action_size</em>, <em>name</em>, <em>params</em><span class="sig-paren">)</span><a class="headerlink" href="#agents.A3C_agent.ActorCriticAgent" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#agents.agent.Agent" title="agents.agent.Agent"><code class="xref py py-class docutils literal notranslate"><span class="pre">agents.agent.Agent</span></code></a></p>
+<dl class="method">
+<dt id="agents.A3C_agent.ActorCriticAgent.finish_subject">
+<code class="descname">finish_subject</code><span class="sig-paren">(</span><em>strategy='Deep Q-Learning'</em>, <em>transfer_strategy='Deep Q-Learning'</em><span class="sig-paren">)</span><a class="headerlink" href="#agents.A3C_agent.ActorCriticAgent.finish_subject" title="Permalink to this definition">¶</a></dt>
+<dd><p>Finish subject at current time, set strategy and transfer_strategy, call write_results().</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>strategy</strong> – </li>
+<li><strong>transfer_strategy</strong> – </li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">Nothing</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="agents.A3C_agent.ActorCriticAgent.save_agent">
+<code class="descname">save_agent</code><span class="sig-paren">(</span><em>save_dir</em>, <em>testing</em>, <em>iter_num</em>, <em>trial_count</em>, <em>attempt_count</em><span class="sig-paren">)</span><a class="headerlink" href="#agents.A3C_agent.ActorCriticAgent.save_agent" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="agents.A3C_agent.ActorCriticAgent.save_reward">
+<code class="descname">save_reward</code><span class="sig-paren">(</span><em>reward</em>, <em>trial_reward</em><span class="sig-paren">)</span><a class="headerlink" href="#agents.A3C_agent.ActorCriticAgent.save_reward" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="agents.A3C_agent.ActorCriticAgent.save_weights">
+<code class="descname">save_weights</code><span class="sig-paren">(</span><em>save_dir</em>, <em>filename</em><span class="sig-paren">)</span><a class="headerlink" href="#agents.A3C_agent.ActorCriticAgent.save_weights" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-agents.Sum_tree">
+<span id="agents-sum-tree-module"></span><h2>agents.Sum_tree module<a class="headerlink" href="#module-agents.Sum_tree" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="agents.Sum_tree.SumTree">
+<em class="property">class </em><code class="descclassname">agents.Sum_tree.</code><code class="descname">SumTree</code><span class="sig-paren">(</span><em>capacity</em><span class="sig-paren">)</span><a class="headerlink" href="#agents.Sum_tree.SumTree" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="method">
+<dt id="agents.Sum_tree.SumTree.add">
+<code class="descname">add</code><span class="sig-paren">(</span><em>p</em>, <em>data</em><span class="sig-paren">)</span><a class="headerlink" href="#agents.Sum_tree.SumTree.add" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="agents.Sum_tree.SumTree.get">
+<code class="descname">get</code><span class="sig-paren">(</span><em>s</em><span class="sig-paren">)</span><a class="headerlink" href="#agents.Sum_tree.SumTree.get" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="agents.Sum_tree.SumTree.total">
+<code class="descname">total</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#agents.Sum_tree.SumTree.total" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="agents.Sum_tree.SumTree.update">
+<code class="descname">update</code><span class="sig-paren">(</span><em>idx</em>, <em>p</em><span class="sig-paren">)</span><a class="headerlink" href="#agents.Sum_tree.SumTree.update" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="agents.Sum_tree.SumTree.write">
+<code class="descname">write</code><em class="property"> = 0</em><a class="headerlink" href="#agents.Sum_tree.SumTree.write" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-agents.agent">
+<span id="agents-agent-module"></span><h2>agents.agent module<a class="headerlink" href="#module-agents.agent" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="agents.agent.Agent">
+<em class="property">class </em><code class="descclassname">agents.agent.</code><code class="descname">Agent</code><span class="sig-paren">(</span><em>data_path</em><span class="sig-paren">)</span><a class="headerlink" href="#agents.agent.Agent" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Manage the agent’s internals (e.g. neural network for DQN/DDQN, or q-table for Q-table)
+and maintain a logger to record the outcomes the agent achieves.</p>
+<dl class="method">
+<dt id="agents.agent.Agent.finish_subject">
+<code class="descname">finish_subject</code><span class="sig-paren">(</span><em>strategy</em>, <em>transfer_strategy</em><span class="sig-paren">)</span><a class="headerlink" href="#agents.agent.Agent.finish_subject" title="Permalink to this definition">¶</a></dt>
+<dd><p>Finish subject at current time, set strategy and transfer_strategy, call write_results().</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>strategy</strong> – </li>
+<li><strong>transfer_strategy</strong> – </li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">Nothing</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="agents.agent.Agent.finish_trial">
+<code class="descname">finish_trial</code><span class="sig-paren">(</span><em>test_trial</em>, <em>random_seed</em><span class="sig-paren">)</span><a class="headerlink" href="#agents.agent.Agent.finish_trial" title="Permalink to this definition">¶</a></dt>
+<dd><p>Finish trial and log it.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>test_trial</strong> – true if test trial</li>
+<li><strong>random_seed</strong> – </li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last"></p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="agents.agent.Agent.get_current_attempt_logged_actions">
+<code class="descname">get_current_attempt_logged_actions</code><span class="sig-paren">(</span><em>idx</em><span class="sig-paren">)</span><a class="headerlink" href="#agents.agent.Agent.get_current_attempt_logged_actions" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="agents.agent.Agent.get_current_attempt_logged_states">
+<code class="descname">get_current_attempt_logged_states</code><span class="sig-paren">(</span><em>idx</em><span class="sig-paren">)</span><a class="headerlink" href="#agents.agent.Agent.get_current_attempt_logged_states" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="agents.agent.Agent.get_last_attempt_results">
+<code class="descname">get_last_attempt_results</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#agents.agent.Agent.get_last_attempt_results" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="agents.agent.Agent.setup_subject">
+<code class="descname">setup_subject</code><span class="sig-paren">(</span><em>human=False</em>, <em>participant_id=-1</em>, <em>age=-1</em>, <em>gender='robot'</em>, <em>handedness='none'</em>, <em>eyewear='no'</em>, <em>major='robotics'</em>, <em>random_seed=None</em><span class="sig-paren">)</span><a class="headerlink" href="#agents.agent.Agent.setup_subject" title="Permalink to this definition">¶</a></dt>
+<dd><p>Set internal variables for subject, initialize logger, and create a copy of the code base for reproduction.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>human</strong> – True if human agent, default: False</li>
+<li><strong>participant_id</strong> – default: -1</li>
+<li><strong>age</strong> – default: -1</li>
+<li><strong>gender</strong> – default: ‘robot’</li>
+<li><strong>handedness</strong> – default: ‘none’</li>
+<li><strong>eyewear</strong> – default: ‘no’</li>
+<li><strong>major</strong> – default: ‘robotics’</li>
+<li><strong>random_seed</strong> – default: None</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">Nothing</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="agents.agent.Agent.write_results">
+<code class="descname">write_results</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#agents.agent.Agent.write_results" title="Permalink to this definition">¶</a></dt>
+<dd><p>Log current agent state.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">Nothing</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="agents.agent.Agent.write_trial">
+<code class="descname">write_trial</code><span class="sig-paren">(</span><em>test_trial=False</em>, <em>random_seed=None</em><span class="sig-paren">)</span><a class="headerlink" href="#agents.agent.Agent.write_trial" title="Permalink to this definition">¶</a></dt>
+<dd><p>Log trial.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>test_trial</strong> – true if test trial, default: False</li>
+<li><strong>random_seed</strong> – default: None</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">Nothing</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-agents.dqn_agent">
+<span id="agents-dqn-agent-module"></span><h2>agents.dqn_agent module<a class="headerlink" href="#module-agents.dqn_agent" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="agents.dqn_agent.DAgent">
+<em class="property">class </em><code class="descclassname">agents.dqn_agent.</code><code class="descname">DAgent</code><span class="sig-paren">(</span><em>state_size</em>, <em>action_size</em>, <em>params</em><span class="sig-paren">)</span><a class="headerlink" href="#agents.dqn_agent.DAgent" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#agents.agent.Agent" title="agents.agent.Agent"><code class="xref py py-class docutils literal notranslate"><span class="pre">agents.agent.Agent</span></code></a></p>
+<dl class="method">
+<dt id="agents.dqn_agent.DAgent.act">
+<code class="descname">act</code><span class="sig-paren">(</span><em>state</em><span class="sig-paren">)</span><a class="headerlink" href="#agents.dqn_agent.DAgent.act" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="agents.dqn_agent.DAgent.finish_subject">
+<code class="descname">finish_subject</code><span class="sig-paren">(</span><em>strategy='Deep Q-Learning'</em>, <em>transfer_strategy='Deep Q-Learning'</em><span class="sig-paren">)</span><a class="headerlink" href="#agents.dqn_agent.DAgent.finish_subject" title="Permalink to this definition">¶</a></dt>
+<dd><p>Finish subject at current time, set strategy and transfer_strategy, call write_results().</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>strategy</strong> – </li>
+<li><strong>transfer_strategy</strong> – </li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">Nothing</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="agents.dqn_agent.DAgent.load">
+<code class="descname">load</code><span class="sig-paren">(</span><em>name</em><span class="sig-paren">)</span><a class="headerlink" href="#agents.dqn_agent.DAgent.load" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="agents.dqn_agent.DAgent.remember">
+<code class="descname">remember</code><span class="sig-paren">(</span><em>state</em>, <em>action</em>, <em>reward</em>, <em>next_state</em>, <em>done</em><span class="sig-paren">)</span><a class="headerlink" href="#agents.dqn_agent.DAgent.remember" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="agents.dqn_agent.DAgent.save">
+<code class="descname">save</code><span class="sig-paren">(</span><em>name</em><span class="sig-paren">)</span><a class="headerlink" href="#agents.dqn_agent.DAgent.save" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="agents.dqn_agent.DAgent.save_agent">
+<code class="descname">save_agent</code><span class="sig-paren">(</span><em>save_dir</em>, <em>testing</em>, <em>iter_num</em>, <em>trial_count</em>, <em>attempt_count</em><span class="sig-paren">)</span><a class="headerlink" href="#agents.dqn_agent.DAgent.save_agent" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="agents.dqn_agent.DAgent.save_reward">
+<code class="descname">save_reward</code><span class="sig-paren">(</span><em>reward</em>, <em>trial_reward</em><span class="sig-paren">)</span><a class="headerlink" href="#agents.dqn_agent.DAgent.save_reward" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="agents.dqn_agent.DAgent.save_weights">
+<code class="descname">save_weights</code><span class="sig-paren">(</span><em>save_dir</em>, <em>filename</em><span class="sig-paren">)</span><a class="headerlink" href="#agents.dqn_agent.DAgent.save_weights" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="agents.dqn_agent.DAgent.update_dynamic_epsilon">
+<code class="descname">update_dynamic_epsilon</code><span class="sig-paren">(</span><em>epsilon_threshold</em>, <em>new_epsilon</em>, <em>new_epsilon_decay</em><span class="sig-paren">)</span><a class="headerlink" href="#agents.dqn_agent.DAgent.update_dynamic_epsilon" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="agents.dqn_agent.DDQNAgent">
+<em class="property">class </em><code class="descclassname">agents.dqn_agent.</code><code class="descname">DDQNAgent</code><span class="sig-paren">(</span><em>state_size</em>, <em>action_size</em>, <em>params</em><span class="sig-paren">)</span><a class="headerlink" href="#agents.dqn_agent.DDQNAgent" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#agents.dqn_agent.DAgent" title="agents.dqn_agent.DAgent"><code class="xref py py-class docutils literal notranslate"><span class="pre">agents.dqn_agent.DAgent</span></code></a></p>
+<dl class="method">
+<dt id="agents.dqn_agent.DDQNAgent.finish_subject">
+<code class="descname">finish_subject</code><span class="sig-paren">(</span><em>strategy='DDQN'</em>, <em>transfer_strategy='DDQN'</em><span class="sig-paren">)</span><a class="headerlink" href="#agents.dqn_agent.DDQNAgent.finish_subject" title="Permalink to this definition">¶</a></dt>
+<dd><p>Finish subject at current time, set strategy and transfer_strategy, call write_results().</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>strategy</strong> – </li>
+<li><strong>transfer_strategy</strong> – </li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">Nothing</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="agents.dqn_agent.DDQNAgent.replay">
+<code class="descname">replay</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#agents.dqn_agent.DDQNAgent.replay" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="agents.dqn_agent.DDQNAgent.update_target_model">
+<code class="descname">update_target_model</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#agents.dqn_agent.DDQNAgent.update_target_model" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="agents.dqn_agent.DDQNPriorityAgent">
+<em class="property">class </em><code class="descclassname">agents.dqn_agent.</code><code class="descname">DDQNPriorityAgent</code><span class="sig-paren">(</span><em>state_size</em>, <em>action_size</em>, <em>params</em>, <em>capacity=200000</em><span class="sig-paren">)</span><a class="headerlink" href="#agents.dqn_agent.DDQNPriorityAgent" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#agents.dqn_agent.DAgent" title="agents.dqn_agent.DAgent"><code class="xref py py-class docutils literal notranslate"><span class="pre">agents.dqn_agent.DAgent</span></code></a></p>
+<dl class="method">
+<dt id="agents.dqn_agent.DDQNPriorityAgent.finish_subject">
+<code class="descname">finish_subject</code><span class="sig-paren">(</span><em>strategy='DDQN_PRIORITY'</em>, <em>transfer_strategy='DDQN_PRIORITY'</em><span class="sig-paren">)</span><a class="headerlink" href="#agents.dqn_agent.DDQNPriorityAgent.finish_subject" title="Permalink to this definition">¶</a></dt>
+<dd><p>Finish subject at current time, set strategy and transfer_strategy, call write_results().</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>strategy</strong> – </li>
+<li><strong>transfer_strategy</strong> – </li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">Nothing</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="agents.dqn_agent.DDQNPriorityAgent.replay">
+<code class="descname">replay</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#agents.dqn_agent.DDQNPriorityAgent.replay" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="agents.dqn_agent.DDQNPriorityAgent.update_target_model">
+<code class="descname">update_target_model</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#agents.dqn_agent.DDQNPriorityAgent.update_target_model" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="agents.dqn_agent.DQNAgent">
+<em class="property">class </em><code class="descclassname">agents.dqn_agent.</code><code class="descname">DQNAgent</code><span class="sig-paren">(</span><em>state_size</em>, <em>action_size</em>, <em>params</em><span class="sig-paren">)</span><a class="headerlink" href="#agents.dqn_agent.DQNAgent" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#agents.dqn_agent.DAgent" title="agents.dqn_agent.DAgent"><code class="xref py py-class docutils literal notranslate"><span class="pre">agents.dqn_agent.DAgent</span></code></a></p>
+<dl class="method">
+<dt id="agents.dqn_agent.DQNAgent.act">
+<code class="descname">act</code><span class="sig-paren">(</span><em>state</em><span class="sig-paren">)</span><a class="headerlink" href="#agents.dqn_agent.DQNAgent.act" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="agents.dqn_agent.DQNAgent.finish_subject">
+<code class="descname">finish_subject</code><span class="sig-paren">(</span><em>strategy='DQN'</em>, <em>transfer_strategy='DQN'</em><span class="sig-paren">)</span><a class="headerlink" href="#agents.dqn_agent.DQNAgent.finish_subject" title="Permalink to this definition">¶</a></dt>
+<dd><p>Finish subject at current time, set strategy and transfer_strategy, call write_results().</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>strategy</strong> – </li>
+<li><strong>transfer_strategy</strong> – </li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">Nothing</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="agents.dqn_agent.DQNAgent.replay">
+<code class="descname">replay</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#agents.dqn_agent.DQNAgent.replay" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="agents.dqn_agent.Memory">
+<em class="property">class </em><code class="descclassname">agents.dqn_agent.</code><code class="descname">Memory</code><span class="sig-paren">(</span><em>memory_capacity</em><span class="sig-paren">)</span><a class="headerlink" href="#agents.dqn_agent.Memory" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="method">
+<dt id="agents.dqn_agent.Memory.sample">
+<code class="descname">sample</code><span class="sig-paren">(</span><em>n</em><span class="sig-paren">)</span><a class="headerlink" href="#agents.dqn_agent.Memory.sample" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="agents.dqn_agent.Memory.store">
+<code class="descname">store</code><span class="sig-paren">(</span><em>transition</em><span class="sig-paren">)</span><a class="headerlink" href="#agents.dqn_agent.Memory.store" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="agents.dqn_agent.Memory.update_priority">
+<code class="descname">update_priority</code><span class="sig-paren">(</span><em>TD_error</em>, <em>index</em><span class="sig-paren">)</span><a class="headerlink" href="#agents.dqn_agent.Memory.update_priority" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-agents.file_control_agent">
+<span id="agents-file-control-agent-module"></span><h2>agents.file_control_agent module<a class="headerlink" href="#module-agents.file_control_agent" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="agents.file_control_agent.FileControlAgent">
+<em class="property">class </em><code class="descclassname">agents.file_control_agent.</code><code class="descname">FileControlAgent</code><span class="sig-paren">(</span><em>params</em><span class="sig-paren">)</span><a class="headerlink" href="#agents.file_control_agent.FileControlAgent" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#agents.agent.Agent" title="agents.agent.Agent"><code class="xref py py-class docutils literal notranslate"><span class="pre">agents.agent.Agent</span></code></a></p>
+<dl class="method">
+<dt id="agents.file_control_agent.FileControlAgent.finish_subject">
+<code class="descname">finish_subject</code><span class="sig-paren">(</span><em>strategy='file-control'</em>, <em>transfer_strategy='file-control'</em><span class="sig-paren">)</span><a class="headerlink" href="#agents.file_control_agent.FileControlAgent.finish_subject" title="Permalink to this definition">¶</a></dt>
+<dd><p>Finish subject at current time, set strategy and transfer_strategy, call write_results().</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>strategy</strong> – </li>
+<li><strong>transfer_strategy</strong> – </li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">Nothing</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-agents.human_agent">
+<span id="agents-human-agent-module"></span><h2>agents.human_agent module<a class="headerlink" href="#module-agents.human_agent" title="Permalink to this headline">¶</a></h2>
+<dl class="class">
+<dt id="agents.human_agent.HumanAgent">
+<em class="property">class </em><code class="descclassname">agents.human_agent.</code><code class="descname">HumanAgent</code><span class="sig-paren">(</span><em>params</em><span class="sig-paren">)</span><a class="headerlink" href="#agents.human_agent.HumanAgent" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#agents.agent.Agent" title="agents.agent.Agent"><code class="xref py py-class docutils literal notranslate"><span class="pre">agents.agent.Agent</span></code></a></p>
+<dl class="method">
+<dt id="agents.human_agent.HumanAgent.finish_subject">
+<code class="descname">finish_subject</code><span class="sig-paren">(</span><em>strategy='human'</em>, <em>transfer_strategy='human'</em><span class="sig-paren">)</span><a class="headerlink" href="#agents.human_agent.HumanAgent.finish_subject" title="Permalink to this definition">¶</a></dt>
+<dd><p>Finish subject at current time, set strategy and transfer_strategy, call write_results().</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>strategy</strong> – </li>
+<li><strong>transfer_strategy</strong> – </li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">Nothing</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="staticmethod">
+<dt id="agents.human_agent.HumanAgent.prompt_age">
+<em class="property">static </em><code class="descname">prompt_age</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#agents.human_agent.HumanAgent.prompt_age" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="staticmethod">
+<dt id="agents.human_agent.HumanAgent.prompt_eyewear">
+<em class="property">static </em><code class="descname">prompt_eyewear</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#agents.human_agent.HumanAgent.prompt_eyewear" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="staticmethod">
+<dt id="agents.human_agent.HumanAgent.prompt_gender">
+<em class="property">static </em><code class="descname">prompt_gender</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#agents.human_agent.HumanAgent.prompt_gender" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="staticmethod">
+<dt id="agents.human_agent.HumanAgent.prompt_handedness">
+<em class="property">static </em><code class="descname">prompt_handedness</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#agents.human_agent.HumanAgent.prompt_handedness" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="staticmethod">
+<dt id="agents.human_agent.HumanAgent.prompt_major">
+<em class="property">static </em><code class="descname">prompt_major</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#agents.human_agent.HumanAgent.prompt_major" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="staticmethod">
+<dt id="agents.human_agent.HumanAgent.prompt_participant_id">
+<em class="property">static </em><code class="descname">prompt_participant_id</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#agents.human_agent.HumanAgent.prompt_participant_id" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="staticmethod">
+<dt id="agents.human_agent.HumanAgent.prompt_strategy">
+<em class="property">static </em><code class="descname">prompt_strategy</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#agents.human_agent.HumanAgent.prompt_strategy" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="staticmethod">
+<dt id="agents.human_agent.HumanAgent.prompt_subject">
+<em class="property">static </em><code class="descname">prompt_subject</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#agents.human_agent.HumanAgent.prompt_subject" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="staticmethod">
+<dt id="agents.human_agent.HumanAgent.prompt_transfer_strategy">
+<em class="property">static </em><code class="descname">prompt_transfer_strategy</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#agents.human_agent.HumanAgent.prompt_transfer_strategy" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-agents">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-agents" title="Permalink to this headline">¶</a></h2>
+</div>
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="../index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">agents package</a><ul>
+<li><a class="reference internal" href="#submodules">Submodules</a></li>
+<li><a class="reference internal" href="#module-agents.A3C_agent">agents.A3C_agent module</a></li>
+<li><a class="reference internal" href="#module-agents.Sum_tree">agents.Sum_tree module</a></li>
+<li><a class="reference internal" href="#module-agents.agent">agents.agent module</a></li>
+<li><a class="reference internal" href="#module-agents.dqn_agent">agents.dqn_agent module</a></li>
+<li><a class="reference internal" href="#module-agents.file_control_agent">agents.file_control_agent module</a></li>
+<li><a class="reference internal" href="#module-agents.human_agent">agents.human_agent module</a></li>
+<li><a class="reference internal" href="#module-agents">Module contents</a></li>
+</ul>
+</li>
+</ul>
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+  </ul></li>
+</ul>
+</div>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="../_sources/source/agents.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, Mark Edmonds.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.7.5</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.11</a>
+      
+      |
+      <a href="../_sources/source/agents.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

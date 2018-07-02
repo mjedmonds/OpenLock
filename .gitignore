@@ -3,3 +3,5 @@
 .idea
 unit-test-output
 *.bak
+docs/_build/doctrees/*
+docs/_build/html/_sources/*
