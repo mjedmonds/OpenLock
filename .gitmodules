@@ -1,3 +1,0 @@
-[submodule "A3C-LSTM"]
-	path = A3C-LSTM
-	url = git@github.com:mjedmonds/A3C-LSTM
