@@ -76,46 +76,55 @@ class Agent(object):
         state_labels = results[0][1:agent_idx]
         return states, state_labels
 
-    def get_last_attempt_results(self):
-        if self.logger.cur_trial is not None:
-            trial = self.logger.cur_trial
-        else:
-            trial = self.logger.trial_seq[-1]
+    def get_last_attempt(self):
+        trial, _ = self.get_last_trial()
         if trial.cur_attempt is not None:
+            return trial.cur_attempt
+        else:
+            return trial.attempt_seq[-1]
+
+    # only want results from a trial/
+    def get_last_results(self):
+        trial, _ = self.get_last_trial()
+        if trial.cur_attempt is not None and trial.cur_attempt.results is not None:
             return trial.cur_attempt.results
         else:
             return trial.attempt_seq[-1].results
 
-    def write_results(self):
+    def get_last_trial(self):
+        if self.logger.cur_trial is not None:
+            return self.logger.cur_trial, True
+        else:
+            return self.logger.trial_seq[-1], False
+
+    def write_results(self, agent):
         """
         Log current agent state.
 
         :return: Nothing
         """
-        self.writer.write(self.logger, self)
+        self.writer.write(self.logger, agent)
 
-    def write_trial(self, test_trial=False, random_seed = None):
+    def write_trial(self, test_trial=False):
         """
         Log trial.
 
         :param test_trial: true if test trial, default: False
-        :param random_seed: default: None
         :return: Nothing
         """
         self.writer.write_trial(self.logger, test_trial)
 
-    def finish_trial(self, test_trial, random_seed):
+    def finish_trial(self, test_trial):
         """
         Finish trial and log it.
 
         :param test_trial: true if test trial
-        :param random_seed:
         :return:
         """
         self.logger.finish_trial()
-        self.write_trial(test_trial, random_seed)
+        self.write_trial(test_trial)
 
-    def finish_subject(self, strategy, transfer_strategy):
+    def finish_subject(self, strategy, transfer_strategy, agent=None):
         """
         Finish subject at current time, set strategy and transfer_strategy, call write_results().
 
@@ -123,8 +132,11 @@ class Agent(object):
         :param transfer_strategy:
         :return: Nothing
         """
+        if agent is None:
+            agent = self
+
         self.logger.finish(time.time())
         self.logger.strategy = strategy
         self.logger.transfer_strategy = transfer_strategy
 
-        self.write_results()
+        self.write_results(agent)

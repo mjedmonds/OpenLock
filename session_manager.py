@@ -5,7 +5,7 @@ import copy
 import numpy as np
 import gym_lock.common as common
 
-from gym_lock.settings_trial import select_random_trial, select_trial
+from gym_lock.settings_trial import select_random_trial, select_trial, get_trial
 from gym_lock.envs.arm_lock_env import ObservationSpace
 import logger
 from gym_lock.common import show_rewards
@@ -64,12 +64,12 @@ class SessionManager():
         self.set_action_limit(action_limit)
         # select trial
         if specified_trial is None:
-            trial_selected, lever_configs = self.get_trial(scenario_name, self.completed_trials)
+            trial_selected, lever_configs = get_trial(scenario_name, self.completed_trials)
             if trial_selected is None:
                 if not multithreaded:
                     print('WARNING: no more trials available. Resetting completed_trials.')
                 self.completed_trials = []
-                trial_selected, lever_configs = self.get_trial(scenario_name, self.completed_trials)
+                trial_selected, lever_configs = get_trial(scenario_name, self.completed_trials)
         else:
             trial_selected, lever_configs = select_trial(specified_trial)
 
@@ -96,7 +96,7 @@ class SessionManager():
         :return: Nothing
         """
         # todo: detect whether or not all possible successful paths were uncovered
-        self.agent.finish_trial(test_trial, self.random_seed)
+        self.agent.finish_trial(test_trial)
         self.completed_trials.append(copy.deepcopy(trial_selected))
         self.env.completed_solutions = []
         self.env.cur_action_seq = []
@@ -118,7 +118,7 @@ class SessionManager():
         trial_selected = self.run_trial_common_setup(scenario_name, action_limit, attempt_limit, specified_trial)
 
         obs_space = None
-        while self.env.attempt_count < attempt_limit and self.env.determine_trial_success() is False:
+        while not self.determine_human_trial_finished(attempt_limit):
             self.env.render(self.env)
             # acknowledge any acks that may have occurred (action executed, attempt ended, etc)
             env_reset = self.finish_action()
@@ -157,13 +157,7 @@ class SessionManager():
         trial_reward = 0
         attempt_reward = 0
 
-        while True:
-            # end if attempt limit reached
-            if self.env.attempt_count >= attempt_limit:
-                break
-            # trial is success and not forcing agent to use all attempts
-            elif self.params['full_attempt_limit'] is False and self.agent.logger.cur_trial.success is True:
-                break
+        while not self.determine_computer_trial_finished(attempt_limit):
 
             # self.env.render()
 
@@ -244,13 +238,7 @@ class SessionManager():
         trial_reward = 0
         attempt_reward = 0
         train_step = 0
-        while True:
-            # end if attempt limit reached
-            if self.env.attempt_count >= attempt_limit:
-                break
-            # trial is success and not forcing agent to use all attempts
-            elif self.params['full_attempt_limit'] is False and self.agent.logger.cur_trial.success is True:
-                break
+        while not self.determine_computer_trial_finished(attempt_limit):
 
             # self.env.render()
 
@@ -397,13 +385,7 @@ class SessionManager():
                     rnn_state = self.agent.local_AC.state_init
 
                 # Run an episode
-                while not terminal:
-                    # end if attempt limit reached
-                    if self.env.attempt_count >= attempt_limit:
-                        break
-                    # trial is success and not forcing agent to use all attempts
-                    elif self.params['full_attempt_limit'] is False and self.agent.logger.cur_trial.success is True:
-                        break
+                while not terminal and not self.determine_computer_trial_finished(attempt_limit):
 
                     episode_states.append(state)
                     if is_test:
@@ -467,10 +449,6 @@ class SessionManager():
 
                 episode_rewards.append(episode_reward)
                 episode_lengths.append(episode_step_count)
-
-
-
-
 
                 if episode_count % 100 == 0 and not episode_count % 1000 == 0 and not is_test:
                     mean_reward = np.mean(episode_rewards[-5:])
@@ -540,7 +518,7 @@ class SessionManager():
 
         trial_reward = 0
         attempt_reward = 0
-        while self.env.attempt_count < attempt_limit and self.agent.logger.cur_trial.success is False:
+        while not self.determine_computer_trial_finished(attempt_limit):
             # self.env.render()
 
             action_idx = self.agent.action(state, train=True)
@@ -568,6 +546,20 @@ class SessionManager():
         self.run_trial_common_finish(trial_selected)
         self.agent.trial_switch_points.append(len(self.agent.rewards))
         self.agent.average_trial_rewards.append(trial_reward / attempt_limit)
+
+    def determine_computer_trial_finished(self, attempt_limit):
+        # end if attempt limit reached
+        if self.env.attempt_count >= attempt_limit:
+            return True
+        # trial is success and not forcing agent to use all attempts
+        elif self.params['full_attempt_limit'] is False and self.agent.logger.cur_trial.success is True:
+            return True
+        return False
+
+    def determine_human_trial_finished(self, attempt_limit):
+        if self.env.attempt_count >= attempt_limit or self.env.determine_trial_success():
+            return True
+        return False
 
     def update_scenario(self, scenario):
         """
@@ -602,7 +594,7 @@ class SessionManager():
             self.agent.logger.cur_trial.finish_attempt(attempt_success=attempt_success, results=self.env.results)
 
             # update the user about their progress
-            trial_finished, pause = self.update_user(attempt_success, multithreaded=multithread)
+            all_solutions_found, pause = self.update_user(attempt_success, multithreaded=multithread)
 
             # pauses if the human user unlocked the door but didn't push on the door
             if self.env.use_physics and self.env.human_agent and pause:
@@ -615,7 +607,7 @@ class SessionManager():
             # reset attempt if the trial isn't finished or if we are running to the full
             # attempt limit. If the full attempt is not used, trial will advance
             # after finding all solutions
-            if not trial_finished or self.env.full_attempt_limit is not False:
+            if not all_solutions_found or self.env.full_attempt_limit is not False:
                 self.add_attempt()
 
             self.env.reset()
@@ -631,7 +623,7 @@ class SessionManager():
 
         :param attempt_success:
         :param multithreaded:
-        :return: two booleans, the first representing whether the trial is finished, the second representing whether the simulator should pause (for when the user opened the door).
+        :return: two booleans, the first representing whether the all solutions have been found (trial is finished), the second representing whether the simulator should pause (for when the user opened the door).
         """
         pause = False
         num_solutions_remaining = len(self.env.solutions) - len(self.env.completed_solutions)
@@ -641,7 +633,7 @@ class SessionManager():
                 print("INFO: You found all of the solutions. ")
             # todo: should we mark that the trial is finished even though the attempt_limit
             # todo: may not be reached?
-            trial_finished = True
+            all_solutions_found = True
             pause = True            # pause if they open the door
         elif self.env.attempt_count < self.env.attempt_limit:
             # alert user to the number of solutions remaining
@@ -655,13 +647,13 @@ class SessionManager():
                 # pause if the door lock is missing and the agent is a human
                 if self.env.human_agent and self.env.get_state()['OBJ_STATES']['door_lock'] == common.ENTITY_STATES['DOOR_UNLOCKED']:
                     pause = True
-            trial_finished = False
+            all_solutions_found = False
         else:
             if not multithreaded:
                 print("INFO: Ending trial. Attempt limit reached. You found {} unique solutions".format(len(self.env.completed_solutions)))
-            trial_finished = True
+            all_solutions_found = True
 
-        return trial_finished, pause
+        return all_solutions_found, pause
 
     def finish_action(self, multithread=False):
         """
@@ -671,7 +663,9 @@ class SessionManager():
         :return: env_reset: False or update_attempt()
         """
         env_reset = False
+        # acknowledge action
         if not self.env.action_ack:
+            # if the current attempt is empty, add a new one and reset
             if self.agent.logger.cur_trial.cur_attempt is None:
                 #print 'cur_attempt is none...shouldnt be'
                 self.env.cur_action_seq = []
@@ -683,7 +677,7 @@ class SessionManager():
         if not self.env.action_finish_ack:
             self.agent.logger.cur_trial.cur_attempt.finish_action(self.env.results, self.env.action.end_time)
             self.env.action_finish_ack = True
-            env_reset = self.update_attempt(multithread= multithread)
+            env_reset = self.update_attempt(multithread=multithread)
 
         return env_reset
 
@@ -770,22 +764,3 @@ class SessionManager():
         except AssertionError:
             print('reward len does not match attempt len')
 
-    @staticmethod
-    def get_trial(name, completed_trials=None):
-        """
-        Apply specific rules for selecting random trials.
-        Namely, For CE4 & CC4, only selects from trials 7-11, otherwise only selects from trials 1-6.
-
-        :param name: Name of trial
-        :param completed_trials:
-        :return: trial and configs
-        """
-        # select a random trial and add it to the scenario
-        if name != 'CE4' and name != 'CC4':
-            # trials 1-6 have 3 levers for CC3/CE3
-            trial, configs = select_random_trial(completed_trials, 1, 6)
-        else:
-            # trials 7-11 have 4 levers for CC4/CE4
-            trial, configs = select_random_trial(completed_trials, 7, 11)
-
-        return trial, configs

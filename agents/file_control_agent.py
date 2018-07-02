@@ -11,6 +11,8 @@ class FileControlAgent(Agent):
 
         super(FileControlAgent, self).setup_subject(human=False)
 
-    def finish_subject(self, strategy='file-control', transfer_strategy='file-control'):
-        super(FileControlAgent, self).finish_subject(strategy, transfer_strategy)
+    def finish_subject(self, strategy='file-control', transfer_strategy='file-control', agent=None):
+        if agent is None:
+            agent = self
+        super(FileControlAgent, self).finish_subject(strategy, transfer_strategy, agent)
 

@@ -228,6 +228,26 @@ def select_trial(trial):
     return trial, LEVER_CONFIGS[trial]
 
 
+def get_trial(name, completed_trials=None):
+    """
+    Apply specific rules for selecting random trials.
+    Namely, For CE4 & CC4, only selects from trials 7-11, otherwise only selects from trials 1-6.
+
+    :param name: Name of trial
+    :param completed_trials:
+    :return: trial and configs
+    """
+    # select a random trial and add it to the scenario
+    if name != 'CE4' and name != 'CC4':
+        # trials 1-6 have 3 levers for CC3/CE3
+        trial, configs = select_random_trial(completed_trials, 1, 6)
+    else:
+        # trials 7-11 have 4 levers for CC4/CE4
+        trial, configs = select_random_trial(completed_trials, 7, 11)
+
+    return trial, configs
+
+
 def select_random_trial(completed_trials, min_idx, max_idx):
     '''
     sets a new random

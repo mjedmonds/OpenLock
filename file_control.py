@@ -68,9 +68,6 @@ if __name__ == '__main__':
             params = PARAMS[setting]
 
     params['data_dir'] = '/tmp/OpenLockLearningResults/subjects'
-    params['train_attempt_limit'] = 10000
-    params['test_attempt_limit'] = 10000
-    params['full_attempt_limit'] = True # run to the full attempt limit, regardless of whether or not all solutions were found
     os.makedirs(params['data_dir'], exist_ok=True)
 
     # this section randomly selects a testing and training scenario
@@ -81,7 +78,7 @@ if __name__ == '__main__':
     agent = FileControlAgent(params)
     scenario = select_scenario(params['train_scenario_name'])
     env = gym.make('arm_lock-v0')
-    env.full_attempt_limit = params['full_attempt_limit']
+
     # create session/trial/experiment manager
     manager = SessionManager(env, agent, params)
     manager.update_scenario(scenario)
@@ -96,20 +93,27 @@ if __name__ == '__main__':
     socket.bind('tcp://127.0.0.1:5555')
     print('Simulator server running...')
 
+    trial_finished = False
+    trial_selected = None
+    test_trial = False
     # run in an infinite loop, until file says to finish
     while True:
         receive_msg = recv_zipped_pickle(socket)
         if receive_msg == 'quit':
-            send_zipped_pickle(socket, 'quitting')
+            response_str = 'Quitting...'
+            print(response_str)
+            send_zipped_pickle(socket, response_str)
             break
         elif receive_msg == 'reset':
+            agent = None
             agent = FileControlAgent(params)
             manager.agent = agent
             trial_selected = manager.run_trial_common_setup(scenario_name=params['train_scenario_name'],
                                                             action_limit=params['train_action_limit'],
                                                             attempt_limit=params['train_attempt_limit'])
-            print('Reset simulator with new agent')
-            send_zipped_pickle(socket, 'env_reset')
+            response_str = 'Reset simulator with new agent'
+            print(response_str)
+            send_zipped_pickle(socket, response_str)
         elif receive_msg == 'get_current_trial':
             send_zipped_pickle(socket, manager.agent.logger.cur_trial)
             print('Sent current trial to client')
@@ -124,17 +128,20 @@ if __name__ == '__main__':
                     print('Executing action {}'.format(action))
                     execute_action(manager, action)
                     env_reset = finish_action(manager)
-                send_zipped_pickle(socket, {'env_reset': env_reset, 'attempt': manager.agent.logger.cur_trial.cur_attempt})
+                trial_finished = manager.determine_computer_trial_finished(params['train_attempt_limit'])
+                send_zipped_pickle(socket, {'env_reset': env_reset, 'attempt': manager.agent.logger.cur_trial.cur_attempt, 'trial_finished': trial_finished})
 
-                print('Sent attempt sequence to client')
+                print('Executed attempt sequence {}'.format(receive_msg['action_sequence']))
+                print('Sent attempt sequence result to client')
             # single action
             if isinstance(receive_msg, dict) and 'action' in receive_msg.keys():
                 action = receive_msg['action']
                 print('Executing action {}'.format(action))
                 execute_action(manager, action)
                 env_reset = finish_action(manager)
-                send_zipped_pickle(socket, {'env_reset': env_reset, 'attempt': manager.agent.logger.cur_trial.cur_attempt})
-
+                trial, is_current_trial = manager.agent.get_last_trial()
+                trial_finished = manager.determine_computer_trial_finished(params['train_attempt_limit'])
+                send_zipped_pickle(socket, {'env_reset': env_reset, 'trial': trial, 'is_current_trial': is_current_trial, 'trial_finished': trial_finished})
                 print('Sent action result to client')
             if isinstance(receive_msg, dict) and 'set_trial' in receive_msg.keys():
                 trial_selected = receive_msg['set_trial']
@@ -142,8 +149,22 @@ if __name__ == '__main__':
                                                                 action_limit=params['train_action_limit'],
                                                                 attempt_limit=params['train_attempt_limit'],
                                                                 specified_trial=trial_selected)
-                print('Set trial to {}'.format(trial_selected))
-                send_zipped_pickle(socket, 'trial selected')
+                response_str = 'Set trial to {}'.format(trial_selected)
+                print(response_str)
+                send_zipped_pickle(socket, response_str)
+            if isinstance(receive_msg, dict) and 'attempt_limit' in receive_msg.keys():
+                params['train_attempt_limit'] = receive_msg['attempt_limit'][0]
+                params['test_attempt_limit'] = receive_msg['attempt_limit'][1]
+                params['full_attempt_limit'] = receive_msg['attempt_limit'][2]
+                env.full_attempt_limit = params['full_attempt_limit']
+                response_str = 'Set train attempt limit to {} and test attempt limit to {}. Full attempt limit is {}'.format(params['train_attempt_limit'], params['test_attempt_limit'], params['full_attempt_limit'])
+                print(response_str)
+                send_zipped_pickle(socket, response_str)
+
+        if trial_finished:
+            manager.run_trial_common_finish(trial_selected, test_trial)
+            trial_finished = False
+            trial_selected = None
 
     manager.env.render(manager.env, close=True)          # close the window
     manager.agent.finish_subject()

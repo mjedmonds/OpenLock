@@ -2,6 +2,7 @@
 import numpy as np
 import random
 import os
+import copy
 from agents.agent import Agent
 
 from collections import deque
@@ -38,7 +39,14 @@ class ActorCriticAgent(Agent):
         self.test_action_limit = params['test_action_limit']
         self.reward_mode = params['reward_mode']
 
-    def finish_subject(self, strategy='Deep Q-Learning', transfer_strategy='Deep Q-Learning'):
+    def finish_subject(self, strategy='A3C-agent', transfer_strategy='A3C-agent'):
+        agent_cpy = copy.copy(self)
+        if hasattr(agent_cpy, 'memory'):
+            del agent_cpy.memory
+        if hasattr(agent_cpy, 'model'):
+            del agent_cpy.model
+        if hasattr(agent_cpy, 'target_model'):
+            del agent_cpy.target_model
         super(ActorCriticAgent, self).finish_subject(strategy, transfer_strategy)
 
     def save_reward(self, reward, trial_reward):

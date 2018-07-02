@@ -2,6 +2,7 @@
 import numpy as np
 import random
 import os
+import copy
 from agents.agent import Agent
 
 from .Sum_tree import SumTree
@@ -40,8 +41,15 @@ class DAgent(Agent):
         self.test_action_limit = params['test_action_limit']
         self.reward_mode = params['reward_mode']
 
-    def finish_subject(self, strategy='Deep Q-Learning', transfer_strategy='Deep Q-Learning'):
-        super(DAgent, self).finish_subject(strategy, transfer_strategy)
+    def finish_subject(self, strategy='Deep Q-Learning', transfer_strategy='Deep Q-Learning', agent=None):
+        if agent is None:
+            agent = self
+        agent_cpy = copy.copy(agent)
+        if hasattr(agent_cpy, 'memory'):
+            del agent_cpy.memory
+        if hasattr(agent_cpy, 'model'):
+            del agent_cpy.model
+        super(DAgent, self).finish_subject(strategy, transfer_strategy, agent_cpy)
 
     def remember(self, state, action, reward, next_state, done):
         self.memory.append((state, action, reward, next_state, done))
@@ -98,8 +106,10 @@ class DQNAgent(DAgent):
                         ]
         self.model = self._build_model()
 
-    def finish_subject(self, strategy='DQN', transfer_strategy='DQN'):
-        super(DAgent, self).finish_subject(strategy, transfer_strategy)
+    def finish_subject(self, strategy='DQN', transfer_strategy='DQN', agent=None):
+        if agent is None:
+            agent = self
+        super(DAgent, self).finish_subject(strategy, transfer_strategy, agent)
 
     def _build_model(self):
         # Neural Net for Deep-Q learning Model
@@ -151,8 +161,10 @@ class DDQNAgent(DAgent):
         self.target_model = self._build_model()
         self.update_target_model()
 
-    def finish_subject(self, strategy='DDQN', transfer_strategy='DDQN'):
-        super(DAgent, self).finish_subject(strategy, transfer_strategy)
+    def finish_subject(self, strategy='DDQN', transfer_strategy='DDQN', agent=None):
+        if agent is None:
+            agent = self
+        super(DAgent, self).finish_subject(strategy, transfer_strategy, agent)
 
     def _huber_loss(self, target, prediction):
         # sqrt(1+error^2)-1
@@ -209,8 +221,10 @@ class DDQNPriorityAgent(DAgent):
         self.update_target_model()
         self.memory = Memory(memory_capacity= capacity)
 
-    def finish_subject(self, strategy='DDQN_PRIORITY', transfer_strategy='DDQN_PRIORITY'):
-        super(DAgent, self).finish_subject(strategy, transfer_strategy)
+    def finish_subject(self, strategy='DDQN_PRIORITY', transfer_strategy='DDQN_PRIORITY', agent=None):
+        if agent is None:
+            agent = self
+        super(DAgent, self).finish_subject(strategy, transfer_strategy, agent)
 
     def _huber_loss(self, target, prediction):
         # sqrt(1+error^2)-1
