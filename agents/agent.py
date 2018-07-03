@@ -1,6 +1,9 @@
 
 from shutil import copytree, ignore_patterns
 import time
+import texttable
+import sys
+import os
 
 from logger import SubjectLogger, SubjectWriter
 
@@ -20,11 +23,11 @@ class Agent(object):
         self.logger = None
         self.writer = None
         self.subject_id = None
-        self.data_path = data_path
+        self.data_path = os.path.expanduser(data_path)
         self.human = False
 
     # default args are for non-human agent
-    def setup_subject(self, human=False, participant_id=-1, age=-1, gender='robot', handedness='none', eyewear='no', major='robotics', random_seed = None):
+    def setup_subject(self, human=False, participant_id=-1, age=-1, gender='robot', handedness='none', eyewear='no', major='robotics', random_seed = None, project_src='./'):
         """
         Set internal variables for subject, initialize logger, and create a copy of the code base for reproduction.
 
@@ -42,6 +45,9 @@ class Agent(object):
         self.writer = SubjectWriter(self.data_path)
         self.subject_id = self.writer.subject_id
 
+        # redirect stdout to logger
+        sys.stdout = self.writer.terminal_logger
+
         print("Starting trials for subject {}. Saving to {}".format(self.subject_id, self.writer.subject_path))
         self.logger = SubjectLogger(subject_id=self.subject_id,
                                     participant_id=participant_id,
@@ -55,11 +61,11 @@ class Agent(object):
 
         # copy the entire code base; this is unnecessary but prevents worrying about a particular
         # source code version when trying to reproduce exact parameters
-        copytree('./', self.writer.subject_path + '/src/', ignore=ignore_patterns('*.mp4',
-                                                                                  '*.pyc',
-                                                                                  '.git',
-                                                                                  '.gitignore',
-                                                                                  '.gitmodules'))
+        copytree(project_src, self.writer.subject_path + '/src/', ignore=ignore_patterns('*.mp4',
+                                                                                         '*.pyc',
+                                                                                         '.git',
+                                                                                         '.gitignore',
+                                                                                         '.gitmodules'))
 
     def get_current_attempt_logged_actions(self, idx):
         results = self.logger.cur_trial.cur_attempt.results
@@ -96,6 +102,22 @@ class Agent(object):
             return self.logger.cur_trial, True
         else:
             return self.logger.trial_seq[-1], False
+
+    def pretty_print_last_results(self):
+        """
+        Print results in an ASCII table.
+
+        :return: nothing
+        """
+        results = self.get_last_results()
+        table = texttable.Texttable()
+        col_labels = results[0]
+        table.set_cols_align(['l' for i in range(len(col_labels))])
+        content = [col_labels]
+        content.extend(results[1:len(results)])
+        table.add_rows(content)
+        table.set_cols_width([12 for i in range(len(col_labels))])
+        print(table.draw())
 
     def write_results(self, agent):
         """

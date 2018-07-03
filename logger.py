@@ -5,6 +5,7 @@ import os
 import json
 import copy
 import texttable
+import sys
 
 
 class ActionLog(object):
@@ -89,11 +90,11 @@ class AttemptLog(object):
 
     def __str__(self):
         """
-        Get string representation of attempt. Calls pretty_print_results().
+        Get string representation of attempt. Calls pretty_str_results().
 
-        :return: Same as pretty_print_results().
+        :return: Same as pretty_str_results().
         """
-        return self.pretty_print_results()
+        return self.pretty_str_results()
 
     def add_action(self, name, t=None):
         """
@@ -137,7 +138,7 @@ class AttemptLog(object):
         self.end_time = end_time
         return self.success
 
-    def pretty_print_results(self):
+    def pretty_str_results(self):
         """
         Print results in an ASCII table.
 
@@ -146,8 +147,9 @@ class AttemptLog(object):
         table = texttable.Texttable()
         col_labels = self.results[0]
         table.set_cols_align(['l' for i in range(len(col_labels))])
-        table.add_rows(self.results[1:len(self.results)])
-        table.header(col_labels)
+        content = [col_labels]
+        content.extend(self.results[1:len(self.results)])
+        table.add_rows(content)
         table.set_cols_width([12 for i in range(len(col_labels))])
         return table.draw()
 
@@ -249,6 +251,7 @@ class SubjectLogger(object):
     strategy = None
     random_seed = None
 
+
     def __init__(self, subject_id, participant_id, age, gender, handedness, eyewear, major, start_time, human=True, random_seed = None):
         """
         Create the subject.
@@ -312,6 +315,22 @@ class SubjectLogger(object):
 SubjectLog = SubjectLogger
 
 
+class TerminalLogger:
+    """
+    Logs stdout output to agent's log
+    """
+    def __init__(self, logfile):
+        self.stdout = sys.stdout
+        self.log = open(logfile, 'a')
+
+    def write(self, message):
+        self.stdout.write(message)
+        self.log.write(message)
+
+    def flush(self):
+        pass
+
+
 class SubjectWriter:
     """
     Writes the log files for a subject.
@@ -335,6 +354,8 @@ class SubjectWriter:
                 self.subject_id = str(hash(time.time()))
                 self.subject_path = data_path + '/' + self.subject_id
                 continue
+        # setup writing stdout to file and to stdout
+        self.terminal_logger = TerminalLogger(self.subject_path + '/' + self.subject_id + '_stdout.log')
 
     def write_trial(self, logger, test_trial=False):
         """
