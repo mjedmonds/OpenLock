@@ -12,3 +12,4 @@ h5py
 matplotlib
 zmq
 texttable
+sphinx

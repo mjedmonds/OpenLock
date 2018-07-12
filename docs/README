@@ -1,19 +1,21 @@
-Requires:
 
-OpenLock and all of its dependencies
+## Requirements:
 
-Sphinx
+A virtual environment with:
+* Python 3.5+
+* OpenLock and all of its dependencies
 
-Create the RST output from the dogstring-ed .py files with:
+## Steps to produce documentation
 
-`sphinx-apidoc -o source/ ../` (from inside the docs directory).
+1. Create the RST output from the dogstring-ed .py files with:
 
+```
+sphinx-apidoc -o source/ ../
+```
+from inside the docs directory. RST files are written to `docs/source/`
 
-RST files are written to docs/source/
+2. (Optional) If rebuilding the RST output, first `rm source/*`.
 
-
-If rebuilding the RST output, first `rm source/*`.
-
-Create HTML files with `make html` (from inside the docs directory).
+3. Create HTML files with `make html` (from inside the docs directory).
 
 Index of the HTML output is located at docs/_build/html/index.html
