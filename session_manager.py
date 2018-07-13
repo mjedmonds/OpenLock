@@ -584,6 +584,7 @@ class SessionManager():
         reset = False
         # above the allowed number of actions, need to increment the attempt count and reset the simulator
         if self.env.action_count >= self.env.action_limit:
+            self.env.resetting = True
 
             self.env.attempt_count += 1
 
@@ -611,6 +612,7 @@ class SessionManager():
                 self.add_attempt()
 
             self.env.reset()
+            self.env.resetting = False
             reset = True
 
         return reset

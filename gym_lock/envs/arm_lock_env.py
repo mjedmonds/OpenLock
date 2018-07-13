@@ -236,6 +236,8 @@ class ArmLockEnv(gym.Env):
         self.human_agent = True
         self.reward_mode = 'basic'
 
+        self.resetting = False          # determines if env is currently resetting (pausing to user)
+
         self.observation_space = None
         self.reward_strategy = RewardStrategy()
         self.reward_range = (self.reward_strategy.REWARD_IMMOVABLE, self.reward_strategy.REWARD_OPEN)
@@ -357,7 +359,7 @@ class ArmLockEnv(gym.Env):
             # no action, return nothing to indicate no reward possible
             return None
         # change to simple "else:" to enable action preemption
-        elif self.action_executing is False:
+        elif self.action_executing is False and self.resetting is False:
             self.action_executing = True
             self.i += 1
             reset = False
