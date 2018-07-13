@@ -406,10 +406,16 @@ class SubjectWriter:
         :return: Nothing.
         """
         with open(filename, 'w') as outfile:
-            # reencode to pretty print
-            json_obj = json.loads(json_str)
-            json_str = json.dumps(json_obj, indent=4, sort_keys=True)
             outfile.write(json_str)
+
+        with open(filename, 'r') as infile:
+            ugly_json_str = json.load(infile)
+
+        sort = True
+        indents = 4
+
+        with open(filename, 'w') as outfile:
+            json.dump(ugly_json_str, outfile, sort_keys=sort, indent=indents)
 
             # results_dir = trial_dir + '/results'
             # os.makedirs(results_dir)
