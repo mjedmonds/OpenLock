@@ -14,12 +14,10 @@ LOWERRIGHT = TwoDConfig(11, -11, 5*np.pi/4)
 
 ATTEMPT_LIMIT = 30
 ACTION_LIMIT = 3
-DATA_DIR = '../OpenLockResults/subjects'
 
 
 PARAMS = {
     'CE3-CE4': {
-        'data_dir': DATA_DIR,
         'train_num_trials': 6,
         'train_scenario_name': 'CE3',
         'train_attempt_limit': ATTEMPT_LIMIT,
@@ -30,7 +28,6 @@ PARAMS = {
         'test_action_limit': ACTION_LIMIT
     },
     'CE3-CC4': {
-        'data_dir': DATA_DIR,
         'train_num_trials': 6,
         'train_scenario_name': 'CE3',
         'train_attempt_limit': ATTEMPT_LIMIT,
@@ -41,7 +38,6 @@ PARAMS = {
         'test_action_limit': ACTION_LIMIT
     },
     'CC3-CE4': {
-        'data_dir': DATA_DIR,
         'train_num_trials': 6,
         'train_scenario_name': 'CC3',
         'train_attempt_limit': ATTEMPT_LIMIT,
@@ -52,7 +48,6 @@ PARAMS = {
         'test_action_limit': ACTION_LIMIT
     },
     'CC3-CC4': {
-        'data_dir': DATA_DIR,
         'train_num_trials': 6,
         'train_scenario_name': 'CC3',
         'train_attempt_limit': ATTEMPT_LIMIT,
@@ -63,7 +58,6 @@ PARAMS = {
         'test_action_limit': ACTION_LIMIT
     },
     'CC4': {
-        'data_dir': DATA_DIR,
         'train_num_trials': 5,
         'train_scenario_name': 'CC4',
         'train_attempt_limit': ATTEMPT_LIMIT,
@@ -74,7 +68,6 @@ PARAMS = {
         'test_action_limit': ACTION_LIMIT
     },
     'CE4': {
-        'data_dir': DATA_DIR,
         'train_num_trials': 5,
         'train_scenario_name': 'CE4',
         'train_attempt_limit': ATTEMPT_LIMIT,
@@ -85,7 +78,6 @@ PARAMS = {
         'test_action_limit': ACTION_LIMIT
     },
     'testing': {
-        'data_dir': DATA_DIR,
         'train_num_trials': 1,
         'train_scenario_name': 'CC3',
         'train_attempt_limit': ATTEMPT_LIMIT,

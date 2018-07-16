@@ -3,10 +3,7 @@ import re
 import copy
 import time
 import numpy as np
-from shapely.geometry import Polygon, Point
 from Box2D import b2Color, b2_kinematicBody, b2_staticBody, b2RayCastInput, b2RayCastOutput, b2Transform, b2Shape, b2Distance
-from gym import spaces
-from gym.utils import seeding
 
 from gym_lock.box2d_renderer import Box2DRenderer
 import gym_lock.common as common
@@ -16,7 +13,7 @@ from gym_lock.settings_render import RENDER_SETTINGS, BOX2D_SETTINGS, ENV_SETTIN
 from gym_lock.rewards import RewardStrategy #determine_reward, REWARD_IMMOVABLE, REWARD_OPEN
 from gym_lock.settings_trial import CONFIG_TO_IDX, NUM_LEVERS
 from gym.spaces import MultiDiscrete
-from logger import ActionLog
+from logger_env import ActionLog
 
 
 from glob import glob
@@ -501,6 +498,27 @@ class ArmLockEnv(gym.Env):
                         this won't be true if seed=None, for example.
             """
         pass
+
+    def update_scenario(self, scenario):
+        """
+        Set the environment's scenario to the specified scenario.
+
+        :param scenario: new scenario to use
+        :return: Nothing
+        """
+        self.scenario = scenario
+        self.solutions = scenario.solutions
+        self.completed_solutions = []
+        self.cur_action_seq = []
+
+    def set_action_limit(self, action_limit):
+        """
+        Set self.env.action_limit.
+
+        :param action_limit: new self.env.action_limit
+        :return: Nothing
+        """
+        self.action_limit = action_limit
 
     def _create_state_entry(self, state, frame):
         entry = [0] * len(self.col_label)

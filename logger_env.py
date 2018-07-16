@@ -389,9 +389,11 @@ class SubjectWriter:
         subject_summary_filename = self.subject_path + '/' + logger.subject_id +'_summary.json'
         self.pretty_write(subject_summary_filename, subject_summary)
 
-        # write out the RL agent
+        # write out the agent
         if agent is not None:
             agent_cpy = copy.copy(agent)
+            if hasattr(agent_cpy, 'env'):
+                delattr(agent_cpy, 'env')
             agent_file_name = self.subject_path + '/' + logger.subject_id + '_agent.json'
             agent_str = jsonpickle.encode(agent_cpy, unpicklable=False)
             self.pretty_write(agent_file_name, agent_str)

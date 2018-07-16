@@ -1,14 +1,13 @@
 
 import gym
 import random
-import copy
 import sys
 import jsonpickle
-from session_manager import SessionManager
-from agents.agent import Agent
 from gym_lock.settings_scenario import select_scenario
-from logger import SubjectWriter
-import gym_lock.rewards as rewards
+from logger_env import SubjectWriter
+
+# NOTE: to run this code, the OpenLockAgents must be in your PYTHONPATH
+from agent import Agent
 
 
 class ActionTest:
@@ -26,7 +25,7 @@ class ActionTest:
         return str(self)
 
 
-def test_ce3(manager):
+def test_ce3(env):
     scenario_name = 'CE3'
     trials_to_verify = ['trial1',
                         'trial2',
@@ -34,20 +33,20 @@ def test_ce3(manager):
                         'trial4',
                         'trial5',
                         'trial6']
-    test_scenario(manager, scenario_name, trials_to_verify)
+    test_scenario(env, scenario_name, trials_to_verify)
 
 
-def test_ce4(manager):
+def test_ce4(env):
     scenario_name = 'CE4'
     trials_to_verify = ['trial7',
                         'trial8',
                         'trial9',
                         'trial10',
                         'trial11']
-    test_scenario(manager, scenario_name, trials_to_verify)
+    test_scenario(env, scenario_name, trials_to_verify)
 
 
-def test_cc3(manager):
+def test_cc3(env):
     scenario_name = 'CC3'
     trials_to_verify = ['trial1',
                         'trial2',
@@ -55,63 +54,63 @@ def test_cc3(manager):
                         'trial4',
                         'trial5',
                         'trial6']
-    test_scenario(manager, scenario_name, trials_to_verify)
+    test_scenario(env, scenario_name, trials_to_verify)
 
 
-def test_cc4(manager):
+def test_cc4(env):
     scenario_name = 'CC4'
     trials_to_verify = ['trial7',
                         'trial8',
                         'trial9',
                         'trial10',
                         'trial11']
-    test_scenario(manager, scenario_name, trials_to_verify)
+    test_scenario(env, scenario_name, trials_to_verify)
 
 
-def test_scenario(manager, scenario_name, trials_to_verify):
+def test_scenario(agent, scenario_name, trials_to_verify):
     scenario = select_scenario(scenario_name, use_physics=True)
-    manager.update_scenario(scenario)
-    manager.env.use_physics = True
+    agent.env.update_scenario(scenario)
+    agent.env.use_physics = True
 
-    trial_selected = manager.run_trial_common_setup(scenario_name=scenario_name,
-                                                    action_limit=3,
-                                                    attempt_limit=5)
-    manager.env.reset()
+    trial_selected = agent.setup_trial(scenario_name=scenario_name,
+                                       action_limit=3,
+                                       attempt_limit=5)
+    agent.env.reset()
 
     solutions = scenario.solutions
 
     for trial in trials_to_verify:
-        trial_selected = manager.run_trial_common_setup(scenario_name=scenario_name,
-                                                        action_limit=3,
-                                                        attempt_limit=5,
-                                                        specified_trial=trial)
+        trial_selected = agent.setup_trial(scenario_name=scenario_name,
+                                           action_limit=3,
+                                           attempt_limit=5,
+                                           specified_trial=trial)
         for solution in solutions:
-            execute_solution(manager, solution)
-            manager.env.reset()
+            execute_solution(agent, solution)
+            agent.env.reset()
 
-        assert(manager.agent.logger.cur_trial.success is True)
+        assert(agent.logger.cur_trial.success is True)
 
-        manager.run_trial_common_finish(trial_selected, False)
-
-
-def execute_solution(manager, action_seq):
-    prev_num_solutions = len(manager.agent.logger.cur_trial.completed_solutions)
-    execute_action_seq(manager, action_seq)
-    assert(len(manager.agent.logger.cur_trial.completed_solutions) > prev_num_solutions)
+        agent.finish_trial(trial_selected, False)
 
 
-def execute_action_seq(manager, action_seq):
+def execute_solution(agent, action_seq):
+    prev_num_solutions = len(agent.logger.cur_trial.completed_solutions)
+    execute_action_seq(agent, action_seq)
+    assert(len(agent.logger.cur_trial.completed_solutions) > prev_num_solutions)
+
+
+def execute_action_seq(agent, action_seq):
     for action_log in action_seq:
-        action = manager.env.action_map[action_log.name]
-        state, reward, done, opt = manager.env.step(action)
-        manager.finish_action()
+        action = agent.env.action_map[action_log.name]
+        state, reward, done, opt = agent.env.step(action)
+        agent.finish_action()
 
 
-def verify_file_output_matches(manager):
+def verify_file_output_matches(env):
     pass
 
 
-def verify_simulator_fsm_match(manager, num_attempts_per_scenario):
+def verify_simulator_fsm_match(agent, num_attempts_per_scenario):
     scenarios_to_test = ['CE3',
                          'CE4',
                          'CC3',
@@ -119,27 +118,27 @@ def verify_simulator_fsm_match(manager, num_attempts_per_scenario):
 
     for scenario_name in scenarios_to_test:
         scenario = select_scenario(scenario_name, use_physics=True)
-        manager.update_scenario(scenario)
-        manager.env.use_physics = True
+        agent.env.update_scenario(scenario)
+        agent.env.use_physics = True
 
-        trial_selected = manager.run_trial_common_setup(scenario_name=scenario_name,
-                                                        action_limit=3,
-                                                        attempt_limit=num_attempts_per_scenario)
+        trial_selected = agent.setup_trial(scenario_name=scenario_name,
+                                           action_limit=3,
+                                           attempt_limit=num_attempts_per_scenario)
 
-        manager.env.reset()
+        agent.env.reset()
         for i in range(num_attempts_per_scenario):
-            action_idx = random.randrange(len(manager.env.action_map))
-            action = manager.env.action_map[manager.env.action_space[action_idx]]
-            manager.env.step(action)
+            action_idx = random.randrange(len(agent.env.action_map))
+            action = agent.env.action_map[agent.env.action_space[action_idx]]
+            agent.env.step(action)
 
-            manager.verify_fsm_matches_simulator(manager.env.observation_space)
+            agent.verify_fsm_matches_simulator(agent.env.observation_space)
 
-            manager.finish_action()
+            agent.finish_action()
 
-        manager.run_trial_common_finish(trial_selected, False)
+        agent.finish_trial(trial_selected, False)
 
 
-def test_rewards(manager):
+def test_rewards(agent):
 
     data_dir = './unit-test-output/rewards'
 
@@ -219,8 +218,8 @@ def test_rewards(manager):
     for scenario_name in scenarios_to_test:
         scenario_data_dir = data_dir + '/' + scenario_name
         scenario = select_scenario(scenario_name, use_physics=True)
-        manager.update_scenario(scenario)
-        manager.env.use_physics = True
+        agent.env.update_scenario(scenario)
+        agent.env.use_physics = True
 
         if scenario_name == 'CE3' or scenario_name == 'CE4':
             action_seqs = action_seqs_ce
@@ -228,18 +227,18 @@ def test_rewards(manager):
             action_seqs = action_seqs_cc
 
         for reward_function in reward_functions:
-            trial_selected = manager.run_trial_common_setup(scenario_name=scenario_name,
-                                                        action_limit=3,
-                                                        attempt_limit=10000)
-            manager.env.reset()
+            trial_selected = agent.setup_trial(scenario_name=scenario_name,
+                                               action_limit=3,
+                                               attempt_limit=10000)
+            agent.env.reset()
 
             reward_filepath = scenario_data_dir + '/' + reward_function + '.json'
             rewards = []
             i = 0
             for action_seq in action_seqs:
-                action_seq_rewards = run_reward_test(manager, action_seq, reward_function)
+                action_seq_rewards = run_reward_test(agent, action_seq, reward_function)
                 rewards.append(action_seq_rewards)
-                manager.agent.logger.cur_trial.add_attempt()
+                agent.logger.cur_trial.add_attempt()
                 i += 1
 
             # uncomment to save the rewards to a file
@@ -253,7 +252,7 @@ def test_rewards(manager):
                 assert_err = 'Reward does not match in {} reward function. Received reward of {}. Expected reward of {}'.format(reward_function, rewards_mismatches, reward_file_mismatches)
                 assert reward_file == rewards, assert_err
 
-            manager.run_trial_common_finish(trial_selected, False)
+            agent.finish_trial(trial_selected, False)
 
 
 def save_reward_file(path, rewards, action_seqs):
@@ -276,17 +275,17 @@ def load_reward_file(path):
         return rewards
 
 
-def run_reward_test(manager, action_seq, reward_function):
-    manager.env.reward_mode = reward_function
+def run_reward_test(agent, action_seq, reward_function):
+    agent.env.reward_mode = reward_function
     rewards = []
     for action_test in action_seq:
-        action = manager.env.action_map[action_test.name]
-        next_state, reward, done, opt = manager.env.step(action)
+        action = agent.env.action_map[action_test.name]
+        next_state, reward, done, opt = agent.env.step(action)
 
         action_test.reward = reward
         rewards.append(action_test)
 
-        manager.finish_action()
+        agent.finish_action()
 
     print('Rewards: {}'.format(str(rewards)))
     return rewards
@@ -299,34 +298,32 @@ def main():
     params = {'data_dir': '../OpenLockUnitTests'}
 
     # create session/trial/experiment manager
-    agent = Agent(params['data_dir'])
+    agent = Agent(params, env)
     agent.setup_subject()
-    manager = SessionManager(env, agent, params)
 
     print('Starting unit tests.')
 
     print('Testing CE3.')
-    test_ce3(manager)
+    test_ce3(agent)
     print('Testing CC3')
-    test_cc3(manager)
+    test_cc3(agent)
     print('Testing CC4')
-    test_cc4(manager)
+    test_cc4(agent)
     print('Testing CE4.')
-    test_ce4(manager)
+    test_ce4(agent)
 
     # todo: implement verifying file output (json) against a known, correct output
-    verify_file_output_matches(manager)
+    verify_file_output_matches(agent)
 
     print('Verifying physics simulator and FSM output matches.')
-    verify_simulator_fsm_match(manager, 100)
+    verify_simulator_fsm_match(agent, 100)
 
     print('Verifying rewards match saved values.')
     # bypass physics sim
-    manager.env.use_physics = False
-    test_rewards(manager)
+    agent.env.use_physics = False
+    test_rewards(agent)
 
     print('All tests passed')
-
 
 
 if __name__ == '__main__':
