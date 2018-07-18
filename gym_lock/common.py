@@ -3,7 +3,6 @@ from collections import namedtuple
 import numpy as np
 
 from shapely.geometry import Polygon, Point
-from matplotlib import pyplot as plt
 from Box2D import *
 
 
@@ -369,104 +368,6 @@ def clamp_mag(array_like, clamp_mag):
         if abs(array_like[i]) > clamp_mag:
             array_like[i] = clamp_mag * np.sign(array_like[i])
     return array_like
-
-
-def plot_rewards(rewards, epsilons, filename, width=12, height=6):
-    plt.clf()
-    assert len(epsilons) == len(rewards)
-    moving_avg = compute_moving_average(rewards, 100)
-    fig = plt.gcf()
-    ax = plt.gca()
-    fig.set_size_inches(width, height)
-    plt.xlim((0, len(rewards)))
-    r, = plt.plot(rewards, color='red', linestyle='-', linewidth=0.5, label='reward', alpha=0.5)
-    ave_r, = plt.plot(moving_avg, color='blue', linestyle='-', linewidth=0.8, label='avg_reward')
-    # e, = plt.plot(epsilons, color='blue', linestyle='--', alpha=0.5, label='epsilon')
-    plt.legend([r, ave_r], ['reward', 'average reward'])
-    plt.ylabel('Reward')
-    plt.xlabel('Episode #')
-    plt.show()
-    plt.savefig(filename)
-
-
-def show_rewards(rewards, epsilons, fig, width=12, height=6, window_size=1000):
-    # sanity checks for plotting
-    assert(fig is not None)
-    assert len(epsilons) == len(rewards)
-    if len(rewards) == 0:
-        return
-
-    plt.figure(fig.number)
-    plt.clf()
-    moving_avg = compute_moving_average(rewards, window_size)
-    gcf = plt.gcf()
-    ax = plt.gca()
-    gcf.set_size_inches(width, height)
-    plt.xlim((0, len(rewards)))
-    r, = plt.plot(rewards, color='red', linestyle='-', linewidth=0.5, label='reward', alpha=0.5)
-    ave_r, = plt.plot(moving_avg, color='blue', linestyle='-', linewidth=0.8, label='avg_reward')
-    # e, = plt.plot(epsilons, color='blue', linestyle='--', alpha=0.5, label='epsilon')
-    plt.legend([r, ave_r], ['reward', 'average reward'])
-    plt.ylabel('Reward')
-    plt.xlabel('Episode #')
-    plt.draw()
-    plt.pause(0.1)
-
-
-def plot_rewards_trial_switch_points(rewards, epsilons, trial_switch_points, filename, plot_xticks=False, window_size=1000):
-    plt.clf()
-    assert len(epsilons) == len(rewards)
-    moving_avg = compute_moving_average(rewards, window_size)
-    fig = plt.gcf()
-    ax = plt.gca()
-    fig.set_size_inches(12, 6)
-    plt.xlim((0, len(rewards)))
-    # mark where the trials changed
-    for trial_switch_point in trial_switch_points:
-        plt.axvline(trial_switch_point, color='black', linewidth=0.5, linestyle='--', alpha=0.3)
-    r, = plt.plot(rewards, color='red', linestyle='-', linewidth=0.5, label='reward', alpha=0.5)
-    ave_r, = plt.plot(moving_avg, color='blue', linestyle='-', linewidth=0.8, label='avg_reward')
-    # e, = plt.plot(epsilons, color='blue', linestyle='--', alpha=0.5, label='epsilon')
-    plt.legend([r, ave_r], ['reward', 'average reward'])
-    if plot_xticks:
-        xtick_points, xtick_labels = create_xtick_labels(trial_switch_points)
-        plt.xticks(xtick_points, xtick_labels)
-        # vertical alignment of xtick labels
-        va = [0 if x % 2 == 0 else -0.03 for x in range(len(xtick_points))]
-        for t, y in zip(ax.get_xticklabels(), va):
-            t.set_y(y)
-    plt.ylabel('Reward')
-    plt.xlabel('Episode # and trial #')
-    plt.savefig(filename)
-
-
-def compute_moving_average(rewards, window):
-    cur_window_size = 1
-    moving_average = []
-    for i in range(len(rewards)-1):
-        lower_idx = max(0, i-cur_window_size)
-        average = sum(rewards[lower_idx:i+1]) / cur_window_size
-        moving_average.append(average)
-        cur_window_size += 1
-        if cur_window_size > window:
-            cur_window_size = window
-    return moving_average
-
-
-def create_xtick_labels(trial_switch_points):
-    xtick_points = [0]
-    xtick_labels = ['0']
-    prev_switch_point = 0
-    trial_count = 1
-    for trial_switch_point in trial_switch_points:
-        xtick_point = ((trial_switch_point - prev_switch_point) / 2) + prev_switch_point
-        xtick_points.append(xtick_point)
-        xtick_labels.append('trial ' + str(trial_count))
-        xtick_points.append(trial_switch_point)
-        xtick_labels.append(str(trial_switch_point))
-        trial_count += 1
-        prev_switch_point = trial_switch_point
-    return xtick_points, xtick_labels
 
 
 def print_instructions():
