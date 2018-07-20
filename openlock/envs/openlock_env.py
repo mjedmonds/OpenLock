@@ -3,17 +3,17 @@ import re
 import copy
 import time
 import numpy as np
-from Box2D import b2Color, b2_kinematicBody, b2_staticBody, b2RayCastInput, b2RayCastOutput, b2Transform, b2Shape, b2Distance
+from Box2D import b2RayCastInput, b2RayCastOutput, b2Distance
 
-from gym_lock.box2d_renderer import Box2DRenderer
-import gym_lock.common as common
-from gym_lock.envs.world_defs.arm_lock_def import ArmLockDef
-from gym_lock.kine import KinematicChain, discretize_path, InverseKinematics, generate_five_arm, TwoDKinematicTransform
-from gym_lock.settings_render import RENDER_SETTINGS, BOX2D_SETTINGS, ENV_SETTINGS
-from gym_lock.rewards import RewardStrategy #determine_reward, REWARD_IMMOVABLE, REWARD_OPEN
-from gym_lock.settings_trial import CONFIG_TO_IDX, NUM_LEVERS
+from openlock.box2d_renderer import Box2DRenderer
+import openlock.common as common
+from openlock.envs.world_defs.openlock_def import ArmLockDef
+from openlock.kine import KinematicChain, discretize_path, InverseKinematics, generate_five_arm, TwoDKinematicTransform
+from openlock.settings_render import RENDER_SETTINGS, BOX2D_SETTINGS, ENV_SETTINGS
+from openlock.rewards import RewardStrategy #determine_reward, REWARD_IMMOVABLE, REWARD_OPEN
+from openlock.settings_trial import CONFIG_TO_IDX, NUM_LEVERS
 from gym.spaces import MultiDiscrete
-from logger_env import ActionLog
+from openlock.logger_env import ActionLog
 
 
 from glob import glob
@@ -58,6 +58,7 @@ class ActionSpace:
         action_space = push_action_space + pull_action_space + door_action_space
 
         return action_space, action_map
+
 
 class ObservationSpace:
 
@@ -206,7 +207,8 @@ class ObservationSpace:
 
         return self.solutions_found, self.labels
 
-class ArmLockEnv(gym.Env):
+
+class OpenLockEnv(gym.Env):
     # Set this in SOME subclasses
     metadata = {'render.modes': ['human']}  # TODO what does this do?
 
@@ -1069,7 +1071,7 @@ class ArmLockEnv(gym.Env):
 
 
 def main():
-    env = ArmLockEnv()
+    env = OpenLockEnv()
 
 
 if __name__ == '__main__':

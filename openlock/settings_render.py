@@ -1,6 +1,6 @@
 import numpy as np
 
-from gym_lock.common import TwoDConfig, Color
+from openlock.common import TwoDConfig, Color
 
 
 RENDER_SETTINGS = {

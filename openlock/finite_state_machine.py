@@ -2,7 +2,7 @@ import re
 import numpy as np
 
 from transitions.extensions import GraphMachine as Machine
-from gym_lock.settings_trial import UPPER, LEFT, LOWER, UPPERLEFT, UPPERRIGHT, LOWERLEFT, LOWERRIGHT, CONFIG_TO_IDX, NUM_LEVERS, LEVER_CONFIGS
+from openlock.settings_trial import UPPER, LEFT, LOWER, UPPERLEFT, UPPERRIGHT, LOWERLEFT, LOWERRIGHT, CONFIG_TO_IDX, NUM_LEVERS, LEVER_CONFIGS
 
 
 def cartesian_product(*lists):

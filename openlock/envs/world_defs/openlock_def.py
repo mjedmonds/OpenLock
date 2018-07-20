@@ -3,9 +3,9 @@ import re
 import numpy as np
 from Box2D import b2ContactListener, b2Vec2, b2World, b2FixtureDef, b2PolygonShape, b2CircleShape, b2Dot
 
-import gym_lock.common as common
-from gym_lock.pid_central import PIDController
-from gym_lock.settings_render import BOX2D_SETTINGS
+import openlock.common as common
+from openlock.pid_central import PIDController
+from openlock.settings_render import BOX2D_SETTINGS
 
 # TODO: cleaner interface than indices between bodies and lengths
 # TODO: cleanup initialization/reset method

@@ -1,6 +1,6 @@
 import numpy as np
 
-from gym_lock.common import TwoDConfig, LeverConfig, LeverRole
+from openlock.common import TwoDConfig, LeverConfig, LeverRole
 
 NUM_LEVERS = 7
 

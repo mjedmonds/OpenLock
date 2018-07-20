@@ -1,7 +1,7 @@
 import mdptoolbox
 from transitions.extensions import GraphMachine as Machine
 
-from gym_lock.scenarios.mdp import StateMachineMDP
+from openlock.scenarios.mdp import StateMachineMDP
 
 def cartesian_product(*lists):
     result = [[]]

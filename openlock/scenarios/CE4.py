@@ -1,17 +1,17 @@
 
-from gym_lock.finite_state_machine import FiniteStateMachineManager
-from gym_lock.scenarios.scenario import Scenario
-from logger_env import ActionLog
+from openlock.finite_state_machine import FiniteStateMachineManager
+from openlock.scenarios.scenario import Scenario
+from openlock.logger_env import ActionLog
 
 
-class CommonEffect3Scenario(Scenario):
+class CommonEffect4Scenario(Scenario):
 
-    name = 'CE3'
+    name = 'CE4'
 
     observable_states = ['pulled,', 'pushed,']     # '+' -> locked/pulled, '-' -> unlocked/pushed
     # todo: make names between obj_map in env consistent with names in FSM (extra ':' in FSM)
-    observable_vars = ['l0:', 'l1:', 'l2:']
-    observable_initial_state = 'l0:pulled,l1:pulled,l2:pulled,'
+    observable_vars = ['l0:', 'l1:', 'l2:', 'l3:']
+    observable_initial_state = 'l0:pulled,l1:pulled,l2:pulled,l3:pulled,'
 
     latent_states = ['unlocked,', 'locked,']     # '+' -> open, '-' -> closed
     latent_vars = ['door:']
@@ -23,13 +23,14 @@ class CommonEffect3Scenario(Scenario):
 
     # lists of actions that represent solution sequences
     solutions = [
-        [ActionLog('push_l2', None), ActionLog('push_l0', None), ActionLog('push_door', None)],
         [ActionLog('push_l1', None), ActionLog('push_l0', None), ActionLog('push_door', None)],
+        [ActionLog('push_l2', None), ActionLog('push_l0', None), ActionLog('push_door', None)],
+        [ActionLog('push_l3', None), ActionLog('push_l0', None), ActionLog('push_door', None)],
     ]
 
     def __init__(self, use_physics=True):
-        super(CommonEffect3Scenario, self).__init__(use_physics=use_physics)
-        
+        super(CommonEffect4Scenario, self).__init__(use_physics=use_physics)
+
         self.world_def = None # handle to the Box2D world
 
         self.fsmm = FiniteStateMachineManager(scenario=self,
@@ -41,7 +42,8 @@ class CommonEffect3Scenario(Scenario):
                                               l_initial=self.latent_initial_state,
                                               actions=self.actions)
 
-
+        self.lever_configs = None
+        self.lever_opt_params = None
 
         # define observable states that trigger changes in the latent space;
         # this is the clue between the two machines.
@@ -51,9 +53,9 @@ class CommonEffect3Scenario(Scenario):
         # add unlock/lock transition for every lock
         for lock in self.fsmm.observable_fsm.vars:
             if lock == 'l0:':
-                pulled = [s for s in self.fsmm.observable_fsm.state_permutations if lock + 'pulled,' in s and ('l1:pushed,' in s or 'l2:pushed,' in s)]
-                pushed = [s for s in self.fsmm.observable_fsm.state_permutations if lock + 'pushed,' in s and ('l1:pushed,' in s or 'l2:pushed,' in s)]
-                super(CommonEffect3Scenario, self).add_no_ops(lock, pushed, pulled)
+                pulled = [s for s in self.fsmm.observable_fsm.state_permutations if lock + 'pulled,' in s and ('l1:pushed,' in s or 'l2:pushed,' in s or 'l3:pushed,' in s)]
+                pushed = [s for s in self.fsmm.observable_fsm.state_permutations if lock + 'pushed,' in s and ('l1:pushed,' in s or 'l2:pushed,' in s or 'l3:pushed,' in s)]
+                super(CommonEffect4Scenario, self).add_no_ops(lock, pushed, pulled)
             else:
                 pulled = [s for s in self.fsmm.observable_fsm.state_permutations if lock + 'pulled,' in s]
                 pushed = [s for s in self.fsmm.observable_fsm.state_permutations if lock + 'pushed,' in s]
@@ -62,27 +64,31 @@ class CommonEffect3Scenario(Scenario):
                 self.fsmm.observable_fsm.machine.add_transition('pull_{}'.format(lock), pushed_state, pulled_state, after='update_manager')
                 self.fsmm.observable_fsm.machine.add_transition('push_{}'.format(lock), pulled_state, pushed_state, after='update_manager')
 
-        super(CommonEffect3Scenario, self).add_nothing_transition()
+        super(CommonEffect4Scenario, self).add_nothing_transition()
 
-        super(CommonEffect3Scenario, self).add_door_transitions()
+        super(CommonEffect4Scenario, self).add_door_transitions()
+
 
     def update_latent(self):
         '''
         logic to transition in the latent state space based on the observable state space, if needed
         '''
-        super(CommonEffect3Scenario, self).update_latent()
+        # use default latent update (check the door)
+        super(CommonEffect4Scenario, self).update_latent()
 
     def update_observable(self):
         '''
         updates observable fsm based on some change in the observable fsm, if needed
         '''
-        super(CommonEffect3Scenario, self).update_observable()
+        # use default latent update (check the door)
+        super(CommonEffect4Scenario, self).update_observable()
 
     def update_state_machine(self, action=None):
         '''
         Updates the finite state machines according to object status in the Box2D environment
         '''
-        super(CommonEffect3Scenario, self).update_state_machine(action)
+        super(CommonEffect4Scenario, self).update_state_machine(action)
+
 
     def init_scenario_env(self, world_def=None):
         '''
@@ -90,22 +96,22 @@ class CommonEffect3Scenario(Scenario):
         :return:
         '''
 
-        super(CommonEffect3Scenario, self).init_scenario_env(world_def)
+        super(CommonEffect4Scenario, self).init_scenario_env(world_def)
 
         if self.use_physics:
-            self.world_def.lock_lever('l0') #initially lock l0
+            self.world_def.lock_lever('l0') #initially lock l3
 
     def _update_env(self):
         '''
         updates the Box2D environment based on the state of the finite state machine
         '''
-        super(CommonEffect3Scenario, self)._update_env()
+        super(CommonEffect4Scenario, self)._update_env()
 
     def _update_latent_objs(self):
         '''
         updates latent objects in the Box2D environment based on state of the latent finite state machine
         '''
-        super(CommonEffect3Scenario, self)._update_latent_objs()
+        super(CommonEffect4Scenario, self)._update_latent_objs()
 
 
     def _update_observable_objs(self):
@@ -118,8 +124,8 @@ class CommonEffect3Scenario(Scenario):
             # add code to change part of the environment based on the state of an observable variable here
             # ---------------------------------------------------------------
             if observable_var == 'l0:':
-                # unlock l2 based on status of l0, l1, part of multi-lock FSM
-                if 'l1:pushed,' in self.fsmm.observable_fsm.state or 'l2:pushed,' in self.fsmm.observable_fsm.state:
+                # unlock l0 based on status of l1, l3, l3 part of multi-lock FSM
+                if 'l1:pushed,' in self.fsmm.observable_fsm.state or 'l2:pushed,' in self.fsmm.observable_fsm.state or 'l3:pushed,' in self.fsmm.observable_fsm.state:
                     self.world_def.unlock_lever('l0')
                 else:
                     self.world_def.lock_lever('l0')

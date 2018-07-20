@@ -1,4 +1,4 @@
-from gym_lock.common import ENTITY_STATES
+from openlock.common import ENTITY_STATES
 import numpy as np
 
 
