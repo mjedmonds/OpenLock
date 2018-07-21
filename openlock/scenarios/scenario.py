@@ -4,8 +4,8 @@ Outlines the structure and common functionality across scenarios
 import re
 import numpy as np
 
-import gym_lock.common as common
-from gym_lock.settings_trial import UPPER, LEFT, LOWER, UPPERLEFT, UPPERRIGHT, LOWERLEFT, LOWERRIGHT, CONFIG_TO_IDX, NUM_LEVERS, LEVER_CONFIGS
+import openlock.common as common
+from openlock.settings_trial import UPPER, LEFT, LOWER, UPPERLEFT, UPPERRIGHT, LOWERLEFT, LOWERRIGHT, CONFIG_TO_IDX, NUM_LEVERS, LEVER_CONFIGS
 
 
 class Scenario(object):

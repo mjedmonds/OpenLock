@@ -4,10 +4,10 @@ from Box2D import b2CircleShape, b2EdgeShape, b2PolygonShape, b2_staticBody, b2_
     b2PulleyJoint, b2MouseJoint, b2RevoluteJoint, b2PrismaticJoint, b2Transform, b2Vec2, b2Rot, b2WeldJoint
 from pyglet.window import key
 
-from gym_lock import rendering
-from gym_lock.common import Color, TwoDConfig, COLORS
-from gym_lock.kine import TwoDKinematicTransform
-from gym_lock.settings_render import RENDER_SETTINGS
+from openlock import rendering
+from openlock.common import Color, TwoDConfig, COLORS
+from openlock.kine import TwoDKinematicTransform
+from openlock.settings_render import RENDER_SETTINGS
 
 VIEWPORT_W = 800
 VIEWPORT_H = 800

@@ -1,7 +1,7 @@
 
-import gym_lock.common as common
-from gym_lock.finite_state_machine import FiniteStateMachineManager
-from gym_lock.settings_trial import LEVER_CONFIGS
+import openlock.common as common
+from openlock.finite_state_machine import FiniteStateMachineManager
+from openlock.settings_trial import LEVER_CONFIGS
 
 class MultiLockScenario(object):
 

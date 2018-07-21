@@ -1,7 +1,7 @@
 import mdptoolbox
 from transitions import Machine
 
-from gym_lock.scenarios.mdp import StateMachineMDP
+from openlock.scenarios.mdp import StateMachineMDP
 
 class SimpleDoorLockFSM(object):
 

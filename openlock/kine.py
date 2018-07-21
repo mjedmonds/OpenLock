@@ -3,8 +3,8 @@
 import numpy as np
 
 # defined named tuples
-from gym_lock.common import TwoDConfig, wrapToMinusPiToPi, transform_to_theta, clamp_mag
-from gym_lock.settings_render import BOX2D_SETTINGS
+from openlock.common import TwoDConfig, wrapToMinusPiToPi, transform_to_theta, clamp_mag
+from openlock.settings_render import BOX2D_SETTINGS
 
 # turns on all assertions
 DEBUG = True
@@ -334,7 +334,7 @@ class TwoDKinematicTransform(object):
 
 
 def main():
-    import gym_lock
+    import openlock
     import matplotlib.pyplot as plt
 
     # params

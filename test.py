@@ -1,8 +1,8 @@
 import gym
 import signal
 import numpy as np
-from gym_lock.envs import ArmLockEnv
-from gym_lock.common import Action
+from openlock.envs import OpenLockEnv
+from openlock.common import Action
 import time
 
 

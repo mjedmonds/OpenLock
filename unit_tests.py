@@ -3,8 +3,8 @@ import gym
 import random
 import sys
 import jsonpickle
-from gym_lock.settings_scenario import select_scenario
-from logger_env import SubjectWriter
+from openlock.settings_scenario import select_scenario
+from openlock.logger_env import SubjectWriter
 
 # NOTE: to run this code, the OpenLockAgents must be in your PYTHONPATH
 from agent import Agent

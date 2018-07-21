@@ -1,10 +1,10 @@
 from random import randint
 
-from gym_lock.scenarios.multi_lock import MultiLockScenario
-from gym_lock.scenarios.CE3 import CommonEffect3Scenario
-from gym_lock.scenarios.CC3 import CommonCause3Scenario
-from gym_lock.scenarios.CE4 import CommonEffect4Scenario
-from gym_lock.scenarios.CC4 import CommonCause4Scenario
+from openlock.scenarios.multi_lock import MultiLockScenario
+from openlock.scenarios.CE3 import CommonEffect3Scenario
+from openlock.scenarios.CC3 import CommonCause3Scenario
+from openlock.scenarios.CE4 import CommonEffect4Scenario
+from openlock.scenarios.CC4 import CommonCause4Scenario
 
 
 TESTING_SCENARIOS = [
