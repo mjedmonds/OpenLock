@@ -417,7 +417,7 @@ class OpenLockEnv(gym.Env):
 
             self.action_executing = False
 
-            if self.action_count > self.action_limit:
+            if self.action_count >= self.action_limit:
                 reset = True
                 # todo: possible to check if trial is finished from within the env?
 
