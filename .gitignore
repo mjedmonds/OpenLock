@@ -5,3 +5,4 @@ unit-test-output
 *.bak
 docs/_build/*
 build
+dist/
