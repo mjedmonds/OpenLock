@@ -4,16 +4,17 @@ import copy
 import time
 import numpy as np
 from Box2D import b2RayCastInput, b2RayCastOutput, b2Distance
+from gym.spaces import MultiDiscrete
 
 from openlock.box2d_renderer import Box2DRenderer
 import openlock.common as common
 from openlock.envs.world_defs.openlock_def import ArmLockDef
 from openlock.kine import KinematicChain, discretize_path, InverseKinematics, generate_five_arm, TwoDKinematicTransform
-from openlock.settings_render import RENDER_SETTINGS, BOX2D_SETTINGS, ENV_SETTINGS
 from openlock.rewards import RewardStrategy #determine_reward, REWARD_IMMOVABLE, REWARD_OPEN
-from openlock.settings_trial import CONFIG_TO_IDX, NUM_LEVERS
-from gym.spaces import MultiDiscrete
-from openlock.logger_env import ActionLog
+from openlock.settings_trial import select_trial, get_trial, CONFIG_TO_IDX, NUM_LEVERS
+from openlock.settings_scenario import select_scenario
+from openlock.settings_render import RENDER_SETTINGS, BOX2D_SETTINGS, ENV_SETTINGS
+from openlock.logger_env import ActionLog, TrialLog
 
 
 from glob import glob
@@ -196,10 +197,10 @@ class ObservationSpace:
 
         return self.state, self.state_labels
 
-    def determine_solutions_remaining(self, logger):
+    def determine_solutions_remaining(self, cur_trial):
         # todo: this is hardcored to scenarios with a max of 3 solutions
-        solutions = logger.cur_trial.solutions
-        completed_solutions = logger.cur_trial.completed_solutions
+        solutions = cur_trial.solutions
+        completed_solutions = cur_trial.completed_solutions
         for i in range(len(completed_solutions)):
             idx = solutions.index(completed_solutions[i])
             # mark that this solution is finished
@@ -219,6 +220,7 @@ class OpenLockEnv(gym.Env):
         self.scenario = None
 
         self.i = 0
+        self.clock = 0
         self.save_path = '../OpenLockResults/'
 
         self.col_label = []
@@ -230,14 +232,17 @@ class OpenLockEnv(gym.Env):
         self.action_limit = None
         self.attempt_limit = None
 
+        self.full_attempt_limit = False
+
         self.action_executing = False    # used to disable action preemption
 
         self.human_agent = True
         self.reward_mode = 'basic'
 
-        self.resetting = False          # determines if env is currently resetting (pausing to user)
-
         self.observation_space = None
+        self.action_space = None
+        self.action_map = None
+
         self.reward_strategy = RewardStrategy()
         self.reward_range = (self.reward_strategy.REWARD_IMMOVABLE, self.reward_strategy.REWARD_OPEN)
 
@@ -245,15 +250,21 @@ class OpenLockEnv(gym.Env):
 
         self.world_def = None
 
-        self.full_attempt_limit = False
-
         # action acknowledgement used by manager to log each action executed
         self.action_ack = True
         self.action_finish_ack = True
+        self.reset_ack = True
 
-        self.solutions = []            # keeps track of solutions for this trial/scenario
-        self.completed_solutions = []  # keeps track of which solutions have been completed this trial
-        self.cur_action_seq = []       # keeps track of the action sequence executed this attempt
+        # current trial to keep track of progress through this trial
+        self.cur_trial = None
+        # keeps track of last step's results. This is needed to coordinate action outcomes (state, reward, done), etc when running with human control.
+        # human control only uses render(), and therefore never directly calls step()
+        self.cur_step_outcome = None
+        # keeps track of current state. todo: can this safely be removed
+        self.state = None
+        self.prev_state = None
+        # keeps track of which trials have been completed this execution
+        self.completed_trials = []
 
     def reset(self):
         """Resets the state of the environment and returns an initial observation.
@@ -287,10 +298,13 @@ class OpenLockEnv(gym.Env):
             levers = self.scenario.levers
 
         self.action_space, self.action_map = ActionSpace.create_action_space(obj_map)
-        self.obs_space = ObservationSpace(len(levers))
+        self.observation_space = ObservationSpace(len(levers))
 
         # reset results (must be after world_def exists and action space has been created)
         self._reset_results()
+        # reset action ack; guaranteed to be ack'd after reset
+        self.action_ack = True
+        self.reset_ack = False
 
         if self.use_physics:
             # setup renderer
@@ -304,9 +318,7 @@ class OpenLockEnv(gym.Env):
         # reset the finite state machine
         self.scenario.reset()
         self.action_count = 0
-
-        # reset the current action sequence
-        self.cur_action_seq = []
+        self.cur_trial.add_attempt()
 
         if self.use_physics:
             if self.human_agent:
@@ -326,7 +338,7 @@ class OpenLockEnv(gym.Env):
                 discrete_state, discrete_labels = self.observation_space.create_discrete_observation_from_fsm(self)
             return np.array(discrete_state)
         else:
-            return None
+            raise ValueError('Attempting to reset environment with no observation space. Cannot return state.')
 
     def step(self, action):
         """Run one __timestep of the environment's dynamics. When end of
@@ -345,6 +357,7 @@ class OpenLockEnv(gym.Env):
         # save a copy of the current state
         self.prev_state = self.get_state()
 
+        # rendering step
         if not action:
             self.world_def.step(1.0 / BOX2D_SETTINGS['FPS'],
                                 BOX2D_SETTINGS['VEL_ITERS'],
@@ -358,41 +371,42 @@ class OpenLockEnv(gym.Env):
             # no action, return nothing to indicate no reward possible
             return None
         # change to simple "else:" to enable action preemption
-        elif self.action_executing is False and self.resetting is False:
+        elif self.action_executing is False:
             self.action_executing = True
             self.i += 1
             reset = False
-            trial_finished = False
+            action_success = False
+            attempt_success = False
+            trial_success = False
             observable_action = self._create_pre_obs_entry(action)
             if observable_action:
                 # ack is used by manager to determine if the action needs to be logged in the agent's logger
-                self.action = ActionLog(str(action), time.time())
+                self.cur_trial.cur_attempt.add_action(str(action))
                 self.action_ack = False
 
-            success = False
             if self.use_physics:
                 if action.name == 'goto':
-                    success = self._action_go_to(action)
+                    action_success = self._action_go_to(action)
                 elif action.name == 'goto_obj':
-                    success = self._action_go_to_obj(action)
+                    action_success = self._action_go_to_obj(action)
                 elif action.name == 'rest':
-                    success = self._action_rest()
+                    action_success = self._action_rest()
                 elif action.name == 'pull':
-                    success = self._action_pull(action)
+                    action_success = self._action_pull(action)
                 elif action.name == 'push':
-                    success = self._action_push(action)
+                    action_success = self._action_push(action)
                 elif action.name == 'move':
-                    success = self._action_move(action)
+                    action_success = self._action_move(action)
                 elif action.name == 'move_end_frame':
-                    success = self._action_move_end_frame(action)
+                    action_success = self._action_move_end_frame(action)
                 elif action.name == 'unlock':
-                    success = self._action_unlock(action)
+                    action_success = self._action_unlock(action)
                 elif action.name == 'reset':
-                    success = self._action_reset()
+                    action_success = self._action_reset()
                 elif action.name == 'save':
-                    success = self._action_save()
+                    action_success = self._action_save()
             else:
-                success = True
+                action_success = True
                 self.scenario.execute_action(action)
 
             self.i += 1
@@ -400,7 +414,7 @@ class OpenLockEnv(gym.Env):
             # update state machine after executing a action
             self.update_state_machine(action)
             self.state = self.get_state()
-            self.state['SUCCESS'] = success
+            self.state['SUCCESS'] = action_success
 
             if observable_action:
                 self.action_count += 1
@@ -408,18 +422,39 @@ class OpenLockEnv(gym.Env):
                 # self._print_observation(self.state, self.action_count)
                 self._append_result(self._create_state_entry(self.state, self.action_count))
                 # self.results.append(self._create_state_entry(self.state, self.action_count))
-                self.action.finish(time.time())
                 self.action_finish_ack = False
-                self.cur_action_seq.append(self.action)
+                self.cur_action = self.cur_trial.cur_attempt.finish_action(self.results)
 
             # must update reward before potentially reset env (env may reset based on trial status)
-            reward, success = self.reward_strategy.determine_reward(self, action, self.reward_mode)
+            reward, _ = self.reward_strategy.determine_reward(self, action, self.reward_mode)
 
-            self.action_executing = False
 
-            if self.action_count > self.action_limit:
+            if self.action_count >= self.action_limit:
                 reset = True
-                # todo: possible to check if trial is finished from within the env?
+                self.attempt_count += 1
+
+                # stores whether or not this attempt executed a unique solution
+                attempt_success = self.cur_trial.finish_attempt(self.results, reward)
+
+                pause = self.update_user(attempt_success)
+
+                # pauses if the human user unlocked the door but didn't push on the door
+                if self.use_physics and self.human_agent and pause:
+                    # pause for 4 sec to allow user to view lock
+                    t_end = time.time() + 4
+                    while time.time() < t_end:
+                        self.render()
+                    self.update_state_machine()
+
+                # reset
+                self.state = self.reset()
+                self.reset_ack = False
+                # todo: this adds an attempt even when the trial is ending; how can we prevent adding an extra attempt if the trial is ending?
+                #       MJE: this doesn't matter because self.cur_trial is not the real log; it's just the env's bookkeeping
+                self.cur_trial.add_attempt()
+
+            # stores whether or not all solutions found in this trial
+            trial_success = self.cur_trial.success
 
             # update state machine in case there was a reset
             self.update_state_machine()
@@ -427,9 +462,11 @@ class OpenLockEnv(gym.Env):
                 discrete_state, discrete_labels = self.observation_space.create_discrete_observation_from_simulator(self)
             else:
                 discrete_state, discrete_labels = self.observation_space.create_discrete_observation_from_fsm(self)
-            # set done = trial_finished to have done signaled to agent when trials end
-            # set done = reset to have done signaled to agent every time env resets
-            return np.array(discrete_state), reward, reset, {'action_success': success, 'trial_finished': trial_finished, 'state_labels': discrete_labels}
+
+            self.action_executing = False
+
+            self.cur_step_outcome = (np.array(discrete_state), reward, reset, {'action_success': action_success, 'attempt_success': attempt_success, 'trial_success': trial_success, 'results': self.results, 'state_labels': discrete_labels})
+            return self.cur_step_outcome
         else:
             self.state = self.get_state()
             self.update_state_machine()
@@ -501,26 +538,56 @@ class OpenLockEnv(gym.Env):
             """
         pass
 
-    def update_scenario(self, scenario):
+    # code to run before human and computer trials
+    def setup_trial(self, scenario_name, action_limit, attempt_limit, specified_trial=None, multithreaded=False):
         """
-        Set the environment's scenario to the specified scenario.
+        Set the env class variables and select a trial (specified if provided, otherwise a random trial from the scenario name).
 
-        :param scenario: new scenario to use
-        :return: Nothing
-        """
-        self.scenario = scenario
-        self.solutions = scenario.solutions
-        self.completed_solutions = []
-        self.cur_action_seq = []
+        This method should be called before running human and computer trials.
+        Returns the trial selected (string).
 
-    def set_action_limit(self, action_limit):
+        :param scenario_name: name of scenario (e.g. those defined in settings_trial.PARAMS)
+        :param action_limit: number of actions permitted
+        :param attempt_limit: number of attempts permitted
+        :param specified_trial: optional specified trial. If none, get_trial is used to select trial
+        :param multithreaded: disables printing if running in multiple threads
+        :return state: state of env after reset
+        :return trial_selected: the selected_trial as returned by get_trial or select_trial
         """
-        Set self.env.action_limit.
-
-        :param action_limit: new self.env.action_limit
-        :return: Nothing
-        """
+        # update scenario if needed
+        if self.scenario is None or scenario_name is not self.scenario.name:
+            scenario = select_scenario(scenario_name, use_physics=self.use_physics)
+            self.scenario = scenario
+        # set limits
+        self.attempt_count = 0
+        self.attempt_limit = attempt_limit
         self.action_limit = action_limit
+        # select trial
+        if specified_trial is None:
+            trial_selected, lever_configs = get_trial(scenario_name, self.completed_trials)
+            if trial_selected is None:
+                if not multithreaded:
+                    print('WARNING: no more trials available. Resetting completed_trials.')
+                    print(self.completed_trials)
+                # self.completed_trials = []
+                trial_selected, lever_configs = get_trial(scenario_name, self.completed_trials)
+        else:
+            trial_selected, lever_configs = select_trial(specified_trial)
+
+        self.scenario.set_lever_configs(lever_configs)
+        self.observation_space = ObservationSpace(len(self.scenario.levers))
+
+        self.cur_trial = TrialLog(trial_selected, scenario_name, self.scenario.solutions, time.time())
+
+        if not multithreaded:
+            print("INFO: New trial. There are {} unique solutions remaining.".format(len(self.scenario.solutions)))
+
+        state = self.reset()
+
+        return state, trial_selected
+
+    def finish_trial(self, trial_selected):
+        self.completed_trials.append(trial_selected)
 
     def _create_state_entry(self, state, frame):
         entry = [0] * len(self.col_label)
@@ -668,6 +735,43 @@ class OpenLockEnv(gym.Env):
                                              common.Action(callback_action, (save_button, 4)))
                 self.viewer.register_clickable_region(save_button.clickable)
 
+    def update_user(self, attempt_success, multithreaded=False):
+        """
+        Print update to the user.
+        Either all solutions have been found, there are solutions remaining, or the user has
+        reached the attempt limit and the trial is over without finding all solutions.
+
+        :param attempt_success:
+        :param multithreaded:
+        :return: two booleans, the first representing whether the all solutions have been found (trial is finished), the second representing whether the simulator should pause (for when the user opened the door).
+        """
+        pause = False
+        completed_solutions = self.get_completed_solutions()
+        solutions = self.get_solutions()
+        num_solutions_remaining = len(solutions) - len(completed_solutions)
+        # continue or end trial
+        if self.determine_trial_success():
+            if not multithreaded:
+                print("INFO: You found all of the solutions. ")
+            pause = True            # pause if they open the door
+        elif self.attempt_count < self.attempt_limit:
+            # alert user to the number of solutions remaining
+            if attempt_success is True:
+                if not multithreaded:
+                    print("INFO: You found a solution. There are {} unique solutions remaining.".format(num_solutions_remaining))
+                pause = True            # pause if they open the door
+            else:
+                if not multithreaded and self.human_agent:
+                    print("INFO: Ending attempt. Action limit reached. There are {} unique solutions remaining. You have {} attempts remaining.".format(num_solutions_remaining, self.attempt_limit - self.attempt_count))
+                # pause if the door lock is missing and the agent is a human
+                if self.human_agent and self.get_state()['OBJ_STATES']['door_lock'] == common.ENTITY_STATES['DOOR_UNLOCKED']:
+                    pause = True
+        else:
+            if not multithreaded:
+                print("INFO: Ending trial. Attempt limit reached. You found {} unique solutions".format(len(completed_solutions)))
+
+        return pause
+
     def get_state(self):
         if self.use_physics is True and self.world_def is None:
             raise ValueError('world_def is None while trying to call get_state()')
@@ -684,32 +788,59 @@ class OpenLockEnv(gym.Env):
 
     def get_simulator_state(self):
         return self.world_def.get_state()
+
+    def determine_trial_success(self):
+        return self.cur_trial.success
+
+    def get_current_action(self):
+        return self.cur_action
+
+    def get_current_action_seq(self):
+        return self.cur_trial.cur_attempt.action_seq
+
+    def get_current_step_outcome(self):
+        # return empty 4 tuple (same form as real value
+        if self.cur_step_outcome is None:
+            return None, None, None, None
+        else:
+            return self.cur_step_outcome
+
+    def get_completed_solutions(self):
+        return self.cur_trial.completed_solutions
+
+    def get_solutions(self):
+        return self.cur_trial.solutions
         
     def determine_door_seq(self):
         # we want the last action to always be push the door, the agent will be punished if the last action is not push the door.
-        cur_action_seq = self.cur_action_seq
-        if len(cur_action_seq)==3:
-            door_act = ActionLog("push_door",None)
+        cur_action_seq = self.get_current_action_seq()
+        if len(cur_action_seq) == 3:
+            door_act = ActionLog("push_door", None)
             if cur_action_seq[-1] == door_act:
                 return 1
-            else: return -1
+            else:
+                return -1
         return 0
+
     # this function also determines if the action sequence is a duplicate to unlock the door, not just open the door
     def determine_unique_solution(self):
-        if len(self.cur_action_seq) != len(self.solutions[0]):
+        cur_action_seq = self.get_current_action_seq()
+        completed_solutions = self.get_completed_solutions()
+        solutions = self.get_solutions()
+        if len(cur_action_seq) != len(solutions[0]):
             return False
         # if this is a complete action sequence and it is not a solution, return false
         # full action sequence
         # solution is unique if it is in the list of solutions and not in the solutions found
-        if self.cur_action_seq in self.solutions and self.cur_action_seq not in self.completed_solutions:
+        if cur_action_seq in solutions and cur_action_seq not in completed_solutions:
             return True
         else:
             return False
 
     def determine_partial_solution(self):
         # order matters, so we need to compare element by element
-        cur_action_seq = self.cur_action_seq
-        solutions = self.solutions
+        cur_action_seq = self.get_current_action_seq()
+        solutions = self.get_solutions()
         for solution in solutions:
             assert len(cur_action_seq) <= len(solution), 'Action sequence is somehow longer than solution'
             comparison = [solution[i] == cur_action_seq[i] for i in range(len(cur_action_seq))]
@@ -718,22 +849,25 @@ class OpenLockEnv(gym.Env):
         return False
 
     def determine_unique_partial_solution(self):
-        for completed_solution in self.completed_solutions:
-            if self.cur_action_seq == completed_solution[:len(self.cur_action_seq)]:
+        cur_action_seq = self.get_current_action_seq()
+        completed_solutions = self.get_completed_solutions()
+        for completed_solution in completed_solutions:
+            if cur_action_seq == completed_solution[:len(cur_action_seq)]:
                 return False
         # if the partial sequence is not in the completed solutions, just check if the partial sequence is
         # part of the solutions at all
         return self.determine_partial_solution()
 
-    def determine_trial_success(self):
-        return len(self.completed_solutions) > 0 and\
-               len(self.solutions) > 0 and\
-               len(self.completed_solutions) == len(self.solutions)
-
     def determine_fluent_change(self):
         prev_fluent_state = self.prev_state['OBJ_STATES']
         cur_fluent = self.state['OBJ_STATES']
         return prev_fluent_state != cur_fluent
+
+    def determine_repeated_action(self):
+        cur_action_seq = self.get_current_action_seq()
+        if len(cur_action_seq) >= 2 and cur_action_seq[-2] == cur_action_seq[-1]:
+            return True
+        return False
 
     def determine_moveable_action(self, action):
         '''
@@ -743,9 +877,9 @@ class OpenLockEnv(gym.Env):
         :return:
         '''
         if self.use_physics:
-            state, labels = self.obs_space.create_discrete_observation_from_simulator(self)
+            state, labels = self.observation_space.create_discrete_observation_from_simulator(self)
         else:
-            state, labels = self.obs_space.create_discrete_observation_from_fsm(self)
+            state, labels = self.observation_space.create_discrete_observation_from_fsm(self)
         obj_name = action.obj
         if obj_name == 'door':
             # door being movable depends on door lock
@@ -758,14 +892,6 @@ class OpenLockEnv(gym.Env):
             return True
         else:
             return False
-
-
-
-    def determine_repeated_action(self):
-        cur_action_seq = self.cur_action_seq
-        if len(cur_action_seq) >= 2 and cur_action_seq[-2] == cur_action_seq[-1]:
-            return True
-        return False
 
     def _export_results(self):
         save_count = len(glob(self.save_path + 'results[0-9]*.csv'))

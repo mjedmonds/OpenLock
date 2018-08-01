@@ -15,6 +15,8 @@ LOWERRIGHT = TwoDConfig(11, -11, 5*np.pi/4)
 ATTEMPT_LIMIT = 30
 ACTION_LIMIT = 3
 
+THREE_LEVER_TRIALS = ['trial1', 'trial2', 'trial3', 'trial4', 'trial5', 'trial6']
+FOUR_LEVER_TRIALS = ['trial7', 'trial8', 'trial9', 'trial10', 'trial11']
 
 PARAMS = {
     'CE3-CE4': {
@@ -232,15 +234,15 @@ def get_trial(name, completed_trials=None):
     # select a random trial and add it to the scenario
     if name != 'CE4' and name != 'CC4':
         # trials 1-6 have 3 levers for CC3/CE3
-        trial, configs = select_random_trial(completed_trials, 1, 6)
+        trial, configs = select_random_trial(completed_trials, THREE_LEVER_TRIALS)
     else:
         # trials 7-11 have 4 levers for CC4/CE4
-        trial, configs = select_random_trial(completed_trials, 7, 11)
+        trial, configs = select_random_trial(completed_trials, FOUR_LEVER_TRIALS)
 
     return trial, configs
 
 
-def select_random_trial(completed_trials, min_idx, max_idx):
+def select_random_trial(completed_trials, possible_trials):
     '''
     sets a new random
     :param completed_trials: list of trials already selected
@@ -248,18 +250,9 @@ def select_random_trial(completed_trials, min_idx, max_idx):
     :param max: max value of trial index
     :return:
     '''
-    trial_list = []
-    trial_base = 'trial'
-    rand = np.random.randint(min_idx, max_idx+1)
-    trial = trial_base + str(rand)
-    trial_list.append(trial)
-    while trial in completed_trials:
-        rand = np.random.randint(min_idx, max_idx+1)
-        trial = trial_base + str(rand)
-        trial_list.append(trial)
-        # all have been tried
-        if len(trial_list) == max_idx - min_idx:
-            return None, None
+    incomplete_trials = np.setdiff1d(possible_trials, completed_trials)
+    rand_trial_idx = np.random.randint(0, len(incomplete_trials))
+    trial = incomplete_trials[rand_trial_idx]
 
     return select_trial(trial)
 

@@ -18,34 +18,38 @@ class RewardStrategy(object):
         self.attempt_count = 0
 
     def determine_multiplier(self, env, action):
+        def get_solution_index(solutions, action_seq):
+            # get the index of cur_action_seq in solutions, if none, return -1
+            for ind in range(len(solutions)):
+                comparison = [solutions[ind][i] == action_seq[i] for i in range(len(action_seq))]
+                if all(comparison):
+                    return ind
+            return -1
 
         self.SOLUTION_MULTIPLIER = 1.0
-        num_solutions_found = len(env.completed_solutions)
-        unique_seq = env.determine_unique_solution() or env.determine_unique_partial_solution()
-        index = self.get_index(env.solutions, env.cur_action_seq)
-        first_solution_index = -1
-        if num_solutions_found != 0:
-            first_solution_index = self.get_index(env.solutions, env.completed_solutions[0])
-        if unique_seq and (self.door_open(env, action) or self.door_unlocked(env)) and num_solutions_found == 0:
 
+        completed_solutions = env.get_completed_solutions()
+        solutions = env.get_solutions()
+        cur_action_seq = env.get_current_action_seq()
+
+        num_solutions_found = len(completed_solutions)
+        unique_seq = env.determine_unique_solution() or env.determine_unique_partial_solution()
+        index = get_solution_index(solutions, cur_action_seq)
+        first_solution_index = -1
+
+        if num_solutions_found != 0:
+            first_solution_index = get_solution_index(solutions, completed_solutions[0])
+
+        if unique_seq and (self.door_open(env, action) or self.door_unlocked(env)) and num_solutions_found == 0:
             # if see a unique solution,  set the counter, init
             self.SOLUTION_MULTIPLIER = 1.0 # set multiplier to 1.0 for the first time
 
-        if index != -1 and num_solutions_found != 0 and index != first_solution_index and (self.door_open(env, action) or self.door_unlocked(env)) :
-
+        if index != -1 and num_solutions_found != 0 and index != first_solution_index and (self.door_open(env, action) or self.door_unlocked(env)):
             # if already seen this solution, cool the temperature, increase the counter
             self.counter[index] += 1
             cooling_percentage = self.counter[index]/(env.attempt_limit*0.3) # set threshold as 0.3 * attempt
             self.SOLUTION_MULTIPLIER = max(1.5 - 0.5*cooling_percentage, 1.0) # if smaller than 1.0, set as 1.0
         #print self.counter, self.SOLUTION_MULTIPLIER
-
-    def get_index(self, solutions, action_seq):
-        # get the index of cur_action_seq in solutions, if none, return -1
-        for ind in range(len(solutions)):
-            comparison = [solutions[ind][i] == action_seq[i] for i in range(len(action_seq))]
-            if all(comparison):
-                return ind
-        return -1
 
     def determine_reward(self, env, action, reward_mode):
         # todo: this reward does not consider whether or not the action sequence has been finished before
@@ -56,7 +60,7 @@ class RewardStrategy(object):
             self.counter = np.zeros(len(env.solutions))
             self.attempt_count = 0
         self.determine_multiplier( env, action)
-        success = self.door_open(env, action)
+        door_open = self.door_open(env, action)
         if reward_mode == 'basic':
             reward = self.reward_basic(env, action)
         elif reward_mode == 'change_state':
@@ -84,8 +88,7 @@ class RewardStrategy(object):
         else:
             raise ValueError(str('Unknown reward function mode: %s'.format(reward_mode)))
 
-        return reward, success
-
+        return reward, door_open
 
     def door_open(self, env, action):
         if self.door_unlocked(env) and action.name is 'push' and action.obj is 'door':
@@ -93,14 +96,12 @@ class RewardStrategy(object):
         else:
             return False
 
-
     def door_unlocked(self, env):
         door_lock_state = env.get_state()['OBJ_STATES']['door_lock']
         if door_lock_state == ENTITY_STATES['DOOR_UNLOCKED']:
             return True
         else:
             return False
-
 
     def reward_basic(self, env, action):
         '''
@@ -118,7 +119,6 @@ class RewardStrategy(object):
         else:
             reward = self.REWARD_NONE
         return reward
-
 
     def reward_change_state(self,env, action):
         '''
@@ -141,7 +141,6 @@ class RewardStrategy(object):
             reward = self.REWARD_NONE
         return reward
 
-
     def reward_unique_solution(self, env, action):
         '''
         Give reward of REWARD_UNLOCK for unlocking the door with a new action sequence
@@ -160,7 +159,6 @@ class RewardStrategy(object):
         else:
             reward = self.REWARD_NONE
         return reward
-
 
     def reward_change_state_unique_solution(self, env, action):
         '''
@@ -184,7 +182,6 @@ class RewardStrategy(object):
             reward = self.REWARD_NONE
         return reward
 
-
     def reward_negative_immovable_unique_solutions(self,env, action):
         '''
         Give reward of REWARD_UNLOCK for unlocking the door with a new action sequence
@@ -207,7 +204,6 @@ class RewardStrategy(object):
             reward = self.REWARD_NONE
         return reward
 
-
     def reward_negative_immovable(self,env, action):
         '''
         Give reward of REWARD_UNLOCK for unlocking the door with a new action sequence
@@ -228,7 +224,6 @@ class RewardStrategy(object):
         else:
             reward = self.REWARD_NONE
         return reward
-
 
     def reward_negative_immovable_partial_seq(self , env, action):
         '''
@@ -255,7 +250,6 @@ class RewardStrategy(object):
             reward = self.REWARD_NONE
         return reward
 
-
     def reward_negative_immovable_negative_repeat(self, env, action):
         '''
         Give reward of REWARD_UNLOCK for unlocking the door with a new action sequence
@@ -281,7 +275,6 @@ class RewardStrategy(object):
             reward = self.REWARD_NONE
         return reward
 
-
     def reward_negative_immovable_solution_multiplier(self, env, action):
         '''
         Give reward of REWARD_UNLOCK for unlocking the door with a new action sequence
@@ -295,7 +288,7 @@ class RewardStrategy(object):
         would be 1.5 * REWARD_OPEN, the third 1.5 * 1.5 * REWARD_OPEN. This encourages the
         agent to find unique solutions without penalizing for finding repeated solutions
         '''
-        num_solutions_found = len(env.completed_solutions)
+        num_solutions_found = len(env.get_completed_solutions())
         multiplier = max(1, 1 * self.SOLUTION_MULTIPLIER * num_solutions_found)
         unique_seq = env.determine_unique_solution() or env.determine_unique_partial_solution()
         # door unlocked
@@ -317,7 +310,6 @@ class RewardStrategy(object):
         else:
             reward = self.REWARD_NONE
         return reward
-
 
     def reward_negative_immovable_partial_seq_solution_multiplier(self, env, action):
         '''
@@ -359,7 +351,6 @@ class RewardStrategy(object):
             reward = self.REWARD_NONE
         return reward
 
-
     def reward_negative_change_state_partial_seq_solution_multiplier(self, env, action):
         '''
         Give reward of REWARD_UNLOCK for unlocking the door with a new action sequence
@@ -375,7 +366,7 @@ class RewardStrategy(object):
         agent to find unique solutions without penalizing for finding repeated solutions
         '''
 
-        num_solutions_found = len(env.completed_solutions)
+        num_solutions_found = len(env.get_completed_solutions())
         multiplier = max(1, 1 * self.SOLUTION_MULTIPLIER * num_solutions_found)
         unique_seq = env.determine_unique_solution() or env.determine_unique_partial_solution()
         # door unlocked
@@ -400,6 +391,7 @@ class RewardStrategy(object):
         else:
             reward = self.REWARD_NONE
         return reward
+
     def reward_negative_change_state_partial_seq_solution_multiplier_door_seq(self, env, action):
         '''
         Give reward of REWARD_UNLOCK for unlocking the door with a new action sequence
@@ -415,7 +407,7 @@ class RewardStrategy(object):
         agent to find unique solutions without penalizing for finding repeated solutions
         '''
 
-        num_solutions_found = len(env.completed_solutions)
+        num_solutions_found = len(env.get_completed_solutions())
         multiplier = max(1, 1 * self.SOLUTION_MULTIPLIER * num_solutions_found)
         unique_seq = env.determine_unique_solution() or env.determine_unique_partial_solution()
         # door unlocked
