@@ -250,16 +250,8 @@ class OpenLockEnv(gym.Env):
 
         self.world_def = None
 
-        # action acknowledgement used by manager to log each action executed
-        self.action_ack = True
-        self.action_finish_ack = True
-        self.reset_ack = True
-
         # current trial to keep track of progress through this trial
         self.cur_trial = None
-        # keeps track of last step's results. This is needed to coordinate action outcomes (state, reward, done), etc when running with human control.
-        # human control only uses render(), and therefore never directly calls step()
-        self.cur_step_outcome = None
         # keeps track of current state. todo: can this safely be removed
         self.state = None
         self.prev_state = None
@@ -302,9 +294,6 @@ class OpenLockEnv(gym.Env):
 
         # reset results (must be after world_def exists and action space has been created)
         self._reset_results()
-        # reset action ack; guaranteed to be ack'd after reset
-        self.action_ack = True
-        self.reset_ack = False
 
         if self.use_physics:
             # setup renderer
@@ -382,7 +371,6 @@ class OpenLockEnv(gym.Env):
             if observable_action:
                 # ack is used by manager to determine if the action needs to be logged in the agent's logger
                 self.cur_trial.cur_attempt.add_action(str(action))
-                self.action_ack = False
 
             if self.use_physics:
                 if action.name == 'goto':
@@ -422,12 +410,10 @@ class OpenLockEnv(gym.Env):
                 # self._print_observation(self.state, self.action_count)
                 self._append_result(self._create_state_entry(self.state, self.action_count))
                 # self.results.append(self._create_state_entry(self.state, self.action_count))
-                self.action_finish_ack = False
-                self.cur_action = self.cur_trial.cur_attempt.finish_action(self.results)
+                self.cur_trial.cur_attempt.finish_action(self.results)
 
             # must update reward before potentially reset env (env may reset based on trial status)
             reward, _ = self.reward_strategy.determine_reward(self, action, self.reward_mode)
-
 
             if self.action_count >= self.action_limit:
                 reset = True
@@ -448,9 +434,6 @@ class OpenLockEnv(gym.Env):
 
                 # reset
                 self.state = self.reset()
-                self.reset_ack = False
-                # todo: this adds an attempt even when the trial is ending; how can we prevent adding an extra attempt if the trial is ending?
-                #       MJE: this doesn't matter because self.cur_trial is not the real log; it's just the env's bookkeeping
                 self.cur_trial.add_attempt()
 
             # stores whether or not all solutions found in this trial
@@ -465,8 +448,7 @@ class OpenLockEnv(gym.Env):
 
             self.action_executing = False
 
-            self.cur_step_outcome = (np.array(discrete_state), reward, reset, {'action_success': action_success, 'attempt_success': attempt_success, 'trial_success': trial_success, 'results': self.results, 'state_labels': discrete_labels})
-            return self.cur_step_outcome
+            return np.array(discrete_state), reward, reset, {'action_success': action_success, 'attempt_success': attempt_success, 'trial_success': trial_success, 'results': self.results, 'state_labels': discrete_labels}
         else:
             self.state = self.get_state()
             self.update_state_machine()
@@ -797,13 +779,6 @@ class OpenLockEnv(gym.Env):
 
     def get_current_action_seq(self):
         return self.cur_trial.cur_attempt.action_seq
-
-    def get_current_step_outcome(self):
-        # return empty 4 tuple (same form as real value
-        if self.cur_step_outcome is None:
-            return None, None, None, None
-        else:
-            return self.cur_step_outcome
 
     def get_completed_solutions(self):
         return self.cur_trial.completed_solutions
