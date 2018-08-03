@@ -252,6 +252,7 @@ class OpenLockEnv(gym.Env):
 
         # current trial to keep track of progress through this trial
         self.cur_trial = None
+        self.attempt_reward = 0
         # keeps track of current state. todo: can this safely be removed
         self.state = None
         self.prev_state = None
@@ -373,29 +374,10 @@ class OpenLockEnv(gym.Env):
                 self.cur_trial.cur_attempt.add_action(str(action))
 
             if self.use_physics:
-                if action.name == 'goto':
-                    action_success = self._action_go_to(action)
-                elif action.name == 'goto_obj':
-                    action_success = self._action_go_to_obj(action)
-                elif action.name == 'rest':
-                    action_success = self._action_rest()
-                elif action.name == 'pull':
-                    action_success = self._action_pull(action)
-                elif action.name == 'push':
-                    action_success = self._action_push(action)
-                elif action.name == 'move':
-                    action_success = self._action_move(action)
-                elif action.name == 'move_end_frame':
-                    action_success = self._action_move_end_frame(action)
-                elif action.name == 'unlock':
-                    action_success = self._action_unlock(action)
-                elif action.name == 'reset':
-                    action_success = self._action_reset()
-                elif action.name == 'save':
-                    action_success = self._action_save()
+                self._execute_physics_action(action)
             else:
                 action_success = True
-                self.scenario.execute_action(action)
+                self.scenario.execute_fsm_action(action)
 
             self.i += 1
 
@@ -414,13 +396,15 @@ class OpenLockEnv(gym.Env):
 
             # must update reward before potentially reset env (env may reset based on trial status)
             reward, _ = self.reward_strategy.determine_reward(self, action, self.reward_mode)
+            self.attempt_reward += reward
+            self.cur_trial.cur_attempt.set_last_reward(reward)   #set reward of last action, must happen here. finish_action needs be to run before calling determine_reward()
 
             if self.action_count >= self.action_limit:
                 reset = True
                 self.attempt_count += 1
 
                 # stores whether or not this attempt executed a unique solution
-                attempt_success = self.cur_trial.finish_attempt(self.results, reward)
+                attempt_success = self.cur_trial.finish_attempt(self.results, self.attempt_reward)
 
                 pause = self.update_user(attempt_success)
 
@@ -435,6 +419,7 @@ class OpenLockEnv(gym.Env):
                 # reset
                 self.state = self.reset()
                 self.cur_trial.add_attempt()
+                self.attempt_reward = 0
 
             # stores whether or not all solutions found in this trial
             trial_success = self.cur_trial.success
@@ -732,7 +717,7 @@ class OpenLockEnv(gym.Env):
         solutions = self.get_solutions()
         num_solutions_remaining = len(solutions) - len(completed_solutions)
         # continue or end trial
-        if self.determine_trial_success():
+        if self.get_trial_success():
             if not multithreaded:
                 print("INFO: You found all of the solutions. ")
             pause = True            # pause if they open the door
@@ -771,11 +756,8 @@ class OpenLockEnv(gym.Env):
     def get_simulator_state(self):
         return self.world_def.get_state()
 
-    def determine_trial_success(self):
+    def get_trial_success(self):
         return self.cur_trial.success
-
-    def get_current_action(self):
-        return self.cur_action
 
     def get_current_action_seq(self):
         return self.cur_trial.cur_attempt.action_seq
@@ -813,15 +795,15 @@ class OpenLockEnv(gym.Env):
             return False
 
     def determine_partial_solution(self):
-        # order matters, so we need to compare element by element
+        '''
+        Determines if the current action sequence is part of a solution
+        :return: True if the current action sequence is part of a solution, False otherwise
+        '''
         cur_action_seq = self.get_current_action_seq()
-        solutions = self.get_solutions()
-        for solution in solutions:
-            assert len(cur_action_seq) <= len(solution), 'Action sequence is somehow longer than solution'
-            comparison = [solution[i] == cur_action_seq[i] for i in range(len(cur_action_seq))]
-            if all(comparison):
-                return True
-        return False
+        if cur_action_seq in [x[:len(cur_action_seq)] for x in self.get_solutions()]:
+            return True
+        else:
+            return False
 
     def determine_unique_partial_solution(self):
         cur_action_seq = self.get_current_action_seq()
@@ -871,6 +853,29 @@ class OpenLockEnv(gym.Env):
     def _export_results(self):
         save_count = len(glob(self.save_path + 'results[0-9]*.csv'))
         np.savetxt(self.save_path + 'results{}.csv'.format(save_count), self.results, delimiter=',', fmt='%s')
+
+    def _execute_physics_action(self, action):
+        if action.name == 'goto':
+            action_success = self._action_go_to(action)
+        elif action.name == 'goto_obj':
+            action_success = self._action_go_to_obj(action)
+        elif action.name == 'rest':
+            action_success = self._action_rest()
+        elif action.name == 'pull':
+            action_success = self._action_pull(action)
+        elif action.name == 'push':
+            action_success = self._action_push(action)
+        elif action.name == 'move':
+            action_success = self._action_move(action)
+        elif action.name == 'move_end_frame':
+            action_success = self._action_move_end_frame(action)
+        elif action.name == 'unlock':
+            action_success = self._action_unlock(action)
+        elif action.name == 'reset':
+            action_success = self._action_reset()
+        elif action.name == 'save':
+            action_success = self._action_save()
+        return action_success
 
     def _action_go_to(self, twod_config):
         # get configuatin of end effector

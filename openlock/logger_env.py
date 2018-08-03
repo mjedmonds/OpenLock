@@ -15,6 +15,7 @@ class ActionLog(object):
     start_time = None
     end_time = None
     name = None
+    reward = 0
 
     def __init__(self, name, start_time):
         """
@@ -50,6 +51,7 @@ class ActionLog(object):
         :return: str(self), which returns self.name.
         """
         return str(self)
+
 
     def finish(self, end_time):
         self.end_time = end_time
@@ -108,6 +110,9 @@ class AttemptLog(object):
             t = time.time()
         self.cur_action = ActionLog(name, t)
         return copy.copy(self.cur_action)
+
+    def set_last_reward(self, reward):
+        self.action_seq[-1].reward = reward
 
     def finish_action(self, results, t=None):
         """
