@@ -378,7 +378,7 @@ class OpenLockEnv(gym.Env):
                 action_success = self._execute_physics_action(action)
             else:
                 action_success = True
-                self.scenario.execute_action(action)
+                self.scenario.execute_fsm_action(action)
 
             self.i += 1
 
@@ -778,6 +778,15 @@ class OpenLockEnv(gym.Env):
     def get_trial_success(self):
         return self.cur_trial.success
 
+    def get_current_action_seq(self):
+        return self.cur_trial.cur_attempt.action_seq
+
+    def get_completed_solutions(self):
+        return self.cur_trial.completed_solutions
+
+    def get_solutions(self):
+        return self.cur_trial.solutions
+        
     def determine_door_seq(self):
         # we want the last action to always be push the door, the agent will be punished if the last action is not push the door.
         cur_action_seq = self.get_current_action_seq()
@@ -805,20 +814,15 @@ class OpenLockEnv(gym.Env):
             return False
 
     def determine_partial_solution(self):
+        '''
+        Determines if the current action sequence is part of a solution
+        :return: True if the current action sequence is part of a solution, False otherwise
+        '''
         cur_action_seq = self.get_current_action_seq()
         if cur_action_seq in [x[:len(cur_action_seq)] for x in self.get_solutions()]:
             return True
         else:
             return False
-        # # order matters, so we need to compare element by element
-        # cur_action_seq = self.get_current_action_seq()
-        # solutions = self.get_solutions()
-        # for solution in solutions:
-        #     assert len(cur_action_seq) <= len(solution), 'Action sequence is somehow longer than solution'
-        #     comparison = [solution[i] == cur_action_seq[i] for i in range(len(cur_action_seq))]
-        #     if all(comparison):
-        #         return True
-        # return False
 
     def determine_unique_partial_solution(self):
         cur_action_seq = self.get_current_action_seq()
@@ -864,16 +868,7 @@ class OpenLockEnv(gym.Env):
             return True
         else:
             return False
-
-    def get_current_action_seq(self):
-        return self.cur_trial.cur_attempt.action_seq
-
-    def get_completed_solutions(self):
-        return self.cur_trial.completed_solutions
-
-    def get_solutions(self):
-        return self.cur_trial.solutions
-
+            
     def _export_results(self):
         save_count = len(glob(self.save_path + 'results[0-9]*.csv'))
         np.savetxt(self.save_path + 'results{}.csv'.format(save_count), self.results, delimiter=',', fmt='%s')

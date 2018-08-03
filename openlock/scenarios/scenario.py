@@ -224,9 +224,9 @@ class Scenario(object):
         # bypass physics, action must be specified
         else:
             if action is not None:
-                self.execute_action(action)
+                self.execute_fsm_action(action)
 
-    def execute_action(self, action):
+    def execute_fsm_action(self, action):
         """
         Run FSM action (push/pull).
 
