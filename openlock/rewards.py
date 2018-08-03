@@ -4,7 +4,7 @@ import numpy as np
 
 class RewardStrategy(object):
 
-    def __init__(self ):
+    def __init__(self):
         self.REWARD_NONE = 0
         self.REWARD_CHANGE_OBS = 0.5
         self.REWARD_IMMOVABLE = -0.5
@@ -52,14 +52,12 @@ class RewardStrategy(object):
         #print self.counter, self.SOLUTION_MULTIPLIER
 
     def determine_reward(self, env, action, reward_mode):
-        # todo: this reward does not consider whether or not the action sequence has been finished before
-        # todo: success also has the same limitation
         reward = 0
         self.attempt_count += 1
         if self.attempt_count > env.attempt_limit*3:
-            self.counter = np.zeros(len(env.solutions))
+            self.counter = np.zeros(len(env.cur_trial.solutions))
             self.attempt_count = 0
-        self.determine_multiplier( env, action)
+        self.determine_multiplier(env, action)
         door_open = self.door_open(env, action)
         if reward_mode == 'basic':
             reward = self.reward_basic(env, action)
@@ -103,6 +101,20 @@ class RewardStrategy(object):
         else:
             return False
 
+    def door_unlocked_partial_action_seq(self, env):
+        '''
+        Determines if door was unlocked by this action, rather than a previous action
+        Will also return true if the door is open, so checking if door_open should happen before this check
+        This is the and of the door being unlocked and the current action seq being part of a full solution.
+        For circumstances with more complex structure, this may return true even though the previous action did not unlock the door
+        :param env: environment
+        :return: True or False depending on whether or not this action
+        '''
+        if self.door_unlocked(env) and env.determine_partial_solution():
+            return True
+        else:
+            return False
+
     def reward_basic(self, env, action):
         '''
         Give reward of REWARD_UNLOCK for unlocking the door
@@ -113,7 +125,7 @@ class RewardStrategy(object):
         if self.door_open(env, action):
             reward = self.REWARD_OPEN
         # door unlocked
-        elif self.door_unlocked(env):
+        elif self.door_unlocked_partial_action_seq(env):
             reward = self.REWARD_UNLOCK
         # door locked
         else:
@@ -131,7 +143,7 @@ class RewardStrategy(object):
         if self.door_open(env, action):
             reward = self.REWARD_OPEN
         # door unlocked
-        elif self.door_unlocked(env):
+        elif self.door_unlocked_partial_action_seq(env):
             reward = self.REWARD_UNLOCK
         # state change
         elif env.determine_fluent_change():

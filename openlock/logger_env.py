@@ -15,6 +15,7 @@ class ActionLog(object):
     start_time = None
     end_time = None
     name = None
+    reward = 0
 
     def __init__(self, name, start_time):
         """
@@ -51,7 +52,9 @@ class ActionLog(object):
         """
         return str(self)
 
-    def finish(self, end_time):
+    def finish(self, end_time=None):
+        if end_time is None:
+            end_time = time.time()
         self.end_time = end_time
 
 
@@ -77,7 +80,7 @@ class AttemptLog(object):
         """
         self.attempt_num = attempt_num
         self.start_time = start_time
-        self.reward = None
+        self.reward = 0
 
     def __eq__(self, other):
         """
@@ -121,12 +124,24 @@ class AttemptLog(object):
             t = time.time()
         self.cur_action.finish(t)
         self.results = results
+
         self.action_seq.append(copy.deepcopy(self.cur_action))
         action = copy.copy(self.cur_action)
+
         self.cur_action = None
         return action
 
-    def finish(self, success, results, end_time, reward):
+    def add_reward(self, reward):
+        '''
+        Add the reward to the last action. Action must have called ActionLog.finish() before computing reward
+        Because of this, we add/log the reward separately.
+        :param reward: reward received from the previously executed action
+        :return: Nothing
+        '''
+        self.reward += reward
+        self.action_seq[-1].reward = reward
+
+    def finish(self, success, results, end_time):
         """
         Finish the attempt.
 
@@ -140,7 +155,6 @@ class AttemptLog(object):
         self.success = success
         self.results = results
         self.end_time = end_time
-        self.reward = reward
 
     def pretty_str_results(self):
         """
@@ -203,7 +217,7 @@ class TrialLog(object):
         self.cur_attempt = AttemptLog(len(self.attempt_seq), time.time())
         self.cur_attempt.action_seq = []
 
-    def finish_attempt(self, results, reward):
+    def finish_attempt(self, results):
         """
         Mark the current attempt as finished.
 
@@ -219,7 +233,7 @@ class TrialLog(object):
         else:
             attempt_success = False
         self.solution_found.append(attempt_success)
-        self.cur_attempt.finish(attempt_success, results, time.time(), reward)
+        self.cur_attempt.finish(attempt_success, results, time.time())
         self.attempt_seq.append(copy.deepcopy(self.cur_attempt))
         self.success = len(self.solutions) == len(self.completed_solutions)
         self.cur_attempt = None

@@ -244,12 +244,14 @@ def get_trial(name, completed_trials=None):
 
 def select_random_trial(completed_trials, possible_trials):
     '''
-    sets a new random
+    sets a new random trial
     :param completed_trials: list of trials already selected
-    :param min: min value of trial index
-    :param max: max value of trial index
+    :param possible_trials: list of all trials possible
     :return:
     '''
+    if len(completed_trials) == len(possible_trials):
+        return None, None
+
     incomplete_trials = np.setdiff1d(possible_trials, completed_trials)
     rand_trial_idx = np.random.randint(0, len(incomplete_trials))
     trial = incomplete_trials[rand_trial_idx]
