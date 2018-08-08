@@ -13,3 +13,4 @@ matplotlib
 zmq
 texttable
 sphinx
+seaborn

@@ -115,8 +115,8 @@ class ObservationSpace:
         world_state = env.world_def.get_state()
 
         # need one element for state and color of each lock, need two addition for door lock status and door status
-        self.state = [None] * (self.num_levers * 2 + 2)
-        self.state_labels = [None] * (self.num_levers * 2 + 2)
+        state = [None] * (self.num_levers * 2 + 2)
+        state_labels = [None] * (self.num_levers * 2 + 2)
 
         for lever in levers:
             # convert to index based on lever position
@@ -125,22 +125,22 @@ class ObservationSpace:
             lever_state = np.int8(world_state['OBJ_STATES'][lever.name])
             lever_active = np.int8(lever.determine_active())
 
-            self.state_labels[lever_idx] = lever.name
-            self.state[lever_idx] = lever_state
-            self.state_labels[lever_idx + self.num_levers] = lever.name + '_active'
-            self.state[lever_idx + self.num_levers] = lever_active
+            state_labels[lever_idx] = lever.name
+            state[lever_idx] = lever_state
+            state_labels[lever_idx + self.num_levers] = lever.name + '_active'
+            state[lever_idx + self.num_levers] = lever_active
 
-        self.state_labels[-1] = 'door'
-        self.state[-1] = np.int8(world_state['OBJ_STATES']['door'])
-        self.state_labels[-2] = 'door_lock'
-        self.state[-2] = np.int8(world_state['OBJ_STATES']['door_lock'])
+        state_labels[-1] = 'door'
+        state[-1] = np.int8(world_state['OBJ_STATES']['door'])
+        state_labels[-2] = 'door_lock'
+        state[-2] = np.int8(world_state['OBJ_STATES']['door_lock'])
 
         if self.append_solutions_remaining:
             slns_found, sln_labels = self.determine_solutions_remaining(env)
-            self.state.extend(slns_found)
-            self.state_labels.extend(sln_labels)
+            state.extend(slns_found)
+            state_labels.extend(sln_labels)
 
-        return self.state, self.state_labels
+        return state, state_labels
 
     def create_discrete_observation_from_fsm(self, env):
         '''
@@ -154,8 +154,8 @@ class ObservationSpace:
         scenario_state = env.scenario.get_state()
 
         # need one element for state and color of each lock, need two addition for door lock status and door status
-        self.state = [None] * (self.num_levers * 2 + 2)
-        self.state_labels = [None] * (self.num_levers * 2 + 2)
+        state = [None] * (self.num_levers * 2 + 2)
+        state_labels = [None] * (self.num_levers * 2 + 2)
 
         inactive_lock_regex = '^inactive[0-9]+$'
 
@@ -171,11 +171,11 @@ class ObservationSpace:
 
             lever_state = np.int8(scenario_state['OBJ_STATES'][lever.name])
 
-            self.state_labels[lever_idx] = lever.name
-            self.state[lever_idx] = lever_state
+            state_labels[lever_idx] = lever.name
+            state[lever_idx] = lever_state
 
-            self.state_labels[lever_idx + self.num_levers] = lever.name + '_active'
-            self.state[lever_idx + self.num_levers] = lever_active
+            state_labels[lever_idx + self.num_levers] = lever.name + '_active'
+            state[lever_idx + self.num_levers] = lever_active
 
         # update door state
         door_lock_name = 'door_lock'
@@ -185,17 +185,17 @@ class ObservationSpace:
         door_name = 'door'
         door_state = np.int8(scenario_state['OBJ_STATES'][door_name])
 
-        self.state_labels[-1] = door_name
-        self.state[-1] = door_state
-        self.state_labels[-2] = door_lock_name
-        self.state[-2] = door_lock_state
+        state_labels[-1] = door_name
+        state[-1] = door_state
+        state_labels[-2] = door_lock_name
+        state[-2] = door_lock_state
 
         if self.append_solutions_remaining:
             slns_found, sln_labels = self.determine_solutions_remaining(env)
-            self.state.extend(slns_found)
-            self.state_labels.extend(sln_labels)
+            state.extend(slns_found)
+            state_labels.extend(sln_labels)
 
-        return self.state, self.state_labels
+        return state, state_labels
 
     def determine_solutions_remaining(self, cur_trial):
         # todo: this is hardcored to scenarios with a max of 3 solutions
@@ -368,6 +368,7 @@ class OpenLockEnv(gym.Env):
             attempt_success = False
             trial_success = False
             reward = None
+            done = False
             observable_action = self._create_pre_obs_entry(action)
             if observable_action:
                 # ack is used by manager to determine if the action needs to be logged in the agent's logger
@@ -390,25 +391,21 @@ class OpenLockEnv(gym.Env):
             if observable_action:
                 reward = self.finish_action(action)
 
-                if 10 < self.cur_trial.cur_attempt.reward < 50:
-                    print('reward is 20...')
-                    reward, _ = self.reward_strategy.determine_reward(self, action, self.reward_mode)
+                # if 10 < self.cur_trial.cur_attempt.reward < 50:
+                #     print('reward is 20...')
+                #     reward, _ = self.reward_strategy.determine_reward(self, action, self.reward_mode)
 
-            if self.action_count >= self.action_limit:
-                reset = True
-                self.finish_attempt()
+            if self.determine_attempt_finished():
+                done = True
 
             # stores whether or not all solutions found in this trial
             trial_success = self.cur_trial.success
-
-            # update state machine in case there was a reset
-            self.update_state_machine()
 
             discrete_state, discrete_labels = self._create_discrete_state()
 
             self.action_executing = False
 
-            return np.array(discrete_state), reward, reset, {'action_success': action_success, 'attempt_success': attempt_success, 'trial_success': trial_success, 'results': self.results, 'state_labels': discrete_labels}
+            return np.array(discrete_state), reward, done, {'action_success': action_success, 'attempt_success': attempt_success, 'trial_success': trial_success, 'results': self.results, 'state_labels': discrete_labels}
         else:
             self.state = self.get_state()
             self.update_state_machine()
@@ -524,9 +521,7 @@ class OpenLockEnv(gym.Env):
         if not multithreaded:
             print("INFO: New trial. There are {} unique solutions remaining.".format(len(self.scenario.solutions)))
 
-        state = self.reset()
-
-        return state, trial_selected
+        return trial_selected
 
     def finish_trial(self, trial_selected):
         self.completed_trials.append(trial_selected)
@@ -547,8 +542,8 @@ class OpenLockEnv(gym.Env):
                 self.render()
             self.update_state_machine()
 
-        # reset
-        self.state = self.reset()
+        # reset (xxx: this shouldn't happen here, reset should happen after step(), so next_state is set properly
+        # self.state = self.reset()
         self.cur_trial.add_attempt()
 
     def finish_action(self, action):
@@ -786,7 +781,13 @@ class OpenLockEnv(gym.Env):
 
     def get_solutions(self):
         return self.cur_trial.solutions
-        
+
+    def determine_attempt_finished(self):
+        if self.action_count >= self.action_limit:
+            return True
+        else:
+            return False
+
     def determine_door_seq(self):
         # we want the last action to always be push the door, the agent will be punished if the last action is not push the door.
         cur_action_seq = self.get_current_action_seq()

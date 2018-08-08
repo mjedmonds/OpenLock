@@ -237,12 +237,12 @@ class ArmLockDef(object):
 
         self.obj_map['door_right_button'] = common.Button(world_def=self, config=door_config, color=common.COLORS['static'], name='door_right_button', height=1.5, width=1.5, x_offset=3, y_offset=3)
         # uncommend below to re-enable pulling on door
-        # self.obj_map['door_left_button'] = common.Button(world_def=self, config=door_config, color=common.COLORS['static'], name='door_left_button', height=1.5, width=1.5, x_offset=-3, y_offset=10)
+        # self.obj_map['door_left_button'] = common.py.Button(world_def=self, config=door_config, color=common.py.COLORS['static'], name='door_left_button', height=1.5, width=1.5, x_offset=-3, y_offset=10)
 
         # reset/save buttons
-        # button_config = common.TwoDConfig(-25, -27, -np.pi / 2)
-        # self.obj_map['save_button'] = common.Button(world_def=self, config=button_config, color=common.COLORS['save_button'], name='save_button', height=1.5, width=3)
-        # self.obj_map['reset_button'] = common.Button(world_def=self, config=button_config, color=common.COLORS['reset_button'], name='reset_button', height=1.5, width=3, x_offset=7)
+        # button_config = common.py.TwoDConfig(-25, -27, -np.pi / 2)
+        # self.obj_map['save_button'] = common.py.Button(world_def=self, config=button_config, color=common.py.COLORS['save_button'], name='save_button', height=1.5, width=3)
+        # self.obj_map['reset_button'] = common.py.Button(world_def=self, config=button_config, color=common.py.COLORS['reset_button'], name='reset_button', height=1.5, width=3, x_offset=7)
 
         # TODO: this is a bit of a hack to pass self to init_scenario_env, but there isn't a clean
         # TODO: to have dual references during intialization
