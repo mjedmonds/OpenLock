@@ -508,7 +508,7 @@ class OpenLockEnv(gym.Env):
                 if not multithreaded:
                     print('WARNING: no more trials available. Resetting completed_trials.')
                     print(self.completed_trials)
-                # self.completed_trials = []
+                self.completed_trials = []
                 trial_selected, lever_configs = get_trial(scenario_name, self.completed_trials)
         else:
             trial_selected, lever_configs = select_trial(specified_trial)

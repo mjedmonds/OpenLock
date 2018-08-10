@@ -81,7 +81,7 @@ class RewardStrategy(object):
             reward = self.reward_negative_immovable_partial_seq_solution_multiplier(env, action)
         elif reward_mode == 'negative_change_state_partial_action_seq_solution_multiplier':
             reward = self.reward_negative_change_state_partial_seq_solution_multiplier(env, action)
-        elif reward_mode == 'reward_negative_change_state_partial_seq_solution_multiplier_door_seq':
+        elif reward_mode == 'negative_change_state_partial_seq_solution_multiplier_door_seq':
             reward = self.reward_negative_change_state_partial_seq_solution_multiplier_door_seq(env, action)
         else:
             raise ValueError(str('Unknown reward function mode: %s'.format(reward_mode)))

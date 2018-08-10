@@ -216,6 +216,7 @@ class TrialLog(object):
         """
         self.cur_attempt = AttemptLog(len(self.attempt_seq), time.time())
         self.cur_attempt.action_seq = []
+        self.cur_attempt.results = []
 
     def finish_attempt(self, results):
         """
