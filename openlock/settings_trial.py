@@ -90,6 +90,7 @@ PARAMS = {
     }
 }
 
+# maps arbitrary indices to parameter settings strings
 IDX_TO_PARAMS = [
     'CE3-CE4',
     'CE3-CC4',
@@ -99,14 +100,37 @@ IDX_TO_PARAMS = [
     'CC4'
 ]
 
+# mapping from 2dconfigs to position indices
 CONFIG_TO_IDX = {
     UPPERRIGHT: 0,
-    UPPER: 1,
-    UPPERLEFT: 2,
-    LEFT: 3,
-    LOWERLEFT: 4,
-    LOWER: 5,
+    UPPER:      1,
+    UPPERLEFT:  2,
+    LEFT:       3,
+    LOWERLEFT:  4,
+    LOWER:      5,
     LOWERRIGHT: 6
+}
+
+# mapping from position indices to position names
+IDX_TO_POSITION = {
+    0: 'UPPERRIGHT',
+    1: 'UPPER',
+    2: 'UPPERLEFT',
+    3: 'LEFT',
+    4: 'LOWERLEFT',
+    5: 'LOWER',
+    6: 'LOWERRIGHT',
+}
+
+# mapping from position names to position indices
+POSITION_TO_IDX = {
+    'UPPERRIGHT':   0,
+    'UPPER':        1,
+    'UPPERLEFT':    2,
+    'LEFT':         3,
+    'LOWERLEFT':    4,
+    'LOWER':        5,
+    'LOWERRIGHT':   6,
 }
 
 LEVER_CONFIGS = {
