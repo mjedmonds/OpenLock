@@ -248,6 +248,7 @@ class Lever(Object):
         else:
             raise ValueError('Expected lever to be active or inactive, different color set')
 
+
 class Door(Object):
     # def __init__(self, door_fixture, door_joint, int_test, ext_test, name):
     def __init__(self, world_def, name, config, color):
