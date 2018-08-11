@@ -397,6 +397,7 @@ class OpenLockEnv(gym.Env):
 
             if self.determine_attempt_finished():
                 done = True
+                attempt_success = self.determine_unique_solution()
 
             # stores whether or not all solutions found in this trial
             trial_success = self.cur_trial.success
