@@ -5,7 +5,7 @@ import re
 import numpy as np
 
 import openlock.common as common
-from openlock.settings_trial import UPPER, LEFT, LOWER, UPPERLEFT, UPPERRIGHT, LOWERLEFT, LOWERRIGHT, CONFIG_TO_IDX, NUM_LEVERS, LEVER_CONFIGS
+from openlock.settings_trial import CONFIG_TO_IDX, NUM_LEVERS, LEVER_CONFIGS
 
 
 class Scenario(object):
@@ -39,7 +39,7 @@ class Scenario(object):
 
         num_inactive = 0        # give inactive levers a unique name
         for lever_config in self.lever_configs:
-            two_d_config, role, opt_params = lever_config
+            position, role, opt_params = lever_config
             # give unique names to every inactive
             if role == 'inactive':
                 role = 'inactive{}'.format(num_inactive)
@@ -49,7 +49,7 @@ class Scenario(object):
                 color = common.COLORS['active']
 
             # world_def will be initialized with init_scenario_env
-            lever = common.Lever(role, two_d_config, color, opt_params)
+            lever = common.Lever(role, position, color, opt_params)
             self.levers.append(lever)
 
     def add_no_ops(self, lock, pushed, pulled):
@@ -302,9 +302,9 @@ class Scenario(object):
 
             for lever in self.levers:
                 if lever.opt_params:
-                    lever.create_lever(self.world_def, lever.config, **lever.opt_params)
+                    lever.create_lever(self.world_def, lever.position, **lever.opt_params)
                 else:
-                    lever.create_lever(self.world_def, lever.config)
+                    lever.create_lever(self.world_def, lever.position)
                 self.world_def.obj_map[lever.name] = lever
             self.obj_map = self.world_def.obj_map
         # bypassing physics, obj_map consists of door and levers

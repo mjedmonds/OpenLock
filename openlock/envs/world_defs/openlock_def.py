@@ -232,11 +232,14 @@ class ArmLockDef(object):
         # TODO: better setup interface
 
         door_config = common.TwoDConfig(18, 5, -np.pi / 2)
-        self.door = common.Door(self, 'door', door_config, color=common.COLORS['active'])
+        door_position = common.ObjectPosition(door_config, 'door')
+        self.door = common.Door(self, 'door', door_position, color=common.COLORS['active'])
         self.obj_map['door'] = self.door
 
-        self.obj_map['door_right_button'] = common.Button(world_def=self, config=door_config, color=common.COLORS['static'], name='door_right_button', height=1.5, width=1.5, x_offset=3, y_offset=3)
-        # uncommend below to re-enable pulling on door
+        door_right_button_config = door_config
+        door_right_button_position = common.ObjectPosition(door_right_button_config, 'door_right_button')
+        self.obj_map['door_right_button'] = common.Button(world_def=self, position=door_right_button_position, color=common.COLORS['static'], name='door_right_button', height=1.5, width=1.5, x_offset=3, y_offset=3)
+        # uncomment below to re-enable pulling on door
         # self.obj_map['door_left_button'] = common.py.Button(world_def=self, config=door_config, color=common.py.COLORS['static'], name='door_left_button', height=1.5, width=1.5, x_offset=-3, y_offset=10)
 
         # reset/save buttons
