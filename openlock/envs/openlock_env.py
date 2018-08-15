@@ -29,36 +29,58 @@ class ActionSpace:
         pass
 
     @staticmethod
-    def create_action_space(obj_map):
+    def create_action_space(obj_map, lever_index_mode='role'):
         # this must be preallocated; they are filled by position, not by symbol
         push_action_space = [None] * NUM_LEVERS
         pull_action_space = [None] * NUM_LEVERS
         door_action_space = []
         action_map = dict()
+        action_map_external_role = dict()
+        action_map_internal_role = dict()
         for obj, val in list(obj_map.items()):
             if 'button' not in obj and 'door' not in obj:
+                if lever_index_mode == 'position':
+                    name = val.position.name
+                else:
+                    name = obj
+                role = obj
                 # use position to map to an integer index
-                twod_config = val.config
+                twod_config = val.position.config
                 lever_idx = CONFIG_TO_IDX[twod_config]
 
-                push = 'push_{}'.format(obj)
-                pull = 'pull_{}'.format(obj)
+                # todo: refactor this, three mappings is complicated
+                push = 'push_{}'.format(name)
+                pull = 'pull_{}'.format(name)
 
                 push_action_space[lever_idx] = push
                 pull_action_space[lever_idx] = pull
 
-                action_map[push] = common.Action('push', obj, 4)
-                action_map[pull] = common.Action('pull', obj, 4)
+                action_map[push] = common.Action('push', name, 4)
+                action_map[pull] = common.Action('pull', name, 4)
+
+                # role based mapping from external names to internal
+                action_map_external_role[push] = common.Action('push', role, 4)
+                action_map_external_role[pull] = common.Action('pull', role, 4)
+
+                # interal role based mapping
+                push = 'push_{}'.format(role)
+                pull = 'pull_{}'.format(role)
+
+                action_map_internal_role[push] = common.Action('push', role, 4)
+                action_map_internal_role[pull] = common.Action('pull', role, 4)
+
             if 'button' not in obj and 'door' in obj:
                 push = 'push_{}'.format(obj)
 
                 door_action_space.append(push)
 
                 action_map[push] = common.Action('push', obj, 4)
+                action_map_external_role[push] = common.Action('push', obj, 4)
+                action_map_internal_role[push] = common.Action('push', obj, 4)
 
         action_space = push_action_space + pull_action_space + door_action_space
 
-        return action_space, action_map
+        return action_space, action_map, action_map_external_role, action_map_internal_role
 
 
 class ObservationSpace:
@@ -75,7 +97,7 @@ class ObservationSpace:
         self.num_levers = num_levers
         self.state = None
         self.state_labels = None
-
+        self.external_to_role_mapping = None
 
     @property
     def shape(self):
@@ -104,6 +126,36 @@ class ObservationSpace:
         multi_discrete = MultiDiscrete(discrete_space)
         return multi_discrete
 
+    def create_interal_state_to_external_state_mapping(self, env):
+        # todo: refactor this into a more coherent state/action conversion
+        external_to_internal_action_map = env.action_map_external_role
+        internal_state_external_state_mapping = dict()
+        for external_action_name, internal_action in external_to_internal_action_map.items():
+            external_state_name = external_action_name.split('_', 1)[1]
+            internal_state_name = internal_action.obj
+            internal_state_external_state_mapping[internal_state_name] = external_state_name
+        return internal_state_external_state_mapping
+
+    def create_discrete_observation(self, env):
+        # create mapping from internal simulator state to external state
+        if self.external_to_role_mapping is None:
+            self.external_to_role_mapping = self.create_interal_state_to_external_state_mapping(env)
+        if env.use_physics:
+            discrete_state, discrete_labels = self.create_discrete_observation_from_simulator(env)
+        else:
+            discrete_state, discrete_labels = self.create_discrete_observation_from_fsm(env)
+        # convert internal state labels to external labels
+        # todo: refactor this, this is a very brittle way of doing this mapping
+        for i in range(len(discrete_labels)):
+            if discrete_labels[i] in self.external_to_role_mapping.keys():
+                discrete_labels[i] = self.external_to_role_mapping[discrete_labels[i]]
+            if discrete_labels[i].endswith('_active'):
+                base_label = discrete_labels[i].split('_',1)[0]
+                if base_label in self.external_to_role_mapping.keys():
+                    base_label = self.external_to_role_mapping[base_label]
+                discrete_labels[i] = base_label + '_active'
+        return discrete_state, discrete_labels
+
     def create_discrete_observation_from_simulator(self, env):
         '''
         Constructs a discrete observation from the physics simulator
@@ -120,7 +172,7 @@ class ObservationSpace:
 
         for lever in levers:
             # convert to index based on lever position
-            lever_idx = CONFIG_TO_IDX[lever.config]
+            lever_idx = CONFIG_TO_IDX[lever.position.config]
 
             lever_state = np.int8(world_state['OBJ_STATES'][lever.name])
             lever_active = np.int8(lever.determine_active())
@@ -161,7 +213,7 @@ class ObservationSpace:
 
         # lever states
         for lever in levers:
-            lever_idx = CONFIG_TO_IDX[lever.config]
+            lever_idx = CONFIG_TO_IDX[lever.position.config]
 
             # inactive lever, state is constant
             if re.search(inactive_lock_regex, lever.name):
@@ -239,9 +291,12 @@ class OpenLockEnv(gym.Env):
         self.human_agent = True
         self.reward_mode = 'basic'
 
+        self.lever_index_mode = 'role'    # controls whether or not to build action_map based on lever role or position
         self.observation_space = None
         self.action_space = None
         self.action_map = None
+        self.action_map_external_role = None       # internal action map to go from external to internal latent action
+        self.action_map_internal_role = None       # internal action map to go from internal to internal latent action
 
         self.reward_strategy = RewardStrategy()
         self.reward_range = (self.reward_strategy.REWARD_IMMOVABLE, self.reward_strategy.REWARD_OPEN)
@@ -289,7 +344,7 @@ class OpenLockEnv(gym.Env):
             obj_map['door'] = 'door'
             levers = self.scenario.levers
 
-        self.action_space, self.action_map = ActionSpace.create_action_space(obj_map)
+        self.action_space, self.action_map, self.action_map_external_role, self.action_map_internal_role = ActionSpace.create_action_space(obj_map, self.lever_index_mode)
         self.observation_space = ObservationSpace(len(levers))
 
         # reset results (must be after world_def exists and action space has been created)
@@ -316,15 +371,12 @@ class OpenLockEnv(gym.Env):
         self.state = self.get_state()
         # append initial observation
         # self._print_observation(state, self.action_count)
-        self._append_result(self._create_state_entry(self.state, self.action_count))
+        self._append_result(self._create_state_entry())
         
         self.update_state_machine()
 
         if self.observation_space is not None:
-            if self.use_physics:
-                discrete_state, discrete_labels = self.observation_space.create_discrete_observation_from_simulator(self)
-            else:
-                discrete_state, discrete_labels = self.observation_space.create_discrete_observation_from_fsm(self)
+            discrete_state, discrete_labels = self.observation_space.create_discrete_observation(self)
             return np.array(discrete_state)
         else:
             raise ValueError('Attempting to reset environment with no observation space. Cannot return state.')
@@ -374,17 +426,22 @@ class OpenLockEnv(gym.Env):
                 # ack is used by manager to determine if the action needs to be logged in the agent's logger
                 self.cur_trial.cur_attempt.add_action(str(action))
 
+            # convert external action to internal action
+            if str(action) in self.action_map_external_role.keys():
+                action_role = self.action_map_external_role[str(action)]
+            else:
+                action_role = action
             # execute action
             if self.use_physics:
-                action_success = self._execute_physics_action(action)
+                action_success = self._execute_physics_action(action_role)
             else:
                 action_success = True
-                self.scenario.execute_fsm_action(action)
+                self.scenario.execute_fsm_action(action_role)
 
             self.i += 1
 
             # update state machine after executing a action
-            self.update_state_machine(action)
+            self.update_state_machine(action_role)
             self.state = self.get_state()
             self.state['SUCCESS'] = action_success
 
@@ -551,7 +608,7 @@ class OpenLockEnv(gym.Env):
         self.action_count += 1
 
         # self._print_observation(self.state, self.action_count)
-        self._append_result(self._create_state_entry(self.state, self.action_count))
+        self._append_result(self._create_state_entry())
         # self.results.append(self._create_state_entry(self.state, self.action_count))
 
         # must finish action before computing reward
@@ -564,17 +621,30 @@ class OpenLockEnv(gym.Env):
 
         return reward
 
-    def _create_discrete_state(self):
-        if self.use_physics:
-            discrete_state, discrete_labels = self.observation_space.create_discrete_observation_from_simulator(self)
-        else:
-            discrete_state, discrete_labels = self.observation_space.create_discrete_observation_from_fsm(self)
-        return discrete_state, discrete_labels
+    def _reset_results(self):
+        # setup .csv headers
+        self.col_label = []
+        self.col_label.append('frame')
+        discrete_states, discrete_labels = self._create_discrete_state()
+        for col_name in discrete_labels:
+            self.col_label.append(col_name)
+        self.col_label.append('agent')
+        for col_name in self.action_space:
+            self.col_label.append(col_name)
 
-    def _create_state_entry(self, state, frame):
+        self.index_map = {name : idx for idx, name in enumerate(self.col_label)}
+
+        self.results = [self.col_label]
+
+    def _create_discrete_state(self):
+        return self.observation_space.create_discrete_observation(self)
+
+    def _create_state_entry(self):
+        frame = self.action_count
+        discrete_state, discrete_labels = self._create_discrete_state()
         entry = [0] * len(self.col_label)
         entry[0] = frame
-        for name, val in list(state['OBJ_STATES'].items()):
+        for name, val in zip(discrete_labels, discrete_state):
             entry[self.index_map[name]] = int(val)
 
         return entry
@@ -666,19 +736,6 @@ class OpenLockEnv(gym.Env):
         # else:
         #     self.results.append(cur_result)
 
-    def _reset_results(self):
-        # setup .csv headers
-        self.col_label = []
-        self.col_label.append('frame')
-        for col_name in self.get_state()['OBJ_STATES']:
-            self.col_label.append(col_name)
-        self.col_label.append('agent')
-        for col_name in self.action_space:
-            self.col_label.append(col_name)
-
-        self.index_map = {name : idx for idx, name in enumerate(self.col_label)}
-
-        self.results = [self.col_label]
 
     def _create_clickable_regions(self):
         lock_regex = '^l[0-9]+'
@@ -688,7 +745,7 @@ class OpenLockEnv(gym.Env):
             if re.search(lock_regex, b2_object_name) or re.search(inactive_lock_regex, b2_object_name):
                 lock = b2_object_data
 
-                lock.create_clickable(self.step, self.action_map)
+                lock.create_clickable(self.step, self.action_map_internal_role)
                 self.viewer.register_clickable_region(lock.inner_clickable)
                 self.viewer.register_clickable_region(lock.outer_clickable)
                 # lock inactive levers
@@ -697,23 +754,23 @@ class OpenLockEnv(gym.Env):
             elif b2_object_name == 'door_right_button':
                 door_button = b2_object_data
                 callback_action = 'push_door'
-                door_button.create_clickable(self.step, self.action_map, self.action_map[callback_action])
+                door_button.create_clickable(self.step, self.action_map_internal_role, self.action_map_internal_role[callback_action])
                 self.viewer.register_clickable_region(door_button.clickable)
             elif b2_object_name == 'door_left_button':
                 door_button = b2_object_data
                 callback_action = 'pull_door'
-                door_button.create_clickable(self.step, self.action_map, self.action_map[callback_action])
+                door_button.create_clickable(self.step, self.action_map_internal_role, self.action_map_internal_role[callback_action])
                 self.viewer.register_clickable_region(door_button.clickable)
             elif b2_object_name == 'reset_button':
                 reset_button = b2_object_data
                 callback_action = 'reset'
-                reset_button.create_clickable(self.step, self.action_map,
+                reset_button.create_clickable(self.step, self.action_map_internal_role,
                                               common.Action(callback_action, (reset_button, 4)))
                 self.viewer.register_clickable_region(reset_button.clickable)
             elif b2_object_name == 'save_button':
                 save_button = b2_object_data
                 callback_action = 'save'
-                save_button.create_clickable(self.step, self.action_map,
+                save_button.create_clickable(self.step, self.action_map_internal_role,
                                              common.Action(callback_action, (save_button, 4)))
                 self.viewer.register_clickable_region(save_button.clickable)
 
