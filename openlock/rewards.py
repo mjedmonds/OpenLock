@@ -67,10 +67,10 @@ class RewardStrategy(object):
             reward = self.reward_unique_solution(env, action)
         elif reward_mode == 'change_state_unique_solutions':
             reward = self.reward_change_state_unique_solution(env, action)
-        elif reward_mode == 'negative_immovable_unique_solutions':
-            reward = self.reward_negative_immovable_unique_solutions(env, action)
         elif reward_mode == 'negative_immovable':
             reward = self.reward_negative_immovable(env, action)
+        elif reward_mode == 'negative_immovable_unique_solutions':
+            reward = self.reward_negative_immovable_unique_solutions(env, action)
         elif reward_mode == 'negative_immovable_partial_action_seq':
             reward = self.reward_negative_immovable_partial_seq(env, action)
         elif reward_mode == 'negative_immovable_negative_repeat':
@@ -79,10 +79,8 @@ class RewardStrategy(object):
             reward = self.reward_negative_immovable_solution_multiplier(env, action)
         elif reward_mode == 'negative_immovable_partial_action_seq_solution_multiplier':
             reward = self.reward_negative_immovable_partial_seq_solution_multiplier(env, action)
-        elif reward_mode == 'negative_change_state_partial_action_seq_solution_multiplier':
-            reward = self.reward_negative_change_state_partial_seq_solution_multiplier(env, action)
-        elif reward_mode == 'negative_change_state_partial_seq_solution_multiplier_door_seq':
-            reward = self.reward_negative_change_state_partial_seq_solution_multiplier_door_seq(env, action)
+        elif reward_mode == 'negative_immovable_partial_action_seq_solution_multiplier_door_seq':
+            reward = self.reward_negative_immovable_partial_seq_solution_multiplier_door_seq(env, action)
         else:
             raise ValueError(str('Unknown reward function mode: %s'.format(reward_mode)))
 
@@ -117,8 +115,8 @@ class RewardStrategy(object):
 
     def reward_basic(self, env, action):
         '''
-        Give reward of REWARD_UNLOCK for unlocking the door
         Give reward of REWARD_OPEN for opening the door
+        Give reward of REWARD_UNLOCK for unlocking the door
         Give reward of REWARD_NONE for anything else
         '''
         # door unlocked and pushed on door
@@ -134,8 +132,8 @@ class RewardStrategy(object):
 
     def reward_change_state(self,env, action):
         '''
-        Give reward of REWARD_UNLOCK for unlocking the door
         Give reward of REWARD_OPEN for opening the door
+        Give reward of REWARD_UNLOCK for unlocking the door
         Give reward of REWARD_CHANGE_OBS for changing the observation state
         Give reward of REWARD_NONE for anything else
         '''
@@ -155,9 +153,8 @@ class RewardStrategy(object):
 
     def reward_unique_solution(self, env, action):
         '''
-        Give reward of REWARD_UNLOCK for unlocking the door with a new action sequence
         Give reward of REWARD_OPEN for opening the door with a new action sequence
-        Give reward of REWARD_CHANGE_OBS for changing the observation state
+        Give reward of REWARD_UNLOCK for unlocking the door with a new action sequence
         Give reward of REWARD_NONE for anything else
         '''
         unique_seq = env.determine_unique_solution() or env.determine_unique_partial_solution()
@@ -174,8 +171,8 @@ class RewardStrategy(object):
 
     def reward_change_state_unique_solution(self, env, action):
         '''
-        Give reward of REWARD_UNLOCK for unlocking the door with a new action sequence
         Give reward of REWARD_OPEN for opening the door with a new action sequence
+        Give reward of REWARD_UNLOCK for unlocking the door with a new action sequence
         Give reward of REWARD_CHANGE_OBS for changing the observation state
         Give reward of REWARD_NONE for anything else
         '''
@@ -194,11 +191,11 @@ class RewardStrategy(object):
             reward = self.REWARD_NONE
         return reward
 
-    def reward_negative_immovable_unique_solutions(self,env, action):
+    def reward_negative_immovable_unique_solutions(self, env, action):
         '''
-        Give reward of REWARD_UNLOCK for unlocking the door with a new action sequence
         Give reward of REWARD_OPEN for opening the door with a new action sequence
-        Give reward of REWARD_IMMOVABLE for interacting with a lever that cannot move
+        Give reward of REWARD_UNLOCK for unlocking the door with a new action sequence
+        Give reward of REWARD_IMMOVABLE for not changing the observation state
         Give reward of REWARD_NONE for anything else
         '''
         unique_seq = env.determine_unique_solution() or env.determine_unique_partial_solution()
@@ -209,40 +206,18 @@ class RewardStrategy(object):
         elif self.door_unlocked_partial_action_seq(env) and unique_seq:
             reward = self.REWARD_UNLOCK
         # determine if movable
-        elif action.obj is not 'door' and not env.determine_moveable_action(action):
+        elif not env.determine_fluent_change():
             reward = self.REWARD_IMMOVABLE
         # door locked, no state change
         else:
             reward = self.REWARD_NONE
         return reward
 
-    def reward_negative_immovable(self,env, action):
+    def reward_negative_immovable(self, env, action):
         '''
-        Give reward of REWARD_UNLOCK for unlocking the door with a new action sequence
-        Give reward of REWARD_OPEN for opening the door with a new action sequence
-        Give reward of REWARD_IMMOVABLE for interacting with a lever that cannot move
-        Give reward of REWARD_NONE for anything else
-        '''
-        # door locked, state change
-        if self.door_open(env, action):
-            reward = self.REWARD_OPEN
-        # door unlocked
-        elif self.door_unlocked_partial_action_seq(env):
-            reward = self.REWARD_UNLOCK
-        # determine if movable
-        elif action.obj is not 'door' and not env.determine_moveable_action(action):
-            reward = self.REWARD_IMMOVABLE
-        # door locked, no state change
-        else:
-            reward = self.REWARD_NONE
-        return reward
-
-    def reward_negative_immovable_partial_seq(self , env, action):
-        '''
-        Give reward of REWARD_UNLOCK for unlocking the door with a new action sequence
-        Give reward of REWARD_OPEN for opening the door with a new action sequence
-        Give reward of REWARD_IMMOVABLE for interacting with a lever that cannot move
-        Give reward of REWARD_PARTIAL_SEQ for any partial subsequence
+        Give reward of REWARD_OPEN for opening the door
+        Give reward of REWARD_UNLOCK for unlocking the door
+        Give reward of REWARD_IMMOVABLE for not changing the observation state
         Give reward of REWARD_NONE for anything else
         '''
         # door locked, state change
@@ -251,145 +226,25 @@ class RewardStrategy(object):
         # door unlocked
         elif self.door_unlocked_partial_action_seq(env):
             reward = self.REWARD_UNLOCK
-        # determine if partial subsequence of a solution action seq
-        elif env.determine_partial_solution():
-            reward = self.REWARD_PARTIAL_SEQ
         # determine if movable
-        elif action.obj is not 'door' and not env.determine_moveable_action(action):
+        elif not env.determine_fluent_change():
             reward = self.REWARD_IMMOVABLE
         # door locked, no state change
         else:
             reward = self.REWARD_NONE
         return reward
 
-    def reward_negative_immovable_negative_repeat(self, env, action):
+    def reward_negative_immovable_partial_seq(self, env, action):
         '''
-        Give reward of REWARD_UNLOCK for unlocking the door with a new action sequence
-        Give reward of REWARD_OPEN for opening the door with a new action sequence
-        Give reward of REWARD_IMMOVABLE for interacting with a lever that cannot move
+        Give reward of REWARD_OPEN for opening the door with
+        Give reward of REWARD_UNLOCK for unlocking the door
         Give reward of REWARD_PARTIAL_SEQ for any partial subsequence
+        Give reward of REWARD_IMMOVABLE for not changing the observation state
         Give reward of REWARD_NONE for anything else
         '''
         # door locked, state change
         if self.door_open(env, action):
             reward = self.REWARD_OPEN
-        # door unlocked
-        elif self.door_unlocked_partial_action_seq(env):
-            reward = self.REWARD_UNLOCK
-        # determine if partial subsequence of a solution action seq
-        elif env.determine_repeated_action():
-            reward = self.REWARD_REPEATED_ACTION
-        # determine if movable
-        elif action.obj is not 'door' and not env.determine_moveable_action(action):
-            reward = self.REWARD_IMMOVABLE
-        # door locked, no state change
-        else:
-            reward = self.REWARD_NONE
-        return reward
-
-    def reward_negative_immovable_solution_multiplier(self, env, action):
-        '''
-        Give reward of REWARD_UNLOCK for unlocking the door with a new action sequence
-        Give reward of REWARD_OPEN for opening the door with a new action sequence
-        Give reward of REWARD_IMMOVABLE for interacting with a lever that cannot move
-        Give reward of REWARD_NONE for anything else
-
-        Each new, unique solution found is multiplied by 1.5x the previous multiplier.
-        The multiplier starts at 1. For instance, the reward for finding the first unique
-        solution would be REWARD_OPEN, but the reward for finding the section unique solution
-        would be 1.5 * REWARD_OPEN, the third 1.5 * 1.5 * REWARD_OPEN. This encourages the
-        agent to find unique solutions without penalizing for finding repeated solutions
-        '''
-        num_solutions_found = len(env.get_completed_solutions())
-        multiplier = max(1, 1 * self.SOLUTION_MULTIPLIER * num_solutions_found)
-        unique_seq = env.determine_unique_solution() or env.determine_unique_partial_solution()
-        # door unlocked
-        if self.door_open(env, action) and unique_seq:
-            reward = self.REWARD_OPEN * multiplier
-        # door unlocked
-        elif self.door_open(env, action):
-            reward = self.REWARD_OPEN
-        # door unlocked
-        elif self.door_unlocked_partial_action_seq(env) and unique_seq:
-            reward = self.REWARD_UNLOCK * multiplier
-        # door unlocked
-        elif self.door_unlocked_partial_action_seq(env):
-            reward = self.REWARD_UNLOCK
-        # determine if movable
-        elif action.obj is not 'door' and not env.determine_moveable_action(action):
-            reward = self.REWARD_IMMOVABLE
-        # door locked, no state change
-        else:
-            reward = self.REWARD_NONE
-        return reward
-
-    def reward_negative_immovable_partial_seq_solution_multiplier(self, env, action):
-        '''
-        Give reward of REWARD_UNLOCK for unlocking the door with a new action sequence
-        Give reward of REWARD_OPEN for opening the door with a new action sequence
-        Give reward of REWARD_PARTIAL_SEQ for any partial subsequence
-        Give reward of REWARD_IMMOVABLE for interacting with a lever that cannot move
-        Give reward of REWARD_NONE for anything else
-
-        Each new, unique solution found is multiplied by 1.5x the previous multiplier.
-        The multiplier starts at 1. For instance, the reward for finding the first unique
-        solution would be REWARD_OPEN, but the reward for finding the section unique solution
-        would be 1.5 * REWARD_OPEN, the third 1.5 * 1.5 * REWARD_OPEN. This encourages the
-        agent to find unique solutions without penalizing for finding repeated solutions
-        '''
-        num_solutions_found = len(env.completed_solutions)
-        multiplier = max(1, 1 * self.SOLUTION_MULTIPLIER * num_solutions_found)
-        unique_seq = env.determine_unique_solution() or env.determine_unique_partial_solution()
-        # door unlocked
-        if self.door_open(env, action) and unique_seq:
-            reward = self.REWARD_OPEN * multiplier
-        # door unlocked
-        elif self.door_open(env, action):
-            reward = self.REWARD_OPEN
-        # door unlocked
-        elif self.door_unlocked_partial_action_seq(env) and unique_seq:
-            reward = self.REWARD_UNLOCK * multiplier
-        # door unlocked
-        elif self.door_unlocked_partial_action_seq(env):
-            reward = self.REWARD_UNLOCK
-        # determine if partial subsequence of a solution action seq
-        elif env.determine_partial_solution():
-            reward = self.REWARD_PARTIAL_SEQ
-        # determine if movable
-        elif action.obj is not 'door' and not env.determine_moveable_action(action):
-            reward = self.REWARD_IMMOVABLE
-        # door locked, no state change
-        else:
-            reward = self.REWARD_NONE
-        return reward
-
-    def reward_negative_change_state_partial_seq_solution_multiplier(self, env, action):
-        '''
-        Give reward of REWARD_UNLOCK for unlocking the door with a new action sequence
-        Give reward of REWARD_OPEN for opening the door with a new action sequence
-        Give reward of REWARD_PARTIAL_SEQ for any partial subsequence
-        Give reward of REWARD_IMMOVABLE for interacting with a lever that cannot move
-        Give reward of REWARD_NONE for anything else
-
-        Each new, unique solution found is multiplied by 1.5x the previous multiplier.
-        The multiplier starts at 1. For instance, the reward for finding the first unique
-        solution would be REWARD_OPEN, but the reward for finding the section unique solution
-        would be 1.5 * REWARD_OPEN, the third 1.5 * 1.5 * REWARD_OPEN. This encourages the
-        agent to find unique solutions without penalizing for finding repeated solutions
-        '''
-
-        num_solutions_found = len(env.get_completed_solutions())
-        multiplier = max(1, 1 * self.SOLUTION_MULTIPLIER * num_solutions_found)
-        unique_seq = env.determine_unique_solution() or env.determine_unique_partial_solution()
-        # door unlocked
-        if self.door_open(env, action) and unique_seq:
-            reward = self.REWARD_OPEN * multiplier
-        # door unlocked
-        elif self.door_open(env, action):
-            reward = self.REWARD_OPEN
-        # door unlocked
-        elif self.door_unlocked_partial_action_seq(env) and unique_seq:
-            reward = self.REWARD_UNLOCK * multiplier
         # door unlocked
         elif self.door_unlocked_partial_action_seq(env):
             reward = self.REWARD_UNLOCK
@@ -404,12 +259,73 @@ class RewardStrategy(object):
             reward = self.REWARD_NONE
         return reward
 
-    def reward_negative_change_state_partial_seq_solution_multiplier_door_seq(self, env, action):
+    def reward_negative_immovable_negative_repeat(self, env, action):
         '''
-        Give reward of REWARD_UNLOCK for unlocking the door with a new action sequence
-        Give reward of REWARD_OPEN for opening the door with a new action sequence
+        Give reward of REWARD_OPEN for opening the door
+        Give reward of REWARD_UNLOCK for unlocking the door
+        Give reward of REWARD_REPEATED_ACTION for successively performing 2 same actions
+        Give reward of REWARD_IMMOVABLE for not changing the observation state
+        Give reward of REWARD_NONE for anything else
+        '''
+        # door locked, state change
+        if self.door_open(env, action):
+            reward = self.REWARD_OPEN
+        # door unlocked
+        elif self.door_unlocked_partial_action_seq(env):
+            reward = self.REWARD_UNLOCK
+        # determine if the last two actions are the same
+        elif env.determine_repeated_action():
+            reward = self.REWARD_REPEATED_ACTION
+        # determine if movable
+        elif not env.determine_fluent_change():
+            reward = self.REWARD_IMMOVABLE
+        # door locked, no state change
+        else:
+            reward = self.REWARD_NONE
+        return reward
+
+    def reward_negative_immovable_solution_multiplier(self, env, action):
+        '''
+        Give reward of REWARD_OPEN*multiplier for opening the door
+        Give reward of REWARD_UNLOCK*multiplier for unlocking the door
+        Give reward of REWARD_IMMOVABLE for not changing the observation state
+        Give reward of REWARD_NONE for anything else
+
+        Each new, unique solution found is multiplied by 1.5x the previous multiplier.
+        The multiplier starts at 1. For instance, the reward for finding the first unique
+        solution would be REWARD_OPEN, but the reward for finding the section unique solution
+        would be 1.5 * REWARD_OPEN, the third 1.5 * 1.5 * REWARD_OPEN. This encourages the
+        agent to find unique solutions without penalizing for finding repeated solutions
+        '''
+        num_solutions_found = len(env.get_completed_solutions())
+        multiplier = max(1, 1 * self.SOLUTION_MULTIPLIER * num_solutions_found)
+        unique_seq = env.determine_unique_solution() or env.determine_unique_partial_solution()
+        # door unlocked
+        if self.door_open(env, action) and unique_seq:
+            reward = self.REWARD_OPEN * multiplier
+        # door unlocked
+        elif self.door_open(env, action):
+            reward = self.REWARD_OPEN
+        # door unlocked
+        elif self.door_unlocked_partial_action_seq(env) and unique_seq:
+            reward = self.REWARD_UNLOCK * multiplier
+        # door unlocked
+        elif self.door_unlocked_partial_action_seq(env):
+            reward = self.REWARD_UNLOCK
+        # determine if movable
+        elif not env.determine_fluent_change():
+            reward = self.REWARD_IMMOVABLE
+        # door locked, no state change
+        else:
+            reward = self.REWARD_NONE
+        return reward
+
+    def reward_negative_immovable_partial_seq_solution_multiplier(self, env, action):
+        '''
+        Give reward of REWARD_OPEN*multiplier for opening the door
+        Give reward of REWARD_UNLOCK*multiplier for unlocking the door
         Give reward of REWARD_PARTIAL_SEQ for any partial subsequence
-        Give reward of REWARD_IMMOVABLE for interacting with a lever that cannot move
+        Give reward of REWARD_IMMOVABLE for not changing the observation state
         Give reward of REWARD_NONE for anything else
 
         Each new, unique solution found is multiplied by 1.5x the previous multiplier.
@@ -437,7 +353,49 @@ class RewardStrategy(object):
         # determine if partial subsequence of a solution action seq
         elif env.determine_partial_solution():
             reward = self.REWARD_PARTIAL_SEQ
-        # determine if movable
+        # state change
+        elif not env.determine_fluent_change():
+            reward = self.REWARD_IMMOVABLE
+        # door locked, no state change
+        else:
+            reward = self.REWARD_NONE
+        return reward
+
+    def reward_negative_immovable_partial_seq_solution_multiplier_door_seq(self, env, action):
+        '''
+        Give reward of REWARD_OPEN for opening the door with a new action sequence
+        Give reward of REWARD_UNLOCK for unlocking the door with a new action sequence
+        Give reward of REWARD_PARTIAL_SEQ for any partial subsequence
+        Give reward of REWARD_IMMOVABLE for not changing the observation state
+        Give reward of REWARD_DOOR_SEQ for performing an push_door action
+        Give reward of REWARD_NONE for anything else
+
+        Each new, unique solution found is multiplied by 1.5x the previous multiplier.
+        The multiplier starts at 1. For instance, the reward for finding the first unique
+        solution would be REWARD_OPEN, but the reward for finding the section unique solution
+        would be 1.5 * REWARD_OPEN, the third 1.5 * 1.5 * REWARD_OPEN. This encourages the
+        agent to find unique solutions without penalizing for finding repeated solutions
+        '''
+
+        num_solutions_found = len(env.get_completed_solutions())
+        multiplier = max(1, 1 * self.SOLUTION_MULTIPLIER * num_solutions_found)
+        unique_seq = env.determine_unique_solution() or env.determine_unique_partial_solution()
+        # door unlocked
+        if self.door_open(env, action) and unique_seq:
+            reward = self.REWARD_OPEN * multiplier
+        # door unlocked
+        elif self.door_open(env, action):
+            reward = self.REWARD_OPEN
+        # door unlocked
+        elif self.door_unlocked_partial_action_seq(env) and unique_seq:
+            reward = self.REWARD_UNLOCK * multiplier
+        # door unlocked
+        elif self.door_unlocked_partial_action_seq(env):
+            reward = self.REWARD_UNLOCK
+        # determine if partial subsequence of a solution action seq
+        elif env.determine_partial_solution():
+            reward = self.REWARD_PARTIAL_SEQ
+        # state change
         elif not env.determine_fluent_change():
             reward = self.REWARD_IMMOVABLE
         # door locked, no state change
