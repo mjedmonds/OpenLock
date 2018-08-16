@@ -98,6 +98,7 @@ class ObservationSpace:
         self.state = None
         self.state_labels = None
         self.external_to_role_mapping = None
+        self.role_to_external_mapping = None
 
     @property
     def shape(self):
@@ -126,20 +127,22 @@ class ObservationSpace:
         multi_discrete = MultiDiscrete(discrete_space)
         return multi_discrete
 
-    def create_interal_state_to_external_state_mapping(self, env):
+    def create_internal_state_external_state_mappings(self, env):
         # todo: refactor this into a more coherent state/action conversion
         external_to_internal_action_map = env.action_map_external_role
         internal_state_external_state_mapping = dict()
+        external_state_internal_state_mapping = dict()
         for external_action_name, internal_action in external_to_internal_action_map.items():
             external_state_name = external_action_name.split('_', 1)[1]
             internal_state_name = internal_action.obj
             internal_state_external_state_mapping[internal_state_name] = external_state_name
-        return internal_state_external_state_mapping
+            external_state_internal_state_mapping[external_state_name] = internal_state_name
+        return internal_state_external_state_mapping, external_state_internal_state_mapping
 
     def create_discrete_observation(self, env):
         # create mapping from internal simulator state to external state
-        if self.external_to_role_mapping is None:
-            self.external_to_role_mapping = self.create_interal_state_to_external_state_mapping(env)
+        if self.role_to_external_mapping or self.external_to_role_mapping is None:
+            self.role_to_external_mapping, self.external_to_role_mapping = self.create_internal_state_external_state_mappings(env)
         if env.use_physics:
             discrete_state, discrete_labels = self.create_discrete_observation_from_simulator(env)
         else:
@@ -147,12 +150,12 @@ class ObservationSpace:
         # convert internal state labels to external labels
         # todo: refactor this, this is a very brittle way of doing this mapping
         for i in range(len(discrete_labels)):
-            if discrete_labels[i] in self.external_to_role_mapping.keys():
-                discrete_labels[i] = self.external_to_role_mapping[discrete_labels[i]]
+            if discrete_labels[i] in self.role_to_external_mapping.keys():
+                discrete_labels[i] = self.role_to_external_mapping[discrete_labels[i]]
             if discrete_labels[i].endswith('_active'):
                 base_label = discrete_labels[i].split('_',1)[0]
-                if base_label in self.external_to_role_mapping.keys():
-                    base_label = self.external_to_role_mapping[base_label]
+                if base_label in self.role_to_external_mapping.keys():
+                    base_label = self.role_to_external_mapping[base_label]
                 discrete_labels[i] = base_label + '_active'
         return discrete_state, discrete_labels
 
@@ -827,6 +830,23 @@ class OpenLockEnv(gym.Env):
 
     def get_simulator_state(self):
         return self.world_def.get_state()
+
+    def get_internal_variable_name(self, obj_name):
+        # need to convert to internal object name
+        if obj_name not in self.world_def.obj_map:
+            obj_name = self.observation_space.external_to_role_mapping[obj_name]
+        return obj_name
+
+    def get_lever_color(self, lever_name):
+        lever_name = self.get_internal_variable_name(lever_name)
+        lever = self.world_def.obj_map[lever_name]
+        color = common.COLOR_TO_COLOR_NAME[lever.color]
+        return color
+
+    def get_lever_position(self, lever_name):
+        lever_name = self.get_internal_variable_name(lever_name)
+        lever = self.world_def.obj_map[lever_name]
+        return lever.position
 
     def get_trial_success(self):
         return self.cur_trial.success

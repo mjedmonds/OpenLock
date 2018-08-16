@@ -1,6 +1,6 @@
 import numpy as np
 
-from openlock.common import TwoDConfig, Color
+from openlock.common import TwoDConfig, COLORS
 
 
 RENDER_SETTINGS = {
@@ -12,18 +12,9 @@ RENDER_SETTINGS = {
     "DRAW_JOINTS": True,
     "DRAW_AABB": False, # TODO
     "DRAW_MARKERS" : True,
-    "COLORS" : {
-        'active': Color(0.6, 0.6, 0.6),
-        'static': Color(0.5, 0.9, 0.5),
-        'kinematic': Color(0.5, 0.5, 0.9),
-        'asleep': Color(0.6, 0.6, 0.6),
-        'default': Color(0.6, 0.6, 0.6),
-        'rev_joint' : Color(1.0, 0, 0),
-        'pris_joint' : Color(0.35, 0.35, 0.35),
-        'dist_joint' : Color(0.0, 0.0, 1.0),
-        'weld_joint' : Color(0, 0, 0)
-    }
+    "COLORS" : COLORS
 }
+
 
 BOX2D_SETTINGS = {
     "FPS": 500,
