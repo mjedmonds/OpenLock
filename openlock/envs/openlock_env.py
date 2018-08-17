@@ -440,8 +440,6 @@ class OpenLockEnv(gym.Env):
 
             self.i += 1
 
-            # update state machine after executing a action
-            self.update_state_machine(action_role)
             self.state = self.get_state()
             self.state['SUCCESS'] = action_success
 
@@ -938,6 +936,7 @@ class OpenLockEnv(gym.Env):
         :param action: action to execute
         :return: action_success: whether or not the action executed successfully
         '''
+        action_success = False
         if action.name == 'goto':
             action_success = self._action_go_to(action)
         elif action.name == 'goto_obj':
@@ -958,6 +957,10 @@ class OpenLockEnv(gym.Env):
             action_success = self._action_reset()
         elif action.name == 'save':
             action_success = self._action_save()
+
+        # update state machine after executing a action
+        self.update_state_machine(action)
+
         return action_success
 
     def _action_go_to(self, twod_config):

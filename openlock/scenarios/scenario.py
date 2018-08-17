@@ -207,7 +207,7 @@ class Scenario(object):
         """
         prev_state = self.fsmm.observable_fsm.state
 
-        # do not bypass the simulator
+        # updates the FSM based on the results of the physics simulator. If use_physics is false, we will directly execute the action within the FSM.
         if self.use_physics:
             # execute state transitions
             # check locks
@@ -221,10 +221,7 @@ class Scenario(object):
             # todo, this is a dirty hack to see if the door is actually opened
             if action is not None and action.name is 'push' and action.obj == 'door':
                 self.push_door()
-        # bypass physics, action must be specified
-        else:
-            if action is not None:
-                self.execute_fsm_action(action)
+
 
     def execute_fsm_action(self, action):
         """
