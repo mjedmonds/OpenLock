@@ -245,8 +245,6 @@ class Scenario(object):
             elif action.name == 'pull':
                 self.execute_pull(fsm_name)
 
-            self.update_latent()
-
     def execute_push(self, obj_name):
         """
         Execute a push action.
@@ -257,9 +255,7 @@ class Scenario(object):
         if self.fsmm.extract_entity_state(self.fsmm.observable_fsm.state, obj_name) != 'pushed,':
             # push lever
             action = 'push_{}'.format(obj_name)
-            self.fsmm.execute_action(action)
-            self._update_env()
-            self.update_latent()
+            self._execute_action(action)
 
     def execute_pull(self, obj_name):
         """
@@ -271,9 +267,12 @@ class Scenario(object):
         if self.fsmm.extract_entity_state(self.fsmm.observable_fsm.state, obj_name) != 'pulled,':
             # push lever
             action = 'pull_{}'.format(obj_name)
-            self.fsmm.execute_action(action)
-            self._update_env()
-            self.update_latent()
+            self._execute_action(action)
+
+    def _execute_action(self, action):
+        self.fsmm.execute_action(action)
+        self._update_env()
+        self.update_latent()
 
     # todo: this is a quick hack to represent actually opening the door, which is not included in any transition
     def push_door(self):
