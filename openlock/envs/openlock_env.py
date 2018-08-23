@@ -212,14 +212,12 @@ class ObservationSpace:
         state = [None] * (self.num_levers * 2 + 2)
         state_labels = [None] * (self.num_levers * 2 + 2)
 
-        inactive_lock_regex = '^inactive[0-9]+$'
-
         # lever states
         for lever in levers:
             lever_idx = CONFIG_TO_IDX[lever.position.config]
 
             # inactive lever, state is constant
-            if re.search(inactive_lock_regex, lever.name):
+            if re.search(common.INACTIVE_LOCK_REGEX_STR, lever.name):
                 lever_active = np.int8(common.ENTITY_STATES['LEVER_INACTIVE'])
             else:
                 lever_active = np.int8(common.ENTITY_STATES['LEVER_ACTIVE'])
@@ -741,18 +739,16 @@ class OpenLockEnv(gym.Env):
 
 
     def _create_clickable_regions(self):
-        lock_regex = '^l[0-9]+'
-        inactive_lock_regex = '^inactive[0-9]+$'
         # register clickable regions
         for b2_object_name, b2_object_data in list(self.world_def.obj_map.items()):
-            if re.search(lock_regex, b2_object_name) or re.search(inactive_lock_regex, b2_object_name):
+            if re.search(common.LOCK_REGEX_STR, b2_object_name) or re.search(common.INACTIVE_LOCK_REGEX_STR, b2_object_name):
                 lock = b2_object_data
 
                 lock.create_clickable(self.step, self.action_map_internal_role)
                 self.viewer.register_clickable_region(lock.inner_clickable)
                 self.viewer.register_clickable_region(lock.outer_clickable)
                 # lock inactive levers
-                if re.search(inactive_lock_regex, b2_object_name):
+                if re.search(common.INACTIVE_LOCK_REGEX_STR, b2_object_name):
                     self.world_def.lock_lever(lock.name)
             elif b2_object_name == 'door_right_button':
                 door_button = b2_object_data

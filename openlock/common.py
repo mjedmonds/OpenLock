@@ -21,6 +21,8 @@ ENTITY_STATES = {
 TwoDConfig = namedtuple('Config', 'x y theta')
 TwoDForce = namedtuple('Force', 'norm tan')
 
+LOCK_REGEX_STR = '^l[0-9]+'
+INACTIVE_LOCK_REGEX_STR = '^inactive[0-9]+$'
 
 class LeverRoleEnum:
     inactive = 'inactive'

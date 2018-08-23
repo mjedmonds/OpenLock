@@ -353,10 +353,8 @@ class ArmLockDef(object):
 
     def get_levers(self):
         levers = []
-        lever_regex = '^l[0-9]+'
-        inactive_lever_regex = '^inactive[0-9]+$'
         for obj, val in list(self.obj_map.items()):
-            if re.search(lever_regex, obj) or re.search(inactive_lever_regex, obj):
+            if re.search(common.LOCK_REGEX_STR, obj) or re.search(common.INACTIVE_LOCK_REGEX_STR, obj):
                 levers.append(val)
         levers = sorted(levers, key=lambda lever: lever.name)
         return levers
