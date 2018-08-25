@@ -391,8 +391,6 @@ class OpenLockEnv(gym.Env):
         Returns:
                 observation (dict): END_EFFECTOR_POS : current end effector position
                                           LOCK_STATE : true if door is locked
-                reward (float) : amount of reward returned after previous action
-                done (boolean): whether the episode has ended, in which case further step() calls will return undefined results
                 info (dict): CONVERGED : whether algorithm succesfully coverged on action
         """
         # save a copy of the current state

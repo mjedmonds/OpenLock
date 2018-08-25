@@ -50,6 +50,7 @@ class RewardStrategy(object):
             cooling_percentage = self.counter[index]/(env.attempt_limit*0.3) # set threshold as 0.3 * attempt
             self.SOLUTION_MULTIPLIER = max(1.5 - 0.5*cooling_percentage, 1.0) # if smaller than 1.0, set as 1.0
         #print self.counter, self.SOLUTION_MULTIPLIER
+        self.SOLUTION_MULTIPLIER = 10.
 
     def determine_reward(self, env, action, reward_mode):
         reward = 0
@@ -294,11 +295,11 @@ class RewardStrategy(object):
         Each new, unique solution found is multiplied by 1.5x the previous multiplier.
         The multiplier starts at 1. For instance, the reward for finding the first unique
         solution would be REWARD_OPEN, but the reward for finding the section unique solution
-        would be 1.5 * REWARD_OPEN, the third 1.5 * 1.5 * REWARD_OPEN. This encourages the
+        would be 1.5 * REWARD_OPEN, the third 2 * 1.5 * REWARD_OPEN. This encourages the
         agent to find unique solutions without penalizing for finding repeated solutions
         '''
         num_solutions_found = len(env.get_completed_solutions())
-        multiplier = max(1, 1 * self.SOLUTION_MULTIPLIER * num_solutions_found)
+        multiplier = self.SOLUTION_MULTIPLIER # max(1, 1 * self.SOLUTION_MULTIPLIER * num_solutions_found)
         unique_seq = env.determine_unique_solution() or env.determine_unique_partial_solution()
         # door unlocked
         if self.door_open(env, action) and unique_seq:
@@ -331,12 +332,12 @@ class RewardStrategy(object):
         Each new, unique solution found is multiplied by 1.5x the previous multiplier.
         The multiplier starts at 1. For instance, the reward for finding the first unique
         solution would be REWARD_OPEN, but the reward for finding the section unique solution
-        would be 1.5 * REWARD_OPEN, the third 1.5 * 1.5 * REWARD_OPEN. This encourages the
+        would be 1.5 * REWARD_OPEN, the third 2 * 1.5 * REWARD_OPEN. This encourages the
         agent to find unique solutions without penalizing for finding repeated solutions
         '''
 
         num_solutions_found = len(env.get_completed_solutions())
-        multiplier = max(1, 1 * self.SOLUTION_MULTIPLIER * num_solutions_found)
+        multiplier = self.SOLUTION_MULTIPLIER # max(1, 1 * self.SOLUTION_MULTIPLIER * num_solutions_found)
         unique_seq = env.determine_unique_solution() or env.determine_unique_partial_solution()
         # door unlocked
         if self.door_open(env, action) and unique_seq:
@@ -373,7 +374,7 @@ class RewardStrategy(object):
         Each new, unique solution found is multiplied by 1.5x the previous multiplier.
         The multiplier starts at 1. For instance, the reward for finding the first unique
         solution would be REWARD_OPEN, but the reward for finding the section unique solution
-        would be 1.5 * REWARD_OPEN, the third 1.5 * 1.5 * REWARD_OPEN. This encourages the
+        would be 1.5 * REWARD_OPEN, the third 2 * 1.5 * REWARD_OPEN. This encourages the
         agent to find unique solutions without penalizing for finding repeated solutions
         '''
 
