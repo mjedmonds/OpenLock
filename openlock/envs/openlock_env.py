@@ -829,22 +829,29 @@ class OpenLockEnv(gym.Env):
 
     def get_internal_variable_name(self, obj_name):
         # need to convert to internal object name
-        if obj_name not in self.world_def.obj_map and obj_name in self.observation_space.external_to_role_mapping.keys():
+        if obj_name in self.observation_space.external_to_role_mapping.keys():
             obj_name = self.observation_space.external_to_role_mapping[obj_name]
         return obj_name
 
-    def get_lever_color(self, lever_name):
-        lever_name = self.get_internal_variable_name(lever_name)
+    def get_lever_color(self, internal_lever_name):
+        internal_lever_name = self.get_internal_variable_name(internal_lever_name)
         # todo: this is hacky, refactor, but doors and door_locks have no color attribute
-        if lever_name == 'door_lock' or lever_name == 'door':
+        if internal_lever_name == 'door_lock' or internal_lever_name == 'door':
             return 'None'
-        lever = self.world_def.obj_map[lever_name]
+        if self.use_physics:
+            lever = self.world_def.obj_map[internal_lever_name]
+        else:
+            lever = self.scenario.obj_map[internal_lever_name]
         color = common.COLOR_TO_COLOR_NAME[lever.color]
         return color
 
     def get_lever_position(self, lever_name):
         lever_name = self.get_internal_variable_name(lever_name)
-        lever = self.world_def.obj_map[lever_name]
+        # todo: refactor so there is a single obj_map in env that is set depending upon use_physics
+        if self.use_physics:
+            lever = self.world_def.obj_map[lever_name]
+        else:
+            lever = self.scenario.obj_map[lever_name]
         return lever.position
 
     def get_trial_success(self):
