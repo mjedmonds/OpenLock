@@ -837,7 +837,7 @@ class OpenLockEnv(gym.Env):
         internal_lever_name = self.get_internal_variable_name(internal_lever_name)
         # todo: this is hacky, refactor, but doors and door_locks have no color attribute
         if internal_lever_name == 'door_lock' or internal_lever_name == 'door':
-            return 'None'
+            return 'GREY'
         if self.use_physics:
             lever = self.world_def.obj_map[internal_lever_name]
         else:
