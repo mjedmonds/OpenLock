@@ -256,6 +256,13 @@ def select_trial(trial):
     return trial, LEVER_CONFIGS[trial]
 
 
+def get_possible_trials(name):
+    if name != 'CE4' and name != 'CC4':
+        return THREE_LEVER_TRIALS
+    else:
+        return FOUR_LEVER_TRIALS
+
+
 def get_trial(name, completed_trials=None):
     """
     Apply specific rules for selecting random trials.

@@ -251,7 +251,8 @@ class ObservationSpace:
         return state, state_labels
 
     def determine_solutions_remaining(self, cur_trial):
-        # todo: this is hardcored to scenarios with a max of 3 solutions
+        # todo: this does not work currently
+        raise RuntimeError('determine_solutions_remaining() is currently broken')
         solutions = cur_trial.solutions
         completed_solutions = cur_trial.completed_solutions
         for i in range(len(completed_solutions)):
@@ -457,14 +458,11 @@ class OpenLockEnv(gym.Env):
                 done = True
                 attempt_success = self.determine_unique_solution()
 
-            # stores whether or not all solutions found in this trial
-            trial_success = self.cur_trial.success
-
             discrete_state, discrete_labels = self._create_discrete_state()
 
             self.action_executing = False
 
-            return np.array(discrete_state), reward, done, {'action_success': action_success, 'attempt_success': attempt_success, 'trial_success': trial_success, 'results': self.results, 'state_labels': discrete_labels}
+            return np.array(discrete_state), reward, done, {'action_success': action_success, 'attempt_success': attempt_success, 'results': self.results, 'state_labels': discrete_labels}
         else:
             self.state = self.get_state()
             self.update_state_machine()
@@ -589,7 +587,8 @@ class OpenLockEnv(gym.Env):
         self.attempt_count += 1
 
         # stores whether or not this attempt executed a unique solution
-        attempt_success = self.cur_trial.finish_attempt(self.results)
+        # todo: we have to convert to internal representation here; but perhaps it's easier to convert the solutions to whatever representation we are using (position, role, etc)
+        attempt_success = self.cur_trial.finish_attempt(self.results, self.get_current_action_seq(get_internal_action_seq=True))
 
         pause = self.update_user(attempt_success)
 
@@ -833,6 +832,11 @@ class OpenLockEnv(gym.Env):
             obj_name = self.observation_space.external_to_role_mapping[obj_name]
         return obj_name
 
+    def get_internal_action_name(self, action_str):
+        action_name, obj_name = action_str.split('_', 1)
+        obj_name = self.get_internal_variable_name(obj_name)
+        return action_name + '_' + obj_name
+
     def get_lever_color(self, internal_lever_name):
         internal_lever_name = self.get_internal_variable_name(internal_lever_name)
         # todo: this is hacky, refactor, but doors and door_locks have no color attribute
@@ -857,8 +861,11 @@ class OpenLockEnv(gym.Env):
     def get_trial_success(self):
         return self.cur_trial.success
 
-    def get_current_action_seq(self):
-        return self.cur_trial.cur_attempt.action_seq
+    def get_current_action_seq(self, get_internal_action_seq=False):
+        cur_action_sequence = self.cur_trial.cur_attempt.action_seq
+        if get_internal_action_seq and self.lever_index_mode != 'role':
+            cur_action_sequence = [ActionLog(self.get_internal_action_name(x.name), x.start_time) for x in cur_action_sequence]
+        return cur_action_sequence
 
     def get_completed_solutions(self):
         return self.cur_trial.completed_solutions
@@ -874,7 +881,7 @@ class OpenLockEnv(gym.Env):
 
     def determine_door_seq(self):
         # we want the last action to always be push the door, the agent will be punished if the last action is not push the door.
-        cur_action_seq = self.get_current_action_seq()
+        cur_action_seq = self.get_current_action_seq(get_internal_action_seq=True)
         if len(cur_action_seq) == 3:
             door_act = ActionLog("push_door", None)
             if cur_action_seq[-1] == door_act:
@@ -885,11 +892,13 @@ class OpenLockEnv(gym.Env):
 
     # this function also determines if the action sequence is a duplicate to unlock the door, not just open the door
     def determine_unique_solution(self):
-        cur_action_seq = self.get_current_action_seq()
-        completed_solutions = self.get_completed_solutions()
+        cur_action_seq = self.get_current_action_seq(get_internal_action_seq=True)
         solutions = self.get_solutions()
+        # todo: need more robust way - assumes solutions are all the same length
         if len(cur_action_seq) != len(solutions[0]):
             return False
+
+        completed_solutions = self.get_completed_solutions()
         # if this is a complete action sequence and it is not a solution, return false
         # full action sequence
         # solution is unique if it is in the list of solutions and not in the solutions found
@@ -903,14 +912,14 @@ class OpenLockEnv(gym.Env):
         Determines if the current action sequence is part of a solution
         :return: True if the current action sequence is part of a solution, False otherwise
         '''
-        cur_action_seq = self.get_current_action_seq()
+        cur_action_seq = self.get_current_action_seq(get_internal_action_seq=True)
         if cur_action_seq in [x[:len(cur_action_seq)] for x in self.get_solutions()]:
             return True
         else:
             return False
 
     def determine_unique_partial_solution(self):
-        cur_action_seq = self.get_current_action_seq()
+        cur_action_seq = self.get_current_action_seq(get_internal_action_seq=True)
         completed_solutions = self.get_completed_solutions()
         for completed_solution in completed_solutions:
             if cur_action_seq == completed_solution[:len(cur_action_seq)]:
@@ -925,7 +934,7 @@ class OpenLockEnv(gym.Env):
         return prev_fluent_state != cur_fluent
 
     def determine_repeated_action(self):
-        cur_action_seq = self.get_current_action_seq()
+        cur_action_seq = self.get_current_action_seq(get_internal_action_seq=True)
         if len(cur_action_seq) >= 2 and cur_action_seq[-2] == cur_action_seq[-1]:
             return True
         return False
