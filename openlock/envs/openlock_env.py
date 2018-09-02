@@ -784,8 +784,7 @@ class OpenLockEnv(gym.Env):
         """
         pause = False
         completed_solutions = self.get_completed_solutions()
-        solutions = self.get_solutions()
-        num_solutions_remaining = len(solutions) - len(completed_solutions)
+        num_solutions_remaining = self.get_num_solutions_remaining()
         # continue or end trial
         if self.get_trial_success():
             if not multithreaded:
@@ -825,6 +824,9 @@ class OpenLockEnv(gym.Env):
 
     def get_simulator_state(self):
         return self.world_def.get_state()
+
+    def get_num_solutions_remaining(self):
+        return len(self.get_solutions()) - len(self.get_completed_solutions())
 
     def get_internal_variable_name(self, obj_name):
         # need to convert to internal object name
