@@ -15,6 +15,7 @@ class ActionLog(object):
     start_time = None
     end_time = None
     name = None
+    reward = 0
 
     def __init__(self, name, start_time):
         """
@@ -51,7 +52,9 @@ class ActionLog(object):
         """
         return str(self)
 
-    def finish(self, end_time):
+    def finish(self, end_time=None):
+        if end_time is None:
+            end_time = time.time()
         self.end_time = end_time
 
 
@@ -77,7 +80,7 @@ class AttemptLog(object):
         """
         self.attempt_num = attempt_num
         self.start_time = start_time
-        self.reward = None
+        self.reward = 0
 
     def __eq__(self, other):
         """
@@ -107,6 +110,7 @@ class AttemptLog(object):
         if t is None:
             t = time.time()
         self.cur_action = ActionLog(name, t)
+        return copy.copy(self.cur_action)
 
     def finish_action(self, results, t=None):
         """
@@ -120,8 +124,22 @@ class AttemptLog(object):
             t = time.time()
         self.cur_action.finish(t)
         self.results = results
+
         self.action_seq.append(copy.deepcopy(self.cur_action))
+        action = copy.copy(self.cur_action)
+
         self.cur_action = None
+        return action
+
+    def add_reward(self, reward):
+        '''
+        Add the reward to the last action. Action must have called ActionLog.finish() before computing reward
+        Because of this, we add/log the reward separately.
+        :param reward: reward received from the previously executed action
+        :return: Nothing
+        '''
+        self.reward += reward
+        self.action_seq[-1].reward = reward
 
     def finish(self, success, results, end_time):
         """
@@ -130,13 +148,13 @@ class AttemptLog(object):
         :param success: Success of the attempt.
         :param results: Environment results.
         :param end_time: Time of end of the attempt.
-        :return: success (same as param).
+        :param reward: reward received for this attempt
+        :return Nothing
         """
 
         self.success = success
         self.results = results
         self.end_time = end_time
-        return self.success
 
     def pretty_str_results(self):
         """
@@ -170,7 +188,7 @@ class TrialLog(object):
     solution_found = []
     random_seed = None
 
-    def __init__(self, name, scenario_name, solutions, start_time, random_seed):
+    def __init__(self, name, scenario_name, solutions, start_time):
         """
         Create the trial.
 
@@ -189,7 +207,6 @@ class TrialLog(object):
         self.attempt_seq = []
         self.solution_found = []
         self.trial_reward = None
-        self.random_seed = random_seed
 
     def add_attempt(self):
         """
@@ -199,23 +216,31 @@ class TrialLog(object):
         """
         self.cur_attempt = AttemptLog(len(self.attempt_seq), time.time())
         self.cur_attempt.action_seq = []
+        self.cur_attempt.results = []
 
-    def finish_attempt(self, attempt_success, results):
+    def finish_attempt(self, results, action_seq=None):
         """
         Mark the current attempt as finished.
 
         :param attempt_success: Whether or not the attempt is a success.
         :param results: Environment results.
+        :param reward: reward received for this attempt
         :return: Nothing.
         """
+        if action_seq is None:
+            action_seq = self.cur_attempt.action_seq
         # check to see if this attempt is a solution that has not been completed already
-        if attempt_success:
+        if action_seq in self.solutions and action_seq not in self.completed_solutions:
+            attempt_success = True
             self.completed_solutions.append(self.cur_attempt.action_seq)
+        else:
+            attempt_success = False
         self.solution_found.append(attempt_success)
         self.cur_attempt.finish(attempt_success, results, time.time())
         self.attempt_seq.append(copy.deepcopy(self.cur_attempt))
         self.success = len(self.solutions) == len(self.completed_solutions)
         self.cur_attempt = None
+        return attempt_success
 
     def finish(self, end_time):
         """
@@ -228,225 +253,3 @@ class TrialLog(object):
         self.success = len(self.solutions) == len(self.completed_solutions)
         self.end_time = end_time
         return self.success
-
-
-class SubjectLogger(object):
-    """
-    Represents a subject for the purpose of logger.
-    """
-    subject_id = None
-    age = None
-    gender = None
-    handedness = None
-    eyewear = None
-    major = None
-
-    trial_seq = []
-    cur_trial = None
-    start_time = None
-    end_time = None
-
-    cur_scenario_name = None
-
-    strategy = None
-    random_seed = None
-
-
-    def __init__(self, subject_id, participant_id, age, gender, handedness, eyewear, major, start_time, human=True, random_seed = None):
-        """
-        Create the subject.
-
-        :param subject_id: Subject ID.
-        :param participant_id: Participant ID.
-        :param age: Age of subject.
-        :param gender: Gender of subject.
-        :param handedness: Handedness of subject.
-        :param eyewear: Eyewear of subject (yes or no).
-        :param major: Major of subject.
-        :param start_time: Time that the subject starts.
-        :param human: Whether subject is human, default True.
-        :param random_seed: Default None.
-        """
-        self.subject_id = subject_id
-        self.participant_id = participant_id
-        self.start_time = start_time
-        self.age = age
-        self.gender = gender
-        self.handedness = handedness
-        self.eyewear = eyewear
-        self.major = major
-        self.human = human
-        self.random_seed = random_seed
-
-    def add_trial(self, trial_name, scenario_name, solutions, random_seed):
-        """
-        Set the current trial to a new TrialLog object.
-
-        :param trial_name: Name of the trial.
-        :param scenario_name: Name of the scenario.
-        :param solutions: Solutions of trial.
-        :param random_seed:
-        :return: Nothing.
-        """
-        self.cur_trial = TrialLog(trial_name, scenario_name, solutions, time.time(), random_seed)
-
-    def finish_trial(self):
-        """
-        Finish the current trial.
-
-        :return: True if trial was successful, False otherwise.
-        """
-        success = self.cur_trial.finish(time.time())
-        self.trial_seq.append(self.cur_trial)
-        self.cur_trial = None
-        return success
-
-    def finish(self, end_time):
-        """
-        Set end time of the subject.
-
-        :param end_time: End time of the subject.
-        :return: Nothing.
-        """
-        self.end_time = end_time
-
-# SubjectLogger used to be called SubjectLog, so we'll allow the pickler to
-# properly instantiate the class
-SubjectLog = SubjectLogger
-
-
-class TerminalLogger:
-    """
-    Logs stdout output to agent's log
-    """
-    def __init__(self, logfile):
-        self.stdout = sys.stdout
-        self.log = open(logfile, 'a')
-
-    def write(self, message):
-        self.stdout.write(message)
-        self.log.write(message)
-
-    def flush(self):
-        pass
-
-
-class SubjectWriter:
-    """
-    Writes the log files for a subject.
-    """
-    subject_path = None
-
-    def __init__(self, data_path):
-        """
-        Create a log file for the subject inside the data_path directory.
-
-        :param data_path: Path to keep the log files in.
-        """
-        self.subject_id = str(hash(time.time()))
-        self.subject_path = data_path + '/' + self.subject_id
-        while True:
-            # make sure directory does not exist
-            if not os.path.exists(self.subject_path):
-                os.makedirs(self.subject_path)
-                break
-            else:
-                self.subject_id = str(hash(time.time()))
-                self.subject_path = data_path + '/' + self.subject_id
-                continue
-        # setup writing stdout to file and to stdout
-        self.terminal_logger = TerminalLogger(self.subject_path + '/' + self.subject_id + '_stdout.log')
-
-    def write_trial(self, logger, test_trial=False):
-        """
-        Make trial directory, trial summary, and write trial summary.
-
-        :param logger: SubjectLogger.
-        :param test_trial: True if test trial, False otherwise. Default False.
-        :return: Nothing.
-        """
-        i = len(logger.trial_seq)-1
-        trial = logger.trial_seq[i]
-        trial_str = jsonpickle.encode(trial)
-        trial_dir = self.subject_path + '/trial' + str(i)
-        # if test_trial:
-        #     trial_dir = trial_dir + '_test'
-        os.makedirs(trial_dir)
-        trial_summary_filename = trial_dir + '/trial' + str(i) + '_summary.json'
-        self.pretty_write(trial_summary_filename, trial_str)
-
-    def write(self, logger, agent):
-        """
-        Write subject summary log.
-
-        :param logger: SubjectLogger object.
-        :param agent: Agent object.
-        :return: Nothing.
-        """
-        subject_summary = jsonpickle.encode(logger)
-        # json_results = self.JSONify_subject(logger)
-
-        subject_summary_filename = self.subject_path + '/' + logger.subject_id +'_summary.json'
-        self.pretty_write(subject_summary_filename, subject_summary)
-
-        # write out the agent
-        if agent is not None:
-            agent_cpy = copy.copy(agent)
-            if hasattr(agent_cpy, 'env'):
-                delattr(agent_cpy, 'env')
-            agent_file_name = self.subject_path + '/' + logger.subject_id + '_agent.json'
-            agent_str = jsonpickle.encode(agent_cpy, unpicklable=False)
-            self.pretty_write(agent_file_name, agent_str)
-
-    @staticmethod
-    def pretty_write(filename, json_str):
-        """
-        Write json_str to filename with sort_keys=True, indents=4.
-
-        :param filename: Name of file to be output.
-        :param json_str: JSON str to write (e.g. from jsonpickle.encode()).
-        :return: Nothing.
-        """
-        with open(filename, 'w') as outfile:
-            # reencode to pretty print
-            json_obj = json.loads(json_str)
-            json_str = json.dumps(json_obj, indent=4, sort_keys=True)
-            outfile.write(json_str)
-
-            # results_dir = trial_dir + '/results'
-            # os.makedirs(results_dir)
-            # for j in range(len(trial.attempt_seq)):
-            #     attempt = trial.attempt_seq[j]
-            #     results = attempt.results
-            #     np.savetxt(results_dir + '/results_attempt' + str(j) + '.csv', results, delimiter=',', fmt='%s')
-    #
-    # def JSONify_subject(self, subject):
-    #     trial_jsons = []
-    #     for trial in subject.trial_seq:
-    #         trial_jsons.append( self.JSONify_trial(subject.trial))
-    #     subject_json = jsonpickle.encode(subject)
-    #     print trial_jsons
-    #
-    # def JSONify_trial(self, trial_seq):
-    #     attempt_jsons = []
-    #     for attempt in trial.attempt_seq:
-    #         attempt_jsons.append(self.JSONify_attempt(attempt))
-    #     trial_json = jsonpickle.encode(trial)
-    #     return trial_json
-    #
-    # def JSONify_attempt(self, attempt):
-    #     results_seq_str = jsonpickle.encode(attempt.results_seq)
-    #     attempt.results_seq_str = results_seq_str
-    #     return jsonpickle.encode(attempt)
-    #
-    # def JSONify_action(self, action):
-    #     return jsonpickle.encode(action)
-
-def obj_dict(obj):
-    """
-    Get object dict.
-
-    :param obj: An object.
-    :return: __dict__ of the object passed in.
-    """
-    return obj.__dict__

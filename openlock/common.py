@@ -18,7 +18,13 @@ ENTITY_STATES = {
 }
 
 
-class LeverRole:
+TwoDConfig = namedtuple('Config', 'x y theta')
+TwoDForce = namedtuple('Force', 'norm tan')
+
+LOCK_REGEX_STR = '^l[0-9]+'
+INACTIVE_LOCK_REGEX_STR = '^inactive[0-9]+$'
+
+class LeverRoleEnum:
     inactive = 'inactive'
     l0 = 'l0'
     l1 = 'l1'
@@ -29,23 +35,71 @@ class LeverRole:
     l6 = 'l6'
 
 
-TwoDConfig = namedtuple('Config', 'x y theta')
-TwoDForce = namedtuple('Force', 'norm tan')
-LeverConfig = namedtuple('lever_config', 'TwoDConfig LeverRole opt_params')    # role should be an enum indicating which lever this
+class ObjectPosition:
+    def __init__(self, twodconfig, name):
+        self.config = twodconfig
+        self.name = name
+
+    def __str__(self):
+        return self.name + ': ' + str(self.config)
+
+    def __repr__(self):
+        return str(self)
+
+
+class LeverPositionEnum:
+    UPPER = ObjectPosition(TwoDConfig(0, 15, 0), 'UPPER')
+    LEFT = ObjectPosition(TwoDConfig(-15, 0, np.pi / 2), 'LEFT')
+    LOWER = ObjectPosition(TwoDConfig(0, -15, -np.pi), 'LOWER')
+    UPPERLEFT = ObjectPosition(TwoDConfig(-11, 11, np.pi / 4), 'UPPERLEFT')
+    UPPERRIGHT = ObjectPosition(TwoDConfig(11, 11, -np.pi / 4), 'UPPERRIGHT')
+    LOWERLEFT = ObjectPosition(TwoDConfig(-11, -11, 3 * np.pi / 4), 'LOWERLEFT')
+    LOWERRIGHT = ObjectPosition(TwoDConfig(11, -11, 5 * np.pi / 4), 'LOWERRIGHT')
+
+
+LeverConfig = namedtuple('lever_config', 'LeverRoleEnum LeverPosition opt_params')    # role should be an enum indicating which lever this
 
 Color = namedtuple('Color', 'r g b')
 
-COLORS = {
-    'active': Color(0.6, 0.6, 0.6),
-    'inactive': Color(0.9, 0.9, 0.9),
-    'static': Color(0.5, 0.9, 0.5),
-    'kinematic': Color(0.5, 0.5, 0.9),
-    'asleep': Color(0.6, 0.6, 0.6),
-    'reset_button': Color(0.8, 0.1, 0.23),
-    'save_button': Color(0.5, 0.9, 0.5),
-    'default': Color(0.9, 0.7, 0.7),
+
+GREY = Color(0.6, 0.6, 0.6)
+GREEN = Color(0.5, 0.9, 0.5)
+PURPLE = Color(0.5, 0.5, 0.9)
+RED = Color(1.0, 0, 0)
+DARK_GREY = Color(0.35, 0.35, 0.35)
+BLUE = Color(0.0, 0.0, 1.0)
+BLACK = Color(0, 0, 0)
+WHITE = Color(0.9, 0.9, 0.9)
+PINK = Color(0.8, 0.1, 0.23)
+LIGHT_PINK = Color(0.9, 0.7, 0.7)
+
+COLOR_NAME_TO_COLOR = {
+    'active': GREY,
+    'inactive': WHITE,
+    'static': GREEN,
+    'kinematic': PURPLE,
+    'asleep': GREY,
+    'default': GREY,
+    'rev_joint' : RED,
+    'pris_joint' : DARK_GREY,
+    'dist_joint' : BLUE,
+    'weld_joint' : BLACK,
+    'reset_button': PINK,
+    'save_button': GREEN
 }
 
+COLORS = COLOR_NAME_TO_COLOR
+
+COLOR_TO_COLOR_NAME = {
+    Color(0.6, 0.6, 0.6):    'GREY',
+    Color(0.5, 0.9, 0.5):    'GREEN',
+    Color(0.5, 0.5, 0.9):    'PURPLE',
+    Color(1.0, 0, 0):        'RED',
+    Color(0.35, 0.35, 0.35): 'DARK_GREY',
+    Color(0.0, 0.0, 1.0):    'BLUE',
+    Color(0, 0, 0):          'BLACK',
+    Color(0.9, 0.9, 0.9):    'WHITE',
+}
 
 class Action:
     def __init__(self, name, obj, params):
@@ -73,7 +127,7 @@ class Clickable(object):
 
 
 class Object:
-    def __init__(self, name, fixture=None, joint=None, color=None, int_test=None, ext_test=None):
+    def __init__(self, name, position=None, fixture=None, joint=None, color=None, int_test=None, ext_test=None):
         self.fixture = fixture
         self.joint = joint
 
@@ -81,11 +135,12 @@ class Object:
         self.ext_test = ext_test
 
         self.name = name
+        self.position = position
         self.color = color
 
 
 class Lever(Object):
-    def __init__(self, name, config, color, opt_params=None):
+    def __init__(self, name, position, color, opt_params=None):
         Object.__init__(self, name)
 
         # # new
@@ -101,7 +156,7 @@ class Lever(Object):
         self.outer_clickable = None
 
         self.color = color
-        self.config = config
+        self.position = position
         self.opt_params = opt_params
 
     def int_test_old(self, joint):
@@ -136,8 +191,8 @@ class Lever(Object):
     def __repr__(self):
         return str(self)
 
-    def create_lever(self, world_def, config, width=0.5, length=5, lower_lim=-2, upper_lim=0):
-        x, y, theta = config
+    def create_lever(self, world_def, position, width=0.5, length=5, lower_lim=-2, upper_lim=0):
+        x, y, theta = position.config
 
         fixture_def = b2FixtureDef(
             shape=b2PolygonShape(vertices=[(-length, -width),
@@ -248,12 +303,13 @@ class Lever(Object):
         else:
             raise ValueError('Expected lever to be active or inactive, different color set')
 
+
 class Door(Object):
     # def __init__(self, door_fixture, door_joint, int_test, ext_test, name):
-    def __init__(self, world_def, name, config, color):
+    def __init__(self, world_def, name, position, color):
         # Object.__init__(self, name, door_fixture, joint=door_joint, int_test=int_test, ext_test=ext_test)
         Object.__init__(self, name)
-        self.fixture, self.joint, self.lock = self._create_door(world_def, config)
+        self.fixture, self.joint, self.lock = self._create_door(world_def, position)
 
         # old
         # open_test = lambda door_hinge: ENTITY_STATES['DOOR_MOVED'] if abs(door_hinge.angle) > np.pi / 16 else ENTITY_STATES['DOOR_MOVED']
@@ -264,6 +320,8 @@ class Door(Object):
         self.ext_test = self.open_test
 
         self.color = color
+        self.name = 'door'
+        self.position = position
 
     def open_test_old(self, door_hinge):
         return abs(door_hinge.angle) > np.pi / 16
@@ -284,10 +342,10 @@ class Door(Object):
         else:
             return ENTITY_STATES['DOOR_LOCKED']
 
-    def _create_door(self, world_def, config, width=0.5, length=10, locked=True):
+    def _create_door(self, world_def, position, width=0.5, length=10, locked=True):
         # TODO: add relocking ability
         # create door
-        x, y, theta = config
+        x, y, theta = position.config
 
         fixture_def = b2FixtureDef(
             shape=b2PolygonShape(vertices=[(0, -width),
@@ -336,9 +394,10 @@ class Door(Object):
 
 
 class Button(Object):
-    def __init__(self, world_def, config, color, name, height, width, x_offset=0, y_offset=0, clickable=None):
+    def __init__(self, world_def, position, color, name, height, width, x_offset=0, y_offset=0, clickable=None):
         Object.__init__(self, name)
-        x, y, theta = config
+        self.position = position
+        x, y, theta = position.config
         button = world_def.world.CreateStaticBody(
             position=(x + x_offset, y + y_offset),
             angle=theta,

@@ -5,7 +5,7 @@ import re
 import numpy as np
 
 import openlock.common as common
-from openlock.settings_trial import UPPER, LEFT, LOWER, UPPERLEFT, UPPERRIGHT, LOWERLEFT, LOWERRIGHT, CONFIG_TO_IDX, NUM_LEVERS, LEVER_CONFIGS
+from openlock.settings_trial import CONFIG_TO_IDX, NUM_LEVERS, LEVER_CONFIGS
 
 
 class Scenario(object):
@@ -39,7 +39,7 @@ class Scenario(object):
 
         num_inactive = 0        # give inactive levers a unique name
         for lever_config in self.lever_configs:
-            two_d_config, role, opt_params = lever_config
+            position, role, opt_params = lever_config
             # give unique names to every inactive
             if role == 'inactive':
                 role = 'inactive{}'.format(num_inactive)
@@ -49,7 +49,7 @@ class Scenario(object):
                 color = common.COLORS['active']
 
             # world_def will be initialized with init_scenario_env
-            lever = common.Lever(role, two_d_config, color, opt_params)
+            lever = common.Lever(role, position, color, opt_params)
             self.levers.append(lever)
 
     def add_no_ops(self, lock, pushed, pulled):
@@ -146,15 +146,13 @@ class Scenario(object):
         """
         state = dict()
 
-        inactive_lock_regex = '^inactive[0-9]+$'
-
         fsm_observable_states = self.fsmm.get_observable_states()
         fsm_latent_states = self.fsmm.get_latent_states()
 
         # lever states
         for lever in self.levers:
             # inactive lever, state is constant
-            if re.search(inactive_lock_regex, lever.name):
+            if re.search(common.INACTIVE_LOCK_REGEX_STR, lever.name):
                 lever_state = np.int8(common.ENTITY_STATES['LEVER_PULLED'])
             else:
                 fsm_name = lever.name + ':'
@@ -207,7 +205,7 @@ class Scenario(object):
         """
         prev_state = self.fsmm.observable_fsm.state
 
-        # do not bypass the simulator
+        # updates the FSM based on the results of the physics simulator. If use_physics is false, we will directly execute the action within the FSM.
         if self.use_physics:
             # execute state transitions
             # check locks
@@ -221,12 +219,9 @@ class Scenario(object):
             # todo, this is a dirty hack to see if the door is actually opened
             if action is not None and action.name is 'push' and action.obj == 'door':
                 self.push_door()
-        # bypass physics, action must be specified
-        else:
-            if action is not None:
-                self.execute_action(action)
 
-    def execute_action(self, action):
+
+    def execute_fsm_action(self, action):
         """
         Run FSM action (push/pull).
 
@@ -237,15 +232,12 @@ class Scenario(object):
             raise RuntimeError('Attempting to directly run FSM action without bypassing physics simulator')
         obj_name = action.obj
         fsm_name = obj_name + ':'
-        inactive_lock_regex = '^inactive[0-9]+$'
         # inactive levers are always no-ops in FSM
-        if not re.search(inactive_lock_regex, obj_name):
+        if not re.search(common.INACTIVE_LOCK_REGEX_STR, obj_name):
             if action.name == 'push':
                 self.execute_push(fsm_name)
             elif action.name == 'pull':
                 self.execute_pull(fsm_name)
-
-            self.update_latent()
 
     def execute_push(self, obj_name):
         """
@@ -257,9 +249,7 @@ class Scenario(object):
         if self.fsmm.extract_entity_state(self.fsmm.observable_fsm.state, obj_name) != 'pushed,':
             # push lever
             action = 'push_{}'.format(obj_name)
-            self.fsmm.execute_action(action)
-            self._update_env()
-            self.update_latent()
+            self._execute_action(action)
 
     def execute_pull(self, obj_name):
         """
@@ -271,9 +261,12 @@ class Scenario(object):
         if self.fsmm.extract_entity_state(self.fsmm.observable_fsm.state, obj_name) != 'pulled,':
             # push lever
             action = 'pull_{}'.format(obj_name)
-            self.fsmm.execute_action(action)
-            self._update_env()
-            self.update_latent()
+            self._execute_action(action)
+
+    def _execute_action(self, action):
+        self.fsmm.execute_action(action)
+        self._update_env()
+        self.update_latent()
 
     # todo: this is a quick hack to represent actually opening the door, which is not included in any transition
     def push_door(self):
@@ -302,9 +295,9 @@ class Scenario(object):
 
             for lever in self.levers:
                 if lever.opt_params:
-                    lever.create_lever(self.world_def, lever.config, **lever.opt_params)
+                    lever.create_lever(self.world_def, lever.position, **lever.opt_params)
                 else:
-                    lever.create_lever(self.world_def, lever.config)
+                    lever.create_lever(self.world_def, lever.position)
                 self.world_def.obj_map[lever.name] = lever
             self.obj_map = self.world_def.obj_map
         # bypassing physics, obj_map consists of door and levers

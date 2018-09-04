@@ -1,20 +1,15 @@
 import numpy as np
+import re
 
-from openlock.common import TwoDConfig, LeverConfig, LeverRole
+from openlock.common import TwoDConfig, LeverConfig, LeverRoleEnum, LeverPositionEnum, LOCK_REGEX_STR
 
 NUM_LEVERS = 7
-
-UPPER = TwoDConfig(0, 15, 0)
-LEFT = TwoDConfig(-15, 0, np.pi / 2)
-LOWER = TwoDConfig(0, -15, -np.pi)
-UPPERLEFT = TwoDConfig(-11, 11, np.pi/4)
-UPPERRIGHT = TwoDConfig(11, 11, -np.pi/4)
-LOWERLEFT = TwoDConfig(-11, -11, 3*np.pi / 4)
-LOWERRIGHT = TwoDConfig(11, -11, 5*np.pi/4)
 
 ATTEMPT_LIMIT = 30
 ACTION_LIMIT = 3
 
+THREE_LEVER_TRIALS = ['trial1', 'trial2', 'trial3', 'trial4', 'trial5', 'trial6']
+FOUR_LEVER_TRIALS = ['trial7', 'trial8', 'trial9', 'trial10', 'trial11']
 
 PARAMS = {
     'CE3-CE4': {
@@ -88,6 +83,7 @@ PARAMS = {
     }
 }
 
+# maps arbitrary indices to parameter settings strings
 IDX_TO_PARAMS = [
     'CE3-CE4',
     'CE3-CC4',
@@ -97,127 +93,174 @@ IDX_TO_PARAMS = [
     'CC4'
 ]
 
+# mapping from 2dconfigs to position indices
 CONFIG_TO_IDX = {
-    UPPERRIGHT: 0,
-    UPPER: 1,
-    UPPERLEFT: 2,
-    LEFT: 3,
-    LOWERLEFT: 4,
-    LOWER: 5,
-    LOWERRIGHT: 6
+    LeverPositionEnum.UPPERRIGHT.config: 0,
+    LeverPositionEnum.UPPER.config:      1,
+    LeverPositionEnum.UPPERLEFT.config:  2,
+    LeverPositionEnum.LEFT.config:       3,
+    LeverPositionEnum.LOWERLEFT.config:  4,
+    LeverPositionEnum.LOWER.config:      5,
+    LeverPositionEnum.LOWERRIGHT.config: 6
+}
+
+# mapping from position indices to position names
+IDX_TO_POSITION = {
+    0: 'UPPERRIGHT',
+    1: 'UPPER',
+    2: 'UPPERLEFT',
+    3: 'LEFT',
+    4: 'LOWERLEFT',
+    5: 'LOWER',
+    6: 'LOWERRIGHT',
+}
+
+# mapping from position names to position indices
+POSITION_TO_IDX = {
+    'UPPERRIGHT':   0,
+    'UPPER':        1,
+    'UPPERLEFT':    2,
+    'LEFT':         3,
+    'LOWERLEFT':    4,
+    'LOWER':        5,
+    'LOWERRIGHT':   6,
 }
 
 LEVER_CONFIGS = {
-    # Trial 1. l0=UPPERLEFT, l1=LOWERLEFT, l2=UPPERRIGHT,
-    'trial1'   : [LeverConfig(UPPERRIGHT,   LeverRole.l0,       None),
-                  LeverConfig(UPPER,        LeverRole.inactive, None),
-                  LeverConfig(UPPERLEFT,    LeverRole.l2,       None),
-                  LeverConfig(LEFT,         LeverRole.inactive, None),
-                  LeverConfig(LOWERLEFT,    LeverRole.l1,       None),
-                  LeverConfig(LOWER,        LeverRole.inactive, None),
-                  LeverConfig(LOWERRIGHT,   LeverRole.inactive, None)],
-    # Trial 2. l0=UPPER, l1=LOWER, l2=LEFT,
-    'trial2'   : [LeverConfig(UPPERRIGHT,   LeverRole.inactive, None),
-                  LeverConfig(UPPER,        LeverRole.l2,       None),
-                  LeverConfig(UPPERLEFT,    LeverRole.inactive, None),
-                  LeverConfig(LEFT,         LeverRole.l0,       None),
-                  LeverConfig(LOWERLEFT,    LeverRole.inactive, None),
-                  LeverConfig(LOWER,        LeverRole.l1,       None),
-                  LeverConfig(LOWERRIGHT,   LeverRole.inactive, None)],
-    # Trial 3. l0=UPPERLEFT , l1=LOWERLEFT, l2=LOWERRIGHT,
-    'trial3'   : [LeverConfig(UPPERRIGHT,   LeverRole.inactive, None),
-                  LeverConfig(UPPER,        LeverRole.inactive, None),
-                  LeverConfig(UPPERLEFT,    LeverRole.l1,       None),
-                  LeverConfig(LEFT,         LeverRole.inactive, None),
-                  LeverConfig(LOWERLEFT,    LeverRole.l2,       None),
-                  LeverConfig(LOWER,        LeverRole.inactive, None),
-                  LeverConfig(LOWERRIGHT,   LeverRole.l0,       None)],
-    # Trial 4. l0=UPPER, l1=UPPERLEFT, l2=UPPERRIGHT,
-    'trial4'   : [LeverConfig(UPPERRIGHT,   LeverRole.l0,       None),
-                  LeverConfig(UPPER,        LeverRole.l2,       None),
-                  LeverConfig(UPPERLEFT,    LeverRole.l1,       None),
-                  LeverConfig(LEFT,         LeverRole.inactive, None),
-                  LeverConfig(LOWERLEFT,    LeverRole.inactive, None),
-                  LeverConfig(LOWER,        LeverRole.inactive, None),
-                  LeverConfig(LOWERRIGHT,   LeverRole.inactive, None)],
-    # Trial 5. l0=UPPERLEFT, l1=LOWERLEFT, l2=LEFT,
-    'trial5'   : [LeverConfig(UPPERRIGHT,   LeverRole.inactive, None),
-                  LeverConfig(UPPER,        LeverRole.inactive, None),
-                  LeverConfig(UPPERLEFT,    LeverRole.l2,       None),
-                  LeverConfig(LEFT,         LeverRole.l0,       None),
-                  LeverConfig(LOWERLEFT,    LeverRole.l1,       None),
-                  LeverConfig(LOWER,        LeverRole.inactive, None),
-                  LeverConfig(LOWERRIGHT,   LeverRole.inactive, None)],
-    # Trial 6. l0=LOWERLEFT, l1=LOWER, l2=LOWERRIGHT,
-    'trial6'   : [LeverConfig(UPPERRIGHT,   LeverRole.inactive, None),
-                  LeverConfig(UPPER,        LeverRole.inactive, None),
-                  LeverConfig(UPPERLEFT,    LeverRole.inactive, None),
-                  LeverConfig(LEFT,         LeverRole.inactive, None),
-                  LeverConfig(LOWERLEFT,    LeverRole.l2,       None),
-                  LeverConfig(LOWER,        LeverRole.l1,       None),
-                  LeverConfig(LOWERRIGHT,   LeverRole.l0,       None)],
-    # Trial 7. l0=LOWERLEFT, l1=UPPERRIGHT, l2=LOWERRIGHT, l3=UPPERLEFT
-    'trial7'   : [LeverConfig(UPPERRIGHT,   LeverRole.l1,       None),
-                  LeverConfig(UPPER,        LeverRole.inactive, None),
-                  LeverConfig(UPPERLEFT,    LeverRole.l3,       None),
-                  LeverConfig(LEFT,         LeverRole.inactive, None),
-                  LeverConfig(LOWERLEFT,    LeverRole.l0,       None),
-                  LeverConfig(LOWER,        LeverRole.inactive, None),
-                  LeverConfig(LOWERRIGHT,   LeverRole.l2,       None)],
-    # Trial 8. l0=UPPERRIGHT, l1=UPPER, l2=UPPERLEFT, l3=LEFT
-    'trial8'   : [LeverConfig(UPPERRIGHT,   LeverRole.l0,       None),
-                  LeverConfig(UPPER,        LeverRole.l1,       None),
-                  LeverConfig(UPPERLEFT,    LeverRole.l2,       None),
-                  LeverConfig(LEFT,         LeverRole.l3,       None),
-                  LeverConfig(LOWERLEFT,    LeverRole.inactive, None),
-                  LeverConfig(LOWER,        LeverRole.inactive, None),
-                  LeverConfig(LOWERRIGHT,   LeverRole.inactive, None)],
-    # Trial 9. l0=UPPERLEFT, l1=UPPER, l2=LEFT, l3=LOWERLEFT
-    'trial9'   : [LeverConfig(UPPERRIGHT,   LeverRole.inactive, None),
-                  LeverConfig(UPPER,        LeverRole.l1,       None),
-                  LeverConfig(UPPERLEFT,    LeverRole.l0,       None),
-                  LeverConfig(LEFT,         LeverRole.l2,       None),
-                  LeverConfig(LOWERLEFT,    LeverRole.l3,       None),
-                  LeverConfig(LOWER,        LeverRole.inactive, None),
-                  LeverConfig(LOWERRIGHT,   LeverRole.inactive, None)],
-    # Trial 10. l0=LOWERLEFT, l1=UPPERLEFT, l2=LEFT, l3=LOWER
-    'trial10'  : [LeverConfig(UPPERRIGHT,   LeverRole.inactive, None),
-                  LeverConfig(UPPER,        LeverRole.inactive, None),
-                  LeverConfig(UPPERLEFT,    LeverRole.l1,       None),
-                  LeverConfig(LEFT,         LeverRole.l2,       None),
-                  LeverConfig(LOWERLEFT,    LeverRole.l0,       None),
-                  LeverConfig(LOWER,        LeverRole.l3,       None),
-                  LeverConfig(LOWERRIGHT,   LeverRole.inactive, None)],
-    # Trial 11. l0=LOWERRIGHT, l1=LEFT, l2=LOWERLEFT, l3=LOWER
-    'trial11'  : [LeverConfig(UPPERRIGHT,   LeverRole.inactive, None),
-                  LeverConfig(UPPER,        LeverRole.inactive, None),
-                  LeverConfig(UPPERLEFT,    LeverRole.inactive, None),
-                  LeverConfig(LEFT,         LeverRole.l1,       None),
-                  LeverConfig(LOWERLEFT,    LeverRole.l2,       None),
-                  LeverConfig(LOWER,        LeverRole.l3,       None),
-                  LeverConfig(LOWERRIGHT,   LeverRole.l0,       None)],
+    # Trial 1. l0=LeverPositionEnum.UPPERLEFT, l1=LeverPositionEnum.LOWERLEFT, l2=LeverPositionEnum.UPPERRIGHT,
+    'trial1'   : [LeverConfig(LeverPositionEnum.UPPERRIGHT,   LeverRoleEnum.l0,       None),
+                  LeverConfig(LeverPositionEnum.UPPER,        LeverRoleEnum.inactive, None),
+                  LeverConfig(LeverPositionEnum.UPPERLEFT,    LeverRoleEnum.l2,       None),
+                  LeverConfig(LeverPositionEnum.LEFT,         LeverRoleEnum.inactive, None),
+                  LeverConfig(LeverPositionEnum.LOWERLEFT,    LeverRoleEnum.l1,       None),
+                  LeverConfig(LeverPositionEnum.LOWER,        LeverRoleEnum.inactive, None),
+                  LeverConfig(LeverPositionEnum.LOWERRIGHT,   LeverRoleEnum.inactive, None)],
+    # Trial 2. l0=LeverPositionEnum.UPPER, l1=LeverPositionEnum.LOWER, l2=LEFT,
+    'trial2'   : [LeverConfig(LeverPositionEnum.UPPERRIGHT,   LeverRoleEnum.inactive, None),
+                  LeverConfig(LeverPositionEnum.UPPER,        LeverRoleEnum.l2,       None),
+                  LeverConfig(LeverPositionEnum.UPPERLEFT,    LeverRoleEnum.inactive, None),
+                  LeverConfig(LeverPositionEnum.LEFT,         LeverRoleEnum.l0,       None),
+                  LeverConfig(LeverPositionEnum.LOWERLEFT,    LeverRoleEnum.inactive, None),
+                  LeverConfig(LeverPositionEnum.LOWER,        LeverRoleEnum.l1,       None),
+                  LeverConfig(LeverPositionEnum.LOWERRIGHT,   LeverRoleEnum.inactive, None)],
+    # Trial 3. l0=LeverPositionEnum.UPPERLEFT , l1=LeverPositionEnum.LOWERLEFT, l2=LeverPositionEnum.LOWERRIGHT,
+    'trial3'   : [LeverConfig(LeverPositionEnum.UPPERRIGHT,   LeverRoleEnum.inactive, None),
+                  LeverConfig(LeverPositionEnum.UPPER,        LeverRoleEnum.inactive, None),
+                  LeverConfig(LeverPositionEnum.UPPERLEFT,    LeverRoleEnum.l1,       None),
+                  LeverConfig(LeverPositionEnum.LEFT,         LeverRoleEnum.inactive, None),
+                  LeverConfig(LeverPositionEnum.LOWERLEFT,    LeverRoleEnum.l2,       None),
+                  LeverConfig(LeverPositionEnum.LOWER,        LeverRoleEnum.inactive, None),
+                  LeverConfig(LeverPositionEnum.LOWERRIGHT,   LeverRoleEnum.l0,       None)],
+    # Trial 4. l0=LeverPositionEnum.UPPER, l1=LeverPositionEnum.UPPERLEFT, l2=LeverPositionEnum.UPPERRIGHT,
+    'trial4'   : [LeverConfig(LeverPositionEnum.UPPERRIGHT,   LeverRoleEnum.l0,       None),
+                  LeverConfig(LeverPositionEnum.UPPER,        LeverRoleEnum.l2,       None),
+                  LeverConfig(LeverPositionEnum.UPPERLEFT,    LeverRoleEnum.l1,       None),
+                  LeverConfig(LeverPositionEnum.LEFT,         LeverRoleEnum.inactive, None),
+                  LeverConfig(LeverPositionEnum.LOWERLEFT,    LeverRoleEnum.inactive, None),
+                  LeverConfig(LeverPositionEnum.LOWER,        LeverRoleEnum.inactive, None),
+                  LeverConfig(LeverPositionEnum.LOWERRIGHT,   LeverRoleEnum.inactive, None)],
+    # Trial 5. l0=LeverPositionEnum.UPPERLEFT, l1=LeverPositionEnum.LOWERLEFT, l2=LEFT,
+    'trial5'   : [LeverConfig(LeverPositionEnum.UPPERRIGHT,   LeverRoleEnum.inactive, None),
+                  LeverConfig(LeverPositionEnum.UPPER,        LeverRoleEnum.inactive, None),
+                  LeverConfig(LeverPositionEnum.UPPERLEFT,    LeverRoleEnum.l2,       None),
+                  LeverConfig(LeverPositionEnum.LEFT,         LeverRoleEnum.l0,       None),
+                  LeverConfig(LeverPositionEnum.LOWERLEFT,    LeverRoleEnum.l1,       None),
+                  LeverConfig(LeverPositionEnum.LOWER,        LeverRoleEnum.inactive, None),
+                  LeverConfig(LeverPositionEnum.LOWERRIGHT,   LeverRoleEnum.inactive, None)],
+    # Trial 6. l0=LeverPositionEnum.LOWERLEFT, l1=LeverPositionEnum.LOWER, l2=LeverPositionEnum.LOWERRIGHT,
+    'trial6'   : [LeverConfig(LeverPositionEnum.UPPERRIGHT,   LeverRoleEnum.inactive, None),
+                  LeverConfig(LeverPositionEnum.UPPER,        LeverRoleEnum.inactive, None),
+                  LeverConfig(LeverPositionEnum.UPPERLEFT,    LeverRoleEnum.inactive, None),
+                  LeverConfig(LeverPositionEnum.LEFT,         LeverRoleEnum.inactive, None),
+                  LeverConfig(LeverPositionEnum.LOWERLEFT,    LeverRoleEnum.l2,       None),
+                  LeverConfig(LeverPositionEnum.LOWER,        LeverRoleEnum.l1,       None),
+                  LeverConfig(LeverPositionEnum.LOWERRIGHT,   LeverRoleEnum.l0,       None)],
+    # Trial 7. l0=LeverPositionEnum.LOWERLEFT, l1=LeverPositionEnum.UPPERRIGHT, l2=LeverPositionEnum.LOWERRIGHT, l3=LeverPositionEnum.UPPERLEFT
+    'trial7'   : [LeverConfig(LeverPositionEnum.UPPERRIGHT,   LeverRoleEnum.l1,       None),
+                  LeverConfig(LeverPositionEnum.UPPER,        LeverRoleEnum.inactive, None),
+                  LeverConfig(LeverPositionEnum.UPPERLEFT,    LeverRoleEnum.l3,       None),
+                  LeverConfig(LeverPositionEnum.LEFT,         LeverRoleEnum.inactive, None),
+                  LeverConfig(LeverPositionEnum.LOWERLEFT,    LeverRoleEnum.l0,       None),
+                  LeverConfig(LeverPositionEnum.LOWER,        LeverRoleEnum.inactive, None),
+                  LeverConfig(LeverPositionEnum.LOWERRIGHT,   LeverRoleEnum.l2,       None)],
+    # Trial 8. l0=LeverPositionEnum.UPPERRIGHT, l1=LeverPositionEnum.UPPER, l2=LeverPositionEnum.UPPERLEFT, l3=LEFT
+    'trial8'   : [LeverConfig(LeverPositionEnum.UPPERRIGHT,   LeverRoleEnum.l0,       None),
+                  LeverConfig(LeverPositionEnum.UPPER,        LeverRoleEnum.l1,       None),
+                  LeverConfig(LeverPositionEnum.UPPERLEFT,    LeverRoleEnum.l2,       None),
+                  LeverConfig(LeverPositionEnum.LEFT,         LeverRoleEnum.l3,       None),
+                  LeverConfig(LeverPositionEnum.LOWERLEFT,    LeverRoleEnum.inactive, None),
+                  LeverConfig(LeverPositionEnum.LOWER,        LeverRoleEnum.inactive, None),
+                  LeverConfig(LeverPositionEnum.LOWERRIGHT,   LeverRoleEnum.inactive, None)],
+    # Trial 9. l0=LeverPositionEnum.UPPERLEFT, l1=LeverPositionEnum.UPPER, l2=LEFT, l3=LeverPositionEnum.LOWERLEFT
+    'trial9'   : [LeverConfig(LeverPositionEnum.UPPERRIGHT,   LeverRoleEnum.inactive, None),
+                  LeverConfig(LeverPositionEnum.UPPER,        LeverRoleEnum.l1,       None),
+                  LeverConfig(LeverPositionEnum.UPPERLEFT,    LeverRoleEnum.l0,       None),
+                  LeverConfig(LeverPositionEnum.LEFT,         LeverRoleEnum.l2,       None),
+                  LeverConfig(LeverPositionEnum.LOWERLEFT,    LeverRoleEnum.l3,       None),
+                  LeverConfig(LeverPositionEnum.LOWER,        LeverRoleEnum.inactive, None),
+                  LeverConfig(LeverPositionEnum.LOWERRIGHT,   LeverRoleEnum.inactive, None)],
+    # Trial 10. l0=LeverPositionEnum.LOWERLEFT, l1=LeverPositionEnum.UPPERLEFT, l2=LEFT, l3=LeverPositionEnum.LOWER
+    'trial10'  : [LeverConfig(LeverPositionEnum.UPPERRIGHT,   LeverRoleEnum.inactive, None),
+                  LeverConfig(LeverPositionEnum.UPPER,        LeverRoleEnum.inactive, None),
+                  LeverConfig(LeverPositionEnum.UPPERLEFT,    LeverRoleEnum.l1,       None),
+                  LeverConfig(LeverPositionEnum.LEFT,         LeverRoleEnum.l2,       None),
+                  LeverConfig(LeverPositionEnum.LOWERLEFT,    LeverRoleEnum.l0,       None),
+                  LeverConfig(LeverPositionEnum.LOWER,        LeverRoleEnum.l3,       None),
+                  LeverConfig(LeverPositionEnum.LOWERRIGHT,   LeverRoleEnum.inactive, None)],
+    # Trial 11. l0=LeverPositionEnum.LOWERRIGHT, l1=LEFT, l2=LeverPositionEnum.LOWERLEFT, l3=LeverPositionEnum.LOWER
+    'trial11'  : [LeverConfig(LeverPositionEnum.UPPERRIGHT,   LeverRoleEnum.inactive, None),
+                  LeverConfig(LeverPositionEnum.UPPER,        LeverRoleEnum.inactive, None),
+                  LeverConfig(LeverPositionEnum.UPPERLEFT,    LeverRoleEnum.inactive, None),
+                  LeverConfig(LeverPositionEnum.LEFT,         LeverRoleEnum.l1,       None),
+                  LeverConfig(LeverPositionEnum.LOWERLEFT,    LeverRoleEnum.l2,       None),
+                  LeverConfig(LeverPositionEnum.LOWER,        LeverRoleEnum.l3,       None),
+                  LeverConfig(LeverPositionEnum.LOWERRIGHT,   LeverRoleEnum.l0,       None)],
 
-    # multi-lock. l0=UPPER, l1=LOWER, l2=LEFT,
-    'multi-lock': [LeverConfig(UPPERRIGHT,  LeverRole.inactive, None),
-                  LeverConfig(UPPER,        LeverRole.l2,       None),
-                  LeverConfig(UPPERLEFT,    LeverRole.inactive, None),
-                  LeverConfig(LEFT,         LeverRole.l0,       {'lower_lim': 0.0, 'upper_lim': 2.0}),
-                  LeverConfig(LOWERLEFT,    LeverRole.inactive, None),
-                  LeverConfig(LOWER,        LeverRole.l1,       None),
-                  LeverConfig(LOWERRIGHT,   LeverRole.inactive, None)],
+    # multi-lock. l0=LeverPositionEnum.UPPER, l1=LeverPositionEnum.LOWER, l2=LEFT,
+    'multi-lock': [LeverConfig(LeverPositionEnum.UPPERRIGHT,  LeverRoleEnum.inactive, None),
+                  LeverConfig(LeverPositionEnum.UPPER,        LeverRoleEnum.l2,       None),
+                  LeverConfig(LeverPositionEnum.UPPERLEFT,    LeverRoleEnum.inactive, None),
+                  LeverConfig(LeverPositionEnum.LEFT,         LeverRoleEnum.l0,       {'lower_lim': 0.0, 'upper_lim': 2.0}),
+                  LeverConfig(LeverPositionEnum.LOWERLEFT,    LeverRoleEnum.inactive, None),
+                  LeverConfig(LeverPositionEnum.LOWER,        LeverRoleEnum.l1,       None),
+                  LeverConfig(LeverPositionEnum.LOWERRIGHT,   LeverRoleEnum.inactive, None)],
     # full.
-    'full'     : [LeverConfig(UPPERRIGHT,   LeverRole.l0,       None),
-                  LeverConfig(UPPER,        LeverRole.l1,       None),
-                  LeverConfig(UPPERLEFT,    LeverRole.l2,       None),
-                  LeverConfig(LEFT,         LeverRole.l3,       None),
-                  LeverConfig(LOWERLEFT,    LeverRole.l4,       None),
-                  LeverConfig(LOWER,        LeverRole.l5,       None),
-                  LeverConfig(LOWERRIGHT,   LeverRole.l6,       None)],
+    'full'     : [LeverConfig(LeverPositionEnum.UPPERRIGHT,   LeverRoleEnum.l0,       None),
+                  LeverConfig(LeverPositionEnum.UPPER,        LeverRoleEnum.l1,       None),
+                  LeverConfig(LeverPositionEnum.UPPERLEFT,    LeverRoleEnum.l2,       None),
+                  LeverConfig(LeverPositionEnum.LEFT,         LeverRoleEnum.l3,       None),
+                  LeverConfig(LeverPositionEnum.LOWERLEFT,    LeverRoleEnum.l4,       None),
+                  LeverConfig(LeverPositionEnum.LOWER,        LeverRoleEnum.l5,       None),
+                  LeverConfig(LeverPositionEnum.LOWERRIGHT,   LeverRoleEnum.l6,       None)],
 }
+
+
+def generate_color_attributes_by_trial():
+    attributes_by_trial = dict()
+    for trial, lever_configs in LEVER_CONFIGS.items():
+        colors_by_position = dict()
+        for lever_config in lever_configs:
+            position, role, opt = lever_config
+            lock_regex = re.compile(LOCK_REGEX_STR)
+            # todo extend this to handle multiple attributes
+            if re.match(lock_regex, role):
+                color = 'GREY'
+            else:
+                color = 'WHITE'
+            colors_by_position[position.name] = color
+        attributes_by_trial[trial] = colors_by_position
+    return attributes_by_trial
 
 
 def select_trial(trial):
     return trial, LEVER_CONFIGS[trial]
+
+
+def get_possible_trials(name):
+    if name != 'CE4' and name != 'CC4':
+        return THREE_LEVER_TRIALS
+    else:
+        return FOUR_LEVER_TRIALS
 
 
 def get_trial(name, completed_trials=None):
@@ -232,34 +275,27 @@ def get_trial(name, completed_trials=None):
     # select a random trial and add it to the scenario
     if name != 'CE4' and name != 'CC4':
         # trials 1-6 have 3 levers for CC3/CE3
-        trial, configs = select_random_trial(completed_trials, 1, 6)
+        trial, configs = select_random_trial(completed_trials, THREE_LEVER_TRIALS)
     else:
         # trials 7-11 have 4 levers for CC4/CE4
-        trial, configs = select_random_trial(completed_trials, 7, 11)
+        trial, configs = select_random_trial(completed_trials, FOUR_LEVER_TRIALS)
 
     return trial, configs
 
 
-def select_random_trial(completed_trials, min_idx, max_idx):
+def select_random_trial(completed_trials, possible_trials):
     '''
-    sets a new random
+    sets a new random trial
     :param completed_trials: list of trials already selected
-    :param min: min value of trial index
-    :param max: max value of trial index
+    :param possible_trials: list of all trials possible
     :return:
     '''
-    trial_list = []
-    trial_base = 'trial'
-    rand = np.random.randint(min_idx, max_idx+1)
-    trial = trial_base + str(rand)
-    trial_list.append(trial)
-    while trial in completed_trials:
-        rand = np.random.randint(min_idx, max_idx+1)
-        trial = trial_base + str(rand)
-        trial_list.append(trial)
-        # all have been tried
-        if len(trial_list) == max_idx - min_idx:
-            return None, None
+    if len(completed_trials) == len(possible_trials):
+        return None, None
+
+    incomplete_trials = np.setdiff1d(possible_trials, completed_trials)
+    rand_trial_idx = np.random.randint(0, len(incomplete_trials))
+    trial = incomplete_trials[rand_trial_idx]
 
     return select_trial(trial)
 
