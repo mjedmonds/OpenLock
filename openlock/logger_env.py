@@ -218,7 +218,7 @@ class TrialLog(object):
         self.cur_attempt.action_seq = []
         self.cur_attempt.results = []
 
-    def finish_attempt(self, results):
+    def finish_attempt(self, results, action_seq=None):
         """
         Mark the current attempt as finished.
 
@@ -227,8 +227,10 @@ class TrialLog(object):
         :param reward: reward received for this attempt
         :return: Nothing.
         """
+        if action_seq is None:
+            action_seq = self.cur_attempt.action_seq
         # check to see if this attempt is a solution that has not been completed already
-        if self.cur_attempt.action_seq in self.solutions and self.cur_attempt.action_seq not in self.completed_solutions:
+        if action_seq in self.solutions and action_seq not in self.completed_solutions:
             attempt_success = True
             self.completed_solutions.append(self.cur_attempt.action_seq)
         else:

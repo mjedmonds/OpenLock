@@ -21,6 +21,8 @@ ENTITY_STATES = {
 TwoDConfig = namedtuple('Config', 'x y theta')
 TwoDForce = namedtuple('Force', 'norm tan')
 
+LOCK_REGEX_STR = '^l[0-9]+'
+INACTIVE_LOCK_REGEX_STR = '^inactive[0-9]+$'
 
 class LeverRoleEnum:
     inactive = 'inactive'
@@ -59,17 +61,45 @@ LeverConfig = namedtuple('lever_config', 'LeverRoleEnum LeverPosition opt_params
 
 Color = namedtuple('Color', 'r g b')
 
-COLORS = {
-    'active': Color(0.6, 0.6, 0.6),
-    'inactive': Color(0.9, 0.9, 0.9),
-    'static': Color(0.5, 0.9, 0.5),
-    'kinematic': Color(0.5, 0.5, 0.9),
-    'asleep': Color(0.6, 0.6, 0.6),
-    'reset_button': Color(0.8, 0.1, 0.23),
-    'save_button': Color(0.5, 0.9, 0.5),
-    'default': Color(0.9, 0.7, 0.7),
+
+GREY = Color(0.6, 0.6, 0.6)
+GREEN = Color(0.5, 0.9, 0.5)
+PURPLE = Color(0.5, 0.5, 0.9)
+RED = Color(1.0, 0, 0)
+DARK_GREY = Color(0.35, 0.35, 0.35)
+BLUE = Color(0.0, 0.0, 1.0)
+BLACK = Color(0, 0, 0)
+WHITE = Color(0.9, 0.9, 0.9)
+PINK = Color(0.8, 0.1, 0.23)
+LIGHT_PINK = Color(0.9, 0.7, 0.7)
+
+COLOR_NAME_TO_COLOR = {
+    'active': GREY,
+    'inactive': WHITE,
+    'static': GREEN,
+    'kinematic': PURPLE,
+    'asleep': GREY,
+    'default': GREY,
+    'rev_joint' : RED,
+    'pris_joint' : DARK_GREY,
+    'dist_joint' : BLUE,
+    'weld_joint' : BLACK,
+    'reset_button': PINK,
+    'save_button': GREEN
 }
 
+COLORS = COLOR_NAME_TO_COLOR
+
+COLOR_TO_COLOR_NAME = {
+    Color(0.6, 0.6, 0.6):    'GREY',
+    Color(0.5, 0.9, 0.5):    'GREEN',
+    Color(0.5, 0.5, 0.9):    'PURPLE',
+    Color(1.0, 0, 0):        'RED',
+    Color(0.35, 0.35, 0.35): 'DARK_GREY',
+    Color(0.0, 0.0, 1.0):    'BLUE',
+    Color(0, 0, 0):          'BLACK',
+    Color(0.9, 0.9, 0.9):    'WHITE',
+}
 
 class Action:
     def __init__(self, name, obj, params):

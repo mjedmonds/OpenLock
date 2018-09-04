@@ -1,6 +1,7 @@
 import numpy as np
+import re
 
-from openlock.common import TwoDConfig, LeverConfig, LeverRoleEnum, LeverPositionEnum
+from openlock.common import TwoDConfig, LeverConfig, LeverRoleEnum, LeverPositionEnum, LOCK_REGEX_STR
 
 NUM_LEVERS = 7
 
@@ -234,8 +235,32 @@ LEVER_CONFIGS = {
 }
 
 
+def generate_color_attributes_by_trial():
+    attributes_by_trial = dict()
+    for trial, lever_configs in LEVER_CONFIGS.items():
+        colors_by_position = dict()
+        for lever_config in lever_configs:
+            position, role, opt = lever_config
+            lock_regex = re.compile(LOCK_REGEX_STR)
+            # todo extend this to handle multiple attributes
+            if re.match(lock_regex, role):
+                color = 'GREY'
+            else:
+                color = 'WHITE'
+            colors_by_position[position.name] = color
+        attributes_by_trial[trial] = colors_by_position
+    return attributes_by_trial
+
+
 def select_trial(trial):
     return trial, LEVER_CONFIGS[trial]
+
+
+def get_possible_trials(name):
+    if name != 'CE4' and name != 'CC4':
+        return THREE_LEVER_TRIALS
+    else:
+        return FOUR_LEVER_TRIALS
 
 
 def get_trial(name, completed_trials=None):

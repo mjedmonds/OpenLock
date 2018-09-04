@@ -146,15 +146,13 @@ class Scenario(object):
         """
         state = dict()
 
-        inactive_lock_regex = '^inactive[0-9]+$'
-
         fsm_observable_states = self.fsmm.get_observable_states()
         fsm_latent_states = self.fsmm.get_latent_states()
 
         # lever states
         for lever in self.levers:
             # inactive lever, state is constant
-            if re.search(inactive_lock_regex, lever.name):
+            if re.search(common.INACTIVE_LOCK_REGEX_STR, lever.name):
                 lever_state = np.int8(common.ENTITY_STATES['LEVER_PULLED'])
             else:
                 fsm_name = lever.name + ':'
@@ -234,9 +232,8 @@ class Scenario(object):
             raise RuntimeError('Attempting to directly run FSM action without bypassing physics simulator')
         obj_name = action.obj
         fsm_name = obj_name + ':'
-        inactive_lock_regex = '^inactive[0-9]+$'
         # inactive levers are always no-ops in FSM
-        if not re.search(inactive_lock_regex, obj_name):
+        if not re.search(common.INACTIVE_LOCK_REGEX_STR, obj_name):
             if action.name == 'push':
                 self.execute_push(fsm_name)
             elif action.name == 'pull':
