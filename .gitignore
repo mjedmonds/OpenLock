@@ -6,3 +6,4 @@ unit-test-output
 docs/_build/*
 build
 dist/
+*.egg
