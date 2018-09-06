@@ -241,10 +241,10 @@ LEVER_CONFIGS = {
 }
 
 
-def generate_color_attributes_by_trial():
+def generate_attributes_by_trial():
     attributes_by_trial = dict()
     for trial, lever_configs in LEVER_CONFIGS.items():
-        colors_by_position = dict()
+        attributes_by_position = dict()
         for lever_config in lever_configs:
             position, role, opt = lever_config
             lock_regex = re.compile(LOCK_REGEX_STR)
@@ -253,8 +253,10 @@ def generate_color_attributes_by_trial():
                 color = 'GREY'
             else:
                 color = 'WHITE'
-            colors_by_position[position.name] = color
-        attributes_by_trial[trial] = colors_by_position
+            attributes_by_position[position.name] = (position.name, color)
+        attributes_by_position['door'] = ('door', 'GREY')
+        attributes_by_position['door_lock'] = ('door_lock', 'GREY')
+        attributes_by_trial[trial] = attributes_by_position
     return attributes_by_trial
 
 
