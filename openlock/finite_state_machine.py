@@ -3,7 +3,7 @@ import numpy as np
 
 # from transitions.extensions import GraphMachine as Machine
 from transitions import Machine
-from openlock.common import LeverPositionEnum
+from openlock.common import ObjectPositionEnum
 from openlock.settings_trial import CONFIG_TO_IDX, NUM_LEVERS, LEVER_CONFIGS
 
 

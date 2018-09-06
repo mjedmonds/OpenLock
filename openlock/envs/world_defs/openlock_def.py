@@ -231,14 +231,16 @@ class ArmLockDef(object):
         '''
         # TODO: better setup interface
 
-        door_config = common.TwoDConfig(18, 5, -np.pi / 2)
-        door_position = common.ObjectPosition(door_config, 'door')
-        self.door = common.Door(self, 'door', door_position, color=common.COLORS['active'])
+        door_position = common.ObjectPositionEnum.DOOR
+        self.door = common.Door(self, 'door', door_position, color=common.COLORS['active'], width=common.DOOR_WIDTH, length=common.DOOR_LENGTH)
         self.obj_map['door'] = self.door
 
-        door_right_button_config = door_config
+        door_right_button_x, door_right_button_y, door_right_button_theta = door_position.config
+        door_right_button_x += 3 + common.DOOR_WIDTH / 2
+        door_right_button_y += 3 + common.DOOR_LENGTH / 2
+        door_right_button_config = common.TwoDConfig(door_right_button_x, door_right_button_y, door_right_button_theta)
         door_right_button_position = common.ObjectPosition(door_right_button_config, 'door_right_button')
-        self.obj_map['door_right_button'] = common.Button(world_def=self, position=door_right_button_position, color=common.COLORS['static'], name='door_right_button', height=1.5, width=1.5, x_offset=3, y_offset=3)
+        self.obj_map['door_right_button'] = common.Button(world_def=self, position=door_right_button_position, color=common.COLORS['static'], name='door_right_button', height=1.5, width=1.5)
         # uncomment below to re-enable pulling on door
         # self.obj_map['door_left_button'] = common.py.Button(world_def=self, config=door_config, color=common.py.COLORS['static'], name='door_left_button', height=1.5, width=1.5, x_offset=-3, y_offset=10)
 

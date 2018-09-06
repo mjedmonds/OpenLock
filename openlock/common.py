@@ -1,4 +1,5 @@
 from collections import namedtuple
+import copy
 
 import numpy as np
 
@@ -17,6 +18,8 @@ ENTITY_STATES = {
     'LEVER_INACTIVE': 0
 }
 
+DOOR_WIDTH = 0.5
+DOOR_LENGTH = 10
 
 TwoDConfig = namedtuple('Config', 'x y theta')
 TwoDForce = namedtuple('Force', 'norm tan')
@@ -47,7 +50,7 @@ class ObjectPosition:
         return str(self)
 
 
-class LeverPositionEnum:
+class ObjectPositionEnum:
     UPPER = ObjectPosition(TwoDConfig(0, 15, 0), 'UPPER')
     LEFT = ObjectPosition(TwoDConfig(-15, 0, np.pi / 2), 'LEFT')
     LOWER = ObjectPosition(TwoDConfig(0, -15, -np.pi), 'LOWER')
@@ -55,6 +58,9 @@ class LeverPositionEnum:
     UPPERRIGHT = ObjectPosition(TwoDConfig(11, 11, -np.pi / 4), 'UPPERRIGHT')
     LOWERLEFT = ObjectPosition(TwoDConfig(-11, -11, 3 * np.pi / 4), 'LOWERLEFT')
     LOWERRIGHT = ObjectPosition(TwoDConfig(11, -11, 5 * np.pi / 4), 'LOWERRIGHT')
+    RIGHT = ObjectPosition(TwoDConfig(15, 0, -np.pi / 2), 'RIGHT')
+    DOOR = RIGHT
+    DOOR_LOCK = ObjectPosition(TwoDConfig(DOOR.config[0], DOOR.config[1]+DOOR_LENGTH/2, DOOR.config[2]), 'DOOR_LOCK')
 
 
 LeverConfig = namedtuple('lever_config', 'LeverRoleEnum LeverPosition opt_params')    # role should be an enum indicating which lever this
@@ -306,10 +312,18 @@ class Lever(Object):
 
 class Door(Object):
     # def __init__(self, door_fixture, door_joint, int_test, ext_test, name):
-    def __init__(self, world_def, name, position, color):
+    def __init__(self, world_def, name, position, color, width=0.5, length=10):
         # Object.__init__(self, name, door_fixture, joint=door_joint, int_test=int_test, ext_test=ext_test)
         Object.__init__(self, name)
-        self.fixture, self.joint, self.lock = self._create_door(world_def, position)
+
+        # create a modified position to move the door so it's centered at the specified position
+        # todo: this doesn't correclty handle shifts in theta
+        x, y, theta = position.config
+        x = x + width / 2
+        y = y + length / 2
+        new_position = ObjectPosition(TwoDConfig(x, y, theta), position.name)
+
+        self.fixture, self.joint, self.lock = self._create_door(world_def, new_position)
 
         # old
         # open_test = lambda door_hinge: ENTITY_STATES['DOOR_MOVED'] if abs(door_hinge.angle) > np.pi / 16 else ENTITY_STATES['DOOR_MOVED']
@@ -343,7 +357,6 @@ class Door(Object):
             return ENTITY_STATES['DOOR_LOCKED']
 
     def _create_door(self, world_def, position, width=0.5, length=10, locked=True):
-        # TODO: add relocking ability
         # create door
         x, y, theta = position.config
 
