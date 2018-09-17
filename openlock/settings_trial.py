@@ -103,7 +103,7 @@ CONFIG_TO_IDX = {
     ObjectPositionEnum.LOWER.config:      5,
     ObjectPositionEnum.LOWERRIGHT.config: 6,
     ObjectPositionEnum.DOOR.config:       7,
-    ObjectPositionEnum.DOOR_LOCK.config:  8,
+    # ObjectPositionEnum.DOOR_LOCK.config:  8,
 }
 
 # mapping from position indices to position names
@@ -116,7 +116,7 @@ IDX_TO_POSITION = {
     5: 'LOWER',
     6: 'LOWERRIGHT',
     7: 'door',
-    8: 'door_lock'
+    # 8: 'door_lock'
 }
 
 # mapping from position names to position indices
@@ -129,7 +129,7 @@ POSITION_TO_IDX = {
     'LOWER':        5,
     'LOWERRIGHT':   6,
     'door':         7,
-    'door_lock':    8,
+    # 'door_lock':    8,
 }
 
 LEVER_CONFIGS = {
