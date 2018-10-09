@@ -8,34 +8,37 @@ from Box2D import *
 
 
 ENTITY_STATES = {
-    'LEVER_PUSHED': 0,
-    'LEVER_PULLED': 1,
-    'DOOR_UNLOCKED': 0,
-    'DOOR_LOCKED': 1,
-    'DOOR_CLOSED': 0,
-    'DOOR_OPENED': 1,
-    'LEVER_ACTIVE': 1,
-    'LEVER_INACTIVE': 0
+    "LEVER_PUSHED": 0,
+    "LEVER_PULLED": 1,
+    "DOOR_UNLOCKED": 0,
+    "DOOR_LOCKED": 1,
+    "DOOR_CLOSED": 0,
+    "DOOR_OPENED": 1,
+    "LEVER_ACTIVE": 1,
+    "LEVER_INACTIVE": 0,
 }
+
+COLOR_LABELS = ["GREY", "WHITE"]
 
 DOOR_WIDTH = 0.5
 DOOR_LENGTH = 10
 
-TwoDConfig = namedtuple('Config', 'x y theta')
-TwoDForce = namedtuple('Force', 'norm tan')
+TwoDConfig = namedtuple("Config", "x y theta")
+TwoDForce = namedtuple("Force", "norm tan")
 
-LOCK_REGEX_STR = '^l[0-9]+'
-INACTIVE_LOCK_REGEX_STR = '^inactive[0-9]+$'
+LOCK_REGEX_STR = "^l[0-9]+"
+INACTIVE_LOCK_REGEX_STR = "^inactive[0-9]+$"
+
 
 class LeverRoleEnum:
-    inactive = 'inactive'
-    l0 = 'l0'
-    l1 = 'l1'
-    l2 = 'l2'
-    l3 = 'l3'
-    l4 = 'l4'
-    l5 = 'l5'
-    l6 = 'l6'
+    inactive = "inactive"
+    l0 = "l0"
+    l1 = "l1"
+    l2 = "l2"
+    l3 = "l3"
+    l4 = "l4"
+    l5 = "l5"
+    l6 = "l6"
 
 
 class ObjectPosition:
@@ -44,28 +47,33 @@ class ObjectPosition:
         self.name = name
 
     def __str__(self):
-        return self.name + ': ' + str(self.config)
+        return self.name + ": " + str(self.config)
 
     def __repr__(self):
         return str(self)
 
 
 class ObjectPositionEnum:
-    UPPER = ObjectPosition(TwoDConfig(0, 15, 0), 'UPPER')
-    LEFT = ObjectPosition(TwoDConfig(-15, 0, np.pi / 2), 'LEFT')
-    LOWER = ObjectPosition(TwoDConfig(0, -15, -np.pi), 'LOWER')
-    UPPERLEFT = ObjectPosition(TwoDConfig(-11, 11, np.pi / 4), 'UPPERLEFT')
-    UPPERRIGHT = ObjectPosition(TwoDConfig(11, 11, -np.pi / 4), 'UPPERRIGHT')
-    LOWERLEFT = ObjectPosition(TwoDConfig(-11, -11, 3 * np.pi / 4), 'LOWERLEFT')
-    LOWERRIGHT = ObjectPosition(TwoDConfig(11, -11, 5 * np.pi / 4), 'LOWERRIGHT')
-    RIGHT = ObjectPosition(TwoDConfig(15, 0, -np.pi / 2), 'RIGHT')
+    UPPER = ObjectPosition(TwoDConfig(0, 15, 0), "UPPER")
+    LEFT = ObjectPosition(TwoDConfig(-15, 0, np.pi / 2), "LEFT")
+    LOWER = ObjectPosition(TwoDConfig(0, -15, -np.pi), "LOWER")
+    UPPERLEFT = ObjectPosition(TwoDConfig(-11, 11, np.pi / 4), "UPPERLEFT")
+    UPPERRIGHT = ObjectPosition(TwoDConfig(11, 11, -np.pi / 4), "UPPERRIGHT")
+    LOWERLEFT = ObjectPosition(TwoDConfig(-11, -11, 3 * np.pi / 4), "LOWERLEFT")
+    LOWERRIGHT = ObjectPosition(TwoDConfig(11, -11, 5 * np.pi / 4), "LOWERRIGHT")
+    RIGHT = ObjectPosition(TwoDConfig(15, 0, -np.pi / 2), "RIGHT")
     DOOR = RIGHT
-    DOOR_LOCK = ObjectPosition(TwoDConfig(DOOR.config[0], DOOR.config[1]+DOOR_LENGTH/2, DOOR.config[2]), 'DOOR_LOCK')
+    DOOR_LOCK = ObjectPosition(
+        TwoDConfig(DOOR.config[0], DOOR.config[1] + DOOR_LENGTH / 2, DOOR.config[2]),
+        "DOOR_LOCK",
+    )
 
 
-LeverConfig = namedtuple('lever_config', 'LeverRoleEnum LeverPosition opt_params')    # role should be an enum indicating which lever this
+LeverConfig = namedtuple(
+    "lever_config", "LeverRoleEnum LeverPosition opt_params"
+)  # role should be an enum indicating which lever this
 
-Color = namedtuple('Color', 'r g b')
+Color = namedtuple("Color", "r g b")
 
 
 GREY = Color(0.6, 0.6, 0.6)
@@ -80,32 +88,33 @@ PINK = Color(0.8, 0.1, 0.23)
 LIGHT_PINK = Color(0.9, 0.7, 0.7)
 
 COLOR_NAME_TO_COLOR = {
-    'active': GREY,
-    'inactive': WHITE,
-    'static': GREEN,
-    'kinematic': PURPLE,
-    'asleep': GREY,
-    'default': GREY,
-    'rev_joint' : RED,
-    'pris_joint' : DARK_GREY,
-    'dist_joint' : BLUE,
-    'weld_joint' : BLACK,
-    'reset_button': PINK,
-    'save_button': GREEN
+    "active": GREY,
+    "inactive": WHITE,
+    "static": GREEN,
+    "kinematic": PURPLE,
+    "asleep": GREY,
+    "default": GREY,
+    "rev_joint": RED,
+    "pris_joint": DARK_GREY,
+    "dist_joint": BLUE,
+    "weld_joint": BLACK,
+    "reset_button": PINK,
+    "save_button": GREEN,
 }
 
 COLORS = COLOR_NAME_TO_COLOR
 
 COLOR_TO_COLOR_NAME = {
-    Color(0.6, 0.6, 0.6):    'GREY',
-    Color(0.5, 0.9, 0.5):    'GREEN',
-    Color(0.5, 0.5, 0.9):    'PURPLE',
-    Color(1.0, 0, 0):        'RED',
-    Color(0.35, 0.35, 0.35): 'DARK_GREY',
-    Color(0.0, 0.0, 1.0):    'BLUE',
-    Color(0, 0, 0):          'BLACK',
-    Color(0.9, 0.9, 0.9):    'WHITE',
+    Color(0.6, 0.6, 0.6): "GREY",
+    Color(0.5, 0.9, 0.5): "GREEN",
+    Color(0.5, 0.5, 0.9): "PURPLE",
+    Color(1.0, 0, 0): "RED",
+    Color(0.35, 0.35, 0.35): "DARK_GREY",
+    Color(0.0, 0.0, 1.0): "BLUE",
+    Color(0, 0, 0): "BLACK",
+    Color(0.9, 0.9, 0.9): "WHITE",
 }
+
 
 class Action:
     def __init__(self, name, obj, params):
@@ -114,11 +123,10 @@ class Action:
         self.params = params
 
     def __str__(self):
-        return self.name + '_' + self.obj
+        return self.name + "_" + self.obj
 
 
 class Clickable(object):
-
     def __init__(self, test, callback, callback_args=[], test_args=[]):
         self.test = test
         self.callback = callback
@@ -133,7 +141,16 @@ class Clickable(object):
 
 
 class Object:
-    def __init__(self, name, position=None, fixture=None, joint=None, color=None, int_test=None, ext_test=None):
+    def __init__(
+        self,
+        name,
+        position=None,
+        fixture=None,
+        joint=None,
+        color=None,
+        int_test=None,
+        ext_test=None,
+    ):
         self.fixture = fixture
         self.joint = joint
 
@@ -173,22 +190,22 @@ class Lever(Object):
 
     def int_test_new(self, joint):
         if joint.translation < (joint.upperLimit + joint.lowerLimit) / 2.0:
-            return ENTITY_STATES['LEVER_PULLED']
+            return ENTITY_STATES["LEVER_PULLED"]
         else:
-            return ENTITY_STATES['LEVER_PUSHED']
+            return ENTITY_STATES["LEVER_PUSHED"]
 
     def ext_test_new(self, joint):
         if joint.translation > (joint.upperLimit + joint.lowerLimit) / 2.0:
-            return ENTITY_STATES['LEVER_PULLED']
+            return ENTITY_STATES["LEVER_PULLED"]
         else:
-            return ENTITY_STATES['LEVER_PUSHED']
+            return ENTITY_STATES["LEVER_PUSHED"]
 
     def ext_test_wrapper(self, joint):
-        assert(self.ext_test_old(joint) == self.ext_test_new(joint))
+        assert self.ext_test_old(joint) == self.ext_test_new(joint)
         return self.ext_test_new(joint)
 
     def int_test_wrapper(self, joint):
-        assert(self.int_test_old(joint) == self.int_test_new(joint))
+        assert self.int_test_old(joint) == self.int_test_new(joint)
         return self.int_test_new(joint)
 
     def __str__(self):
@@ -197,18 +214,24 @@ class Lever(Object):
     def __repr__(self):
         return str(self)
 
-    def create_lever(self, world_def, position, width=0.5, length=5, lower_lim=-2, upper_lim=0):
+    def create_lever(
+        self, world_def, position, width=0.5, length=5, lower_lim=-2, upper_lim=0
+    ):
         x, y, theta = position.config
 
         fixture_def = b2FixtureDef(
-            shape=b2PolygonShape(vertices=[(-length, -width),
-                                           (-length, width),
-                                           (length, width),
-                                           (length, -width)]),
+            shape=b2PolygonShape(
+                vertices=[
+                    (-length, -width),
+                    (-length, width),
+                    (length, width),
+                    (length, -width),
+                ]
+            ),
             density=1,
             friction=1.0,
             categoryBits=0x0010,
-            maskBits=0x1101
+            maskBits=0x1101,
         )
 
         # passing userData sets the color of the lever to the be same as the object
@@ -218,7 +241,7 @@ class Lever(Object):
             angle=theta,
             angularDamping=0.8,
             linearDamping=0.8,
-            userData=self
+            userData=self,
         )
 
         lever_body.gravityScale = 0
@@ -238,11 +261,18 @@ class Lever(Object):
             upperTranslation=upper_lim,
             enableLimit=True,
             motorSpeed=0,
-            maxMotorForce=abs(b2Dot(lever_body.massData.mass * world_def.world.gravity, b2Vec2(joint_axis))),
+            maxMotorForce=abs(
+                b2Dot(
+                    lever_body.massData.mass * world_def.world.gravity,
+                    b2Vec2(joint_axis),
+                )
+            ),
             enableMotor=True,
-            userData={'plot_padding': width,
-                      'joint_axis': joint_axis,
-                      'obj_type': 'lever_joint'},
+            userData={
+                "plot_padding": width,
+                "joint_axis": joint_axis,
+                "obj_type": "lever_joint",
+            },
         )
 
         # create lever track in background
@@ -262,52 +292,85 @@ class Lever(Object):
         end2 = -world_axis * (lower_lim - padding)
         norm = b2Vec2(-world_axis[1], world_axis[0])
 
-        inner_vertices = [end1 + norm * width, end1 - norm * width, middle - norm * width, middle + norm * width]
-        outer_vertices = [middle - norm * width, middle + norm * width, end2 - norm * width, end2 + norm * width]
+        inner_vertices = [
+            end1 + norm * width,
+            end1 - norm * width,
+            middle - norm * width,
+            middle + norm * width,
+        ]
+        outer_vertices = [
+            middle - norm * width,
+            middle + norm * width,
+            end2 - norm * width,
+            end2 + norm * width,
+        ]
 
         # passing userData makes the color of the track the same as the lever
-        inner_lever_track_body = world_def.background.CreateStaticBody(position=p2,
-                                                                      active=False,
-                                                                      shapes=b2PolygonShape(vertices=inner_vertices),
-                                                                      userData=self)
+        inner_lever_track_body = world_def.background.CreateStaticBody(
+            position=p2,
+            active=False,
+            shapes=b2PolygonShape(vertices=inner_vertices),
+            userData=self,
+        )
 
         # passing userData makes the color of the track the same as the lever
-        outer_lever_track_body = world_def.background.CreateStaticBody(position=p2,
-                                                                      active=False,
-                                                                      shapes=b2PolygonShape(vertices=outer_vertices),
-                                                                      userData=self)
+        outer_lever_track_body = world_def.background.CreateStaticBody(
+            position=p2,
+            active=False,
+            shapes=b2PolygonShape(vertices=outer_vertices),
+            userData=self,
+        )
         trans = b2Transform()
         trans.SetIdentity()
 
-        self.inner_vertices = [inner_lever_track_body.GetWorldPoint(vertex) for vertex in
-                               inner_lever_track_body.fixtures[0].shape.vertices]
-        self.outer_vertices = [outer_lever_track_body.GetWorldPoint(vertex) for vertex in
-                               outer_lever_track_body.fixtures[0].shape.vertices]
+        self.inner_vertices = [
+            inner_lever_track_body.GetWorldPoint(vertex)
+            for vertex in inner_lever_track_body.fixtures[0].shape.vertices
+        ]
+        self.outer_vertices = [
+            outer_lever_track_body.GetWorldPoint(vertex)
+            for vertex in outer_lever_track_body.fixtures[0].shape.vertices
+        ]
         self.inner_poly = Polygon(self.inner_vertices)
         self.outer_poly = Polygon(self.outer_vertices)
 
         self.fixture = lever_fixture
         self.joint = lever_joint
 
-        return lever_fixture, lever_joint, outer_lever_track_body, inner_lever_track_body
+        return (
+            lever_fixture,
+            lever_joint,
+            outer_lever_track_body,
+            inner_lever_track_body,
+        )
 
     # step is world_def step function
     def create_clickable(self, step, action_map):
-        push = 'push_{}'.format(self.name)
-        pull = 'pull_{}'.format(self.name)
+        push = "push_{}".format(self.name)
+        pull = "pull_{}".format(self.name)
 
-        self.inner_clickable = Clickable(lambda xy, poly: poly.contains(Point(xy)), step,
-                                         callback_args=[action_map[pull]], test_args=[self.inner_poly])
-        self.outer_clickable = Clickable(lambda xy, poly: poly.contains(Point(xy)), step,
-                                         callback_args=[action_map[push]], test_args=[self.outer_poly])
+        self.inner_clickable = Clickable(
+            lambda xy, poly: poly.contains(Point(xy)),
+            step,
+            callback_args=[action_map[pull]],
+            test_args=[self.inner_poly],
+        )
+        self.outer_clickable = Clickable(
+            lambda xy, poly: poly.contains(Point(xy)),
+            step,
+            callback_args=[action_map[push]],
+            test_args=[self.outer_poly],
+        )
 
     def determine_active(self):
-        if self.color == COLORS['active']:
-            return ENTITY_STATES['LEVER_ACTIVE']
-        elif self.color == COLORS['inactive']:
-            return ENTITY_STATES['LEVER_INACTIVE']
+        if self.color == COLORS["active"]:
+            return ENTITY_STATES["LEVER_ACTIVE"]
+        elif self.color == COLORS["inactive"]:
+            return ENTITY_STATES["LEVER_INACTIVE"]
         else:
-            raise ValueError('Expected lever to be active or inactive, different color set')
+            raise ValueError(
+                "Expected lever to be active or inactive, different color set"
+            )
 
 
 class Door(Object):
@@ -334,7 +397,7 @@ class Door(Object):
         self.ext_test = self.open_test
 
         self.color = color
-        self.name = 'door'
+        self.name = "door"
         self.position = position
 
     def open_test_old(self, door_hinge):
@@ -342,40 +405,40 @@ class Door(Object):
 
     def open_test_new(self, door_hinge):
         if abs(door_hinge.angle) > np.pi / 16:
-            return ENTITY_STATES['DOOR_OPENED']
+            return ENTITY_STATES["DOOR_OPENED"]
         else:
-            return ENTITY_STATES['DOOR_CLOSED']
+            return ENTITY_STATES["DOOR_CLOSED"]
 
     def open_test(self, door_hinge):
-        assert(self.open_test_old(door_hinge) == self.open_test_new(door_hinge))
+        assert self.open_test_old(door_hinge) == self.open_test_new(door_hinge)
         return self.open_test_new(door_hinge)
 
     def lock_present(self):
         if self.lock is None:
-            return ENTITY_STATES['DOOR_UNLOCKED']
+            return ENTITY_STATES["DOOR_UNLOCKED"]
         else:
-            return ENTITY_STATES['DOOR_LOCKED']
+            return ENTITY_STATES["DOOR_LOCKED"]
 
     def _create_door(self, world_def, position, width=0.5, length=10, locked=True):
         # create door
         x, y, theta = position.config
 
         fixture_def = b2FixtureDef(
-            shape=b2PolygonShape(vertices=[(0, -width),
-                                           (0, width),
-                                           (length, width),
-                                           (length, -width)]),
+            shape=b2PolygonShape(
+                vertices=[(0, -width), (0, width), (length, width), (length, -width)]
+            ),
             density=1,
             friction=1.0,
             categoryBits=0x0010,
-            maskBits=0x1101)
+            maskBits=0x1101,
+        )
 
         door_body = world_def.world.CreateDynamicBody(
             position=(x, y),
             angle=theta,
             angularDamping=0.8,
             linearDamping=0.8,
-            userData=self
+            userData=self,
         )
 
         door_body.gravityScale = 0
@@ -390,7 +453,7 @@ class Door(Object):
             enableMotor=True,
             motorSpeed=0,
             enableLimit=False,
-            maxMotorTorque=500
+            maxMotorTorque=500,
         )
 
         door_lock = None
@@ -400,14 +463,25 @@ class Door(Object):
             door_lock = world_def.world.CreateWeldJoint(
                 bodyA=door_fixture.body,  # end of link A
                 bodyB=world_def.ground,  # beginning of link B
-                localAnchorB=(x + delta_x, y + delta_y)
+                localAnchorB=(x + delta_x, y + delta_y),
             )
 
         return door_fixture, door_hinge, door_lock
 
 
 class Button(Object):
-    def __init__(self, world_def, position, color, name, height, width, x_offset=0, y_offset=0, clickable=None):
+    def __init__(
+        self,
+        world_def,
+        position,
+        color,
+        name,
+        height,
+        width,
+        x_offset=0,
+        y_offset=0,
+        clickable=None,
+    ):
         Object.__init__(self, name)
         self.position = position
         x, y, theta = position.config
@@ -415,16 +489,24 @@ class Button(Object):
             position=(x + x_offset, y + y_offset),
             angle=theta,
             shapes=b2PolygonShape(box=(height, width)),
-            userData=self
+            userData=self,
         )
         self.fixture = button.fixtures[0]
         self.color = color
         self.clickable = None
 
     def create_clickable(self, step, action_map, callback_args):
-        vertices = [self.fixture.body.GetWorldPoint(vertex) for vertex in self.fixture.shape.vertices]
+        vertices = [
+            self.fixture.body.GetWorldPoint(vertex)
+            for vertex in self.fixture.shape.vertices
+        ]
         poly = Polygon(vertices)
-        self.clickable = Clickable(lambda xy, poly: poly.contains(Point(xy)), step, callback_args=[callback_args], test_args=[poly])
+        self.clickable = Clickable(
+            lambda xy, poly: poly.contains(Point(xy)),
+            step,
+            callback_args=[callback_args],
+            test_args=[poly],
+        )
 
 
 def wrapToMinusPiToPi(original):
@@ -443,20 +525,24 @@ def clamp_mag(array_like, clamp_mag):
 
 
 def print_instructions():
-    print('Hello! Welcome to the game!')
+    print("Hello! Welcome to the game!")
 
     # time.sleep(1)
 
     # time.sleep(1)
-    print('''See that door on your right? It is the vertical vertical on your right, with the
-             red circle (the door hinge) and black circle (it's lock). That is your only escape.''')
+    print(
+        """See that door on your right? It is the vertical vertical on your right, with the
+             red circle (the door hinge) and black circle (it's lock). That is your only escape."""
+    )
     # time.sleep(1)
-    print('''To open it, you must manipulate the three locks (the rectangles above, below, and
+    print(
+        """To open it, you must manipulate the three locks (the rectangles above, below, and
              to your left). Their behavior is unknown! You'll know that you unlocked the door
-             when the black circle goes away''')
+             when the black circle goes away"""
+    )
     # time.sleep(1)
-    print('ready...')
+    print("ready...")
     # time.sleep(1)
-    print('set...')
+    print("set...")
     # time.sleep(1)
-    print('go!')
+    print("go!")
