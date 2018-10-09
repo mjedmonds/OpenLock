@@ -355,7 +355,10 @@ class OpenLockEnv(gym.Env):
         self.idx_to_position = dict()
         self.attribute_order = []
         self.attribute_labels = dict()
-
+        self.attribute_function_map = {
+            "position": self.get_obj_position_name,
+            "color": self.get_obj_color,
+        }
         # current trial to keep track of progress through this trial
         self.cur_trial = None
         # keeps track of current state. todo: can this safely be removed
@@ -427,10 +430,7 @@ class OpenLockEnv(gym.Env):
             self.scenario.init_scenario_env()
 
             obj_map = self.scenario.obj_map
-            # todo: this is a dirty hack to get the door in
-            # todo: define a global configuration that includes levers and doors
-            # add door because it is not originally in the map
-            obj_map["door"] = "door"
+
             levers = self.scenario.levers
 
         self.action_space, self.action_map, self.action_map_external_role, self.action_map_internal_role = ActionSpace.create_action_space(
@@ -1020,26 +1020,40 @@ class OpenLockEnv(gym.Env):
         obj_name = self.get_internal_variable_name(obj_name)
         return action_name + "_" + obj_name
 
-    def get_lever_color(self, internal_lever_name):
-        internal_lever_name = self.get_internal_variable_name(internal_lever_name)
+    def get_obj_color(self, obj_name):
+        obj_name = self.get_internal_variable_name(obj_name)
         # todo: this is hacky, refactor, but doors and door_locks have no color attribute
-        if internal_lever_name == "door_lock" or internal_lever_name == "door":
+        if obj_name == "door_lock" or obj_name == "door":
             return "GREY"
         if self.use_physics:
-            lever = self.world_def.obj_map[internal_lever_name]
+            obj = self.world_def.obj_map[obj_name]
         else:
-            lever = self.scenario.obj_map[internal_lever_name]
-        color = common.COLOR_TO_COLOR_NAME[lever.color]
+            obj = self.scenario.obj_map[obj_name]
+        color = common.COLOR_TO_COLOR_NAME[obj.color]
         return color
 
-    def get_lever_position(self, lever_name):
-        lever_name = self.get_internal_variable_name(lever_name)
+    def get_obj_position_name(self, obj_name):
+        obj_name = self.get_internal_variable_name(obj_name)
         # todo: refactor so there is a single obj_map in env that is set depending upon use_physics
         if self.use_physics:
-            lever = self.world_def.obj_map[lever_name]
+            obj = self.world_def.obj_map[obj_name]
         else:
-            lever = self.scenario.obj_map[lever_name]
-        return lever.position
+            obj = self.scenario.obj_map[obj_name]
+        return obj.position.name
+
+    def get_obj_attributes(self, obj_name):
+        """
+        returns dict of attribute values for obj_name in the simulator.
+        :param obj_name:
+        :return:
+        """
+        obj_name = self.get_internal_variable_name(obj_name)
+        obj_attributes = dict()
+        for attribute_name in self.attribute_order:
+            obj_attributes[attribute_name] = self.attribute_function_map[
+                attribute_name
+            ](obj_name)
+        return obj_attributes
 
     def get_trial_success(self):
         return self.cur_trial.success

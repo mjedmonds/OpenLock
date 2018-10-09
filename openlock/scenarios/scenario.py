@@ -345,6 +345,11 @@ class Scenario(object):
         else:
             for lever in self.levers:
                 self.obj_map[lever.name] = lever
+            # todo: this is a dirty hack to get the door in
+            # todo: define a global configuration that includes levers and doors
+            # add door because it is not originally in the map
+            self.obj_map["door"] = "door"
+            self.obj_map["door_lock"] = "door_lock"
 
     def _update_env(self):
         """
