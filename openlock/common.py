@@ -482,7 +482,6 @@ class Door(Object):
             maxMotorTorque=500,
         )
 
-
         return door_fixture, door_hinge
 
 

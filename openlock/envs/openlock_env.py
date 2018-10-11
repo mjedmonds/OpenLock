@@ -721,8 +721,6 @@ class OpenLockEnv(gym.Env):
                 self.render()
             self.update_state_machine()
 
-        # reset (xxx: this shouldn't happen here, reset should happen after step(), so next_state is set properly
-        # self.state = self.reset()
         self.cur_trial.add_attempt()
 
     def finish_action(self, action):
