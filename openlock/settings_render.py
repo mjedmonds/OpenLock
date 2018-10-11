@@ -10,9 +10,9 @@ RENDER_SETTINGS = {
     "SCALE": 15.0,
     "DRAW_SHAPES": True,
     "DRAW_JOINTS": True,
-    "DRAW_AABB": False, # TODO
-    "DRAW_MARKERS" : True,
-    "COLORS" : COLORS
+    "DRAW_AABB": False,  # TODO
+    "DRAW_MARKERS": True,
+    "COLORS": COLORS,
 }
 
 
@@ -23,12 +23,10 @@ BOX2D_SETTINGS = {
     "POS_PID_CLK_DIV": 10,
     "VEL_PID_CLK_DIV": 1,
     "STATE_MACHINE_CLK_DIV": 5,
-
     # Makes physics results more accurate (see Box2D wiki)
     "ENABLE_WARM_START": True,
     "ENABLE_CONTINUOUS": True,  # Calculate time of impact
     "ENABLE_SUBSTEP": False,
-
     "ARM_LENGTH": 5.0,
     "ARM_WIDTH": 1.0,
     "INITIAL_BASE_CONFIG": TwoDConfig(0, 0, 0),
@@ -42,6 +40,5 @@ ENV_SETTINGS = {
     "INVK_CONV_MAX_STEPS": 2000,
     "INVK_DLS_LAMBDA": 0.75,
     "INVK_CONV_TOL": 0.001,
-    "PATH_INTERP_STEP_DELTA": 0.05
+    "PATH_INTERP_STEP_DELTA": 0.05,
 }
-

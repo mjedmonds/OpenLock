@@ -9,24 +9,28 @@ import sys
 import six
 
 if "Apple" in sys.version:
-    if 'DYLD_FALLBACK_LIBRARY_PATH' in os.environ:
-        os.environ['DYLD_FALLBACK_LIBRARY_PATH'] += ':/usr/lib'
+    if "DYLD_FALLBACK_LIBRARY_PATH" in os.environ:
+        os.environ["DYLD_FALLBACK_LIBRARY_PATH"] += ":/usr/lib"
         # (JDS 2016/04/15): avoid bug on Anaconda 2.3.0 / Yosemite
 
 from gym.utils import reraise
 from gym import error
-#TODO: refactor this, use batch?
+
+# TODO: refactor this, use batch?
 try:
     import pyglet
 except ImportError as e:
     reraise(
-        suffix="HINT: you can install pyglet directly via 'pip install pyglet'. But if you really just want to install all Gym dependencies and not have to think about it, 'pip install -e .[all]' or 'pip install gym[all]' will do it.")
+        suffix="HINT: you can install pyglet directly via 'pip install pyglet'. But if you really just want to install all Gym dependencies and not have to think about it, 'pip install -e .[all]' or 'pip install gym[all]' will do it."
+    )
 
 try:
     from pyglet.gl import *
 except ImportError as e:
-    reraise(prefix="Error occured while running `from pyglet.gl import *`",
-            suffix="HINT: make sure you have OpenGL install. On Ubuntu, you can run 'apt-get install python-opengl'. If you're running on a server, you may need a virtual frame buffer; something like this should work: 'xvfb-run -s \"-screen 0 1400x900x24\" python <your_script.py>'")
+    reraise(
+        prefix="Error occured while running `from pyglet.gl import *`",
+        suffix="HINT: make sure you have OpenGL install. On Ubuntu, you can run 'apt-get install python-opengl'. If you're running on a server, you may need a virtual frame buffer; something like this should work: 'xvfb-run -s \"-screen 0 1400x900x24\" python <your_script.py>'",
+    )
 
 import math
 import numpy as np
@@ -45,7 +49,11 @@ def get_display(spec):
     elif isinstance(spec, six.string_types):
         return pyglet.canvas.Display(spec)
     else:
-        raise error.Error('Invalid display specification: {}. (Must be a string like :0 or None.)'.format(spec))
+        raise error.Error(
+            "Invalid display specification: {}. (Must be a string like :0 or None.)".format(
+                spec
+            )
+        )
 
 
 class Viewer(object):
@@ -75,8 +83,8 @@ class Viewer(object):
         scalex = self.width / (right - left)
         scaley = self.height / (top - bottom)
         self.transform = Transform(
-            translation=(-left * scalex, -bottom * scaley),
-            scale=(scalex, scaley))
+            translation=(-left * scalex, -bottom * scaley), scale=(scalex, scaley)
+        )
 
     def add_geom(self, geom):
         self.geoms.append(geom)
@@ -104,7 +112,7 @@ class Viewer(object):
         if return_rgb_array:
             buffer = pyglet.image.get_buffer_manager().get_color_buffer()
             image_data = buffer.get_image_data()
-            arr = np.fromstring(image_data.data, dtype=np.uint8, sep='')
+            arr = np.fromstring(image_data.data, dtype=np.uint8, sep="")
             # In https://github.com/openai/gym-http-api/issues/2, we
             # discovered that someone using Xmonad on Arch was having
             # a window of size 598 x 398, though a 600 x 400 window
@@ -145,9 +153,11 @@ class Viewer(object):
 
     def get_array(self):
         self.window.flip()
-        image_data = pyglet.image.get_buffer_manager().get_color_buffer().get_image_data()
+        image_data = (
+            pyglet.image.get_buffer_manager().get_color_buffer().get_image_data()
+        )
         self.window.flip()
-        arr = np.fromstring(image_data.data, dtype=np.uint8, sep='')
+        arr = np.fromstring(image_data.data, dtype=np.uint8, sep="")
         arr = arr.reshape(self.height, self.width, 4)
         return arr[::-1, :, 0:3]
 
@@ -197,7 +207,9 @@ class Transform(Attr):
 
     def enable(self):
         glPushMatrix()
-        glTranslatef(self.translation[0], self.translation[1], 0)  # translate to GL loc ppint
+        glTranslatef(
+            self.translation[0], self.translation[1], 0
+        )  # translate to GL loc ppint
         glRotatef(RAD2DEG * self.rotation, 0, 0, 1.0)
         glScalef(self.scale[0], self.scale[1], 1)
 
@@ -356,10 +368,13 @@ class Image(Geom):
         self.flip = False
 
     def render1(self):
-        self.img.blit(-self.width / 2, -self.height / 2, width=self.width, height=self.height)
+        self.img.blit(
+            -self.width / 2, -self.height / 2, width=self.width, height=self.height
+        )
 
 
 # ================================================================
+
 
 class SimpleImageViewer(object):
     def __init__(self, display=None):
@@ -370,12 +385,20 @@ class SimpleImageViewer(object):
     def imshow(self, arr):
         if self.window is None:
             height, width, channels = arr.shape
-            self.window = pyglet.window.Window(width=width, height=height, display=self.display)
+            self.window = pyglet.window.Window(
+                width=width, height=height, display=self.display
+            )
             self.width = width
             self.height = height
             self.isopen = True
-        assert arr.shape == (self.height, self.width, 3), "You passed in an image with the wrong number shape"
-        image = pyglet.image.ImageData(self.width, self.height, 'RGB', arr.tobytes(), pitch=self.width * -3)
+        assert arr.shape == (
+            self.height,
+            self.width,
+            3,
+        ), "You passed in an image with the wrong number shape"
+        image = pyglet.image.ImageData(
+            self.width, self.height, "RGB", arr.tobytes(), pitch=self.width * -3
+        )
         self.window.clear()
         self.window.switch_to()
         self.window.dispatch_events()

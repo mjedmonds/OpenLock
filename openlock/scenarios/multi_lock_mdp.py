@@ -1,4 +1,3 @@
-
 # class MultiDoorLockMDP(StateMachineMDP):
 #
 #     lock_prob = 0.2

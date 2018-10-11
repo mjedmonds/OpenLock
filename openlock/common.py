@@ -62,10 +62,10 @@ class ObjectPositionEnum:
     LOWERLEFT = ObjectPosition(TwoDConfig(-11, -11, 3 * np.pi / 4), "LOWERLEFT")
     LOWERRIGHT = ObjectPosition(TwoDConfig(11, -11, 5 * np.pi / 4), "LOWERRIGHT")
     RIGHT = ObjectPosition(TwoDConfig(15, 0, -np.pi / 2), "RIGHT")
-    DOOR = RIGHT
+    DOOR = ObjectPosition(TwoDConfig(15, 0, -np.pi / 2), "door")
     DOOR_LOCK = ObjectPosition(
         TwoDConfig(DOOR.config[0], DOOR.config[1] + DOOR_LENGTH / 2, DOOR.config[2]),
-        "DOOR_LOCK",
+        "door_lock",
     )
 
 
@@ -375,7 +375,9 @@ class Lever(Object):
 
 class Door(Object):
     # def __init__(self, door_fixture, door_joint, int_test, ext_test, name):
-    def __init__(self, world_def, name, position, color, width=0.5, length=10):
+    def __init__(
+        self, world_def, name, position, color, width=0.5, length=10, locked=True
+    ):
         # Object.__init__(self, name, door_fixture, joint=door_joint, int_test=int_test, ext_test=ext_test)
         Object.__init__(self, name)
 
@@ -386,15 +388,23 @@ class Door(Object):
         y = y + length / 2
         new_position = ObjectPosition(TwoDConfig(x, y, theta), position.name)
 
-        self.fixture, self.joint, self.lock = self._create_door(world_def, new_position)
+        if world_def is not None:
+            self.fixture, self.joint = self._create_door(
+                world_def, new_position, locked=locked
+            )
 
-        # old
-        # open_test = lambda door_hinge: ENTITY_STATES['DOOR_MOVED'] if abs(door_hinge.angle) > np.pi / 16 else ENTITY_STATES['DOOR_MOVED']
-        # old
-        # open_test = lambda door_hinge: abs(door_hinge.angle) > np.pi / 16
+            # old
+            # open_test = lambda door_hinge: ENTITY_STATES['DOOR_MOVED'] if abs(door_hinge.angle) > np.pi / 16 else ENTITY_STATES['DOOR_MOVED']
+            # old
+            # open_test = lambda door_hinge: abs(door_hinge.angle) > np.pi / 16
 
-        self.int_test = self.open_test
-        self.ext_test = self.open_test
+            self.int_test = self.open_test
+            self.ext_test = self.open_test
+
+        self.lock = Lock("door_lock", locked)
+
+        if locked:
+            self.lock_door(world_def)
 
         self.color = color
         self.name = "door"
@@ -414,10 +424,26 @@ class Door(Object):
         return self.open_test_new(door_hinge)
 
     def lock_present(self):
-        if self.lock is None:
-            return ENTITY_STATES["DOOR_UNLOCKED"]
-        else:
+        if self.lock.locked:
             return ENTITY_STATES["DOOR_LOCKED"]
+        else:
+            return ENTITY_STATES["DOOR_UNLOCKED"]
+
+    def lock_door(self, world_def):
+        if world_def is not None:
+            theta = self.fixture.body.angle
+            length = max([v[0] for v in self.fixture.shape.vertices])
+            x, y = self.fixture.body.position
+
+            delta_x = np.cos(theta) * length
+            delta_y = np.sin(theta) * length
+
+            self.lock.lock(world_def, self.fixture.body, x, y, delta_x, delta_y)
+        else:
+            self.lock.lock()
+
+    def unlock_door(self, world_def):
+        self.lock.unlock(world_def)
 
     def _create_door(self, world_def, position, width=0.5, length=10, locked=True):
         # create door
@@ -456,17 +482,32 @@ class Door(Object):
             maxMotorTorque=500,
         )
 
-        door_lock = None
-        if locked:
-            delta_x = np.cos(theta) * length
-            delta_y = np.sin(theta) * length
-            door_lock = world_def.world.CreateWeldJoint(
-                bodyA=door_fixture.body,  # end of link A
+
+        return door_fixture, door_hinge
+
+
+class Lock(Object):
+    def __init__(self, name, locked):
+        Object.__init__(self, name)
+        self.locked = locked
+
+    def lock(
+        self, world_def=None, body=None, x=None, y=None, delta_x=None, delta_y=None
+    ):
+        if world_def is not None:
+            self.joint = world_def.world.CreateWeldJoint(
+                bodyA=body,  # end of link A
                 bodyB=world_def.ground,  # beginning of link B
                 localAnchorB=(x + delta_x, y + delta_y),
             )
 
-        return door_fixture, door_hinge, door_lock
+        self.locked = True
+
+    def unlock(self, world_def=None):
+        if world_def is not None:
+            world_def.world.DestroyJoint(self.joint)
+
+        self.locked = False
 
 
 class Button(Object):

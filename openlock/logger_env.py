@@ -1,4 +1,3 @@
-
 import time
 import jsonpickle
 import os
@@ -12,6 +11,7 @@ class ActionLog(object):
     """
     Represents an action for the purpose of logging. Actions have a name, start time, and end time.
     """
+
     start_time = None
     end_time = None
     name = None
@@ -62,6 +62,7 @@ class AttemptLog(object):
     """
     Represents an attempt for the purpose of logging.
     """
+
     attempt_num = None
     action_seq = []
     start_time = None
@@ -132,12 +133,12 @@ class AttemptLog(object):
         return action
 
     def add_reward(self, reward):
-        '''
+        """
         Add the reward to the last action. Action must have called ActionLog.finish() before computing reward
         Because of this, we add/log the reward separately.
         :param reward: reward received from the previously executed action
         :return: Nothing
-        '''
+        """
         self.reward += reward
         self.action_seq[-1].reward = reward
 
@@ -164,9 +165,9 @@ class AttemptLog(object):
         """
         table = texttable.Texttable()
         col_labels = self.results[0]
-        table.set_cols_align(['l' for i in range(len(col_labels))])
+        table.set_cols_align(["l" for i in range(len(col_labels))])
         content = [col_labels]
-        content.extend(self.results[1:len(self.results)])
+        content.extend(self.results[1 : len(self.results)])
         table.add_rows(content)
         table.set_cols_width([12 for i in range(len(col_labels))])
         return table.draw()
@@ -176,6 +177,7 @@ class TrialLog(object):
     """
     Represents a trial for the purpose of logging.
     """
+
     attempt_seq = []
     success = False
     start_time = None

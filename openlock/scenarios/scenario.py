@@ -348,7 +348,15 @@ class Scenario(object):
             # todo: this is a dirty hack to get the door in
             # todo: define a global configuration that includes levers and doors
             # add door because it is not originally in the map
-            self.obj_map["door"] = "door"
+            door_position = common.ObjectPositionEnum.DOOR
+            self.obj_map["door"] = common.Door(
+                None,
+                "door",
+                door_position,
+                color=common.COLORS["active"],
+                width=common.DOOR_WIDTH,
+                length=common.DOOR_LENGTH,
+            )
             self.obj_map["door_lock"] = "door_lock"
 
     def _update_env(self):
