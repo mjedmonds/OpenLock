@@ -367,18 +367,23 @@ class OpenLockEnv(gym.Env):
         # keeps track of which trials have been completed this execution
         self.completed_trials = []
 
-    def initialize_for_scenario(self, scenario_name):
+    def initialize_for_scenario(self, scenario_name, use_only_grey_levers=False):
         self._set_scenario(scenario_name)
-        _, lever_configs = get_trial(scenario_name)
+        trial_scenario_name = scenario_name
+
+        if use_only_grey_levers:
+            trial_scenario_name += "_grey"
+        _, lever_configs = get_trial(trial_scenario_name)
+
         self._set_lever_configs(lever_configs)
         self.config_to_idx = {
-            lever_configs[i].LeverRoleEnum.config: i for i in range(len(lever_configs))
+            lever_configs[i].LeverPosition.config: i for i in range(len(lever_configs))
         }
         self.position_to_idx = {
-            lever_configs[i].LeverRoleEnum.name: i for i in range(len(lever_configs))
+            lever_configs[i].LeverPosition.name: i for i in range(len(lever_configs))
         }
         self.idx_to_position = {
-            i: lever_configs[i].LeverRoleEnum.name for i in range(len(lever_configs))
+            i: lever_configs[i].LeverPosition.name for i in range(len(lever_configs))
         }
         # todo: elegantly include door; at this stage of initialization we don't have access to obj_map
         door_idx = len(self.config_to_idx.keys())

@@ -70,7 +70,7 @@ class ObjectPositionEnum:
 
 
 LeverConfig = namedtuple(
-    "lever_config", "LeverRoleEnum LeverPosition opt_params"
+    "lever_config", "LeverPosition LeverRoleEnum opt_params"
 )  # role should be an enum indicating which lever this
 
 Color = namedtuple("Color", "r g b")
