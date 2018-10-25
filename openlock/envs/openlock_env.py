@@ -367,13 +367,11 @@ class OpenLockEnv(gym.Env):
         # keeps track of which trials have been completed this execution
         self.completed_trials = []
 
-    def initialize_for_scenario(self, scenario_name, use_only_grey_levers=False):
+    def initialize_for_scenario(self, scenario_name):
         self._set_scenario(scenario_name)
         trial_scenario_name = scenario_name
 
-        if use_only_grey_levers:
-            trial_scenario_name += "_grey"
-        _, lever_configs = get_trial(trial_scenario_name)
+        _, lever_configs = get_trial(scenario_name)
 
         self._set_lever_configs(lever_configs)
         self.config_to_idx = {

@@ -13,9 +13,9 @@ TESTING_SCENARIOS = [("CE3", "CE4"), ("CE3", "CC4"), ("CC3", "CE4"), ("CC3", "CC
 
 def select_scenario(scenario_name, use_physics=True):
     scenario_selected = None
-    if scenario_name == "CE3":
+    if scenario_name == "CE3" or scenario_name == "CE3_simplified":
         scenario_selected = CommonEffect3Scenario(use_physics=use_physics)
-    elif scenario_name == "CC3":
+    elif scenario_name == "CC3" or scenario_name == "CC3_simplified":
         scenario_selected = CommonCause3Scenario(use_physics=use_physics)
     elif scenario_name == "CE4":
         scenario_selected = CommonEffect4Scenario(use_physics=use_physics)

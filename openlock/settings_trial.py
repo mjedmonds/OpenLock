@@ -16,13 +16,11 @@ ACTION_LIMIT = 3
 
 THREE_LEVER_TRIALS = ["trial1", "trial2", "trial3", "trial4", "trial5", "trial6"]
 FOUR_LEVER_TRIALS = ["trial7", "trial8", "trial9", "trial10", "trial11"]
-GREY_THREE_LEVER_TRIALS = [
-    "grey_trial1",
-    "grey_trial2",
-    "grey_trial3",
-    "grey_trial4",
-    "grey_trial5",
-    "grey_trial6",
+SIMPLIFIED_THREE_LEVER_TRIALS = [
+    "simplified_trial1",
+    "simplified_trial2",
+    "simplified_trial3",
+    "simplified_trial4",
 ]
 TWO_STEP_TESTING_TRIALS = ["TwoStepTesting1"]
 
@@ -280,19 +278,33 @@ LEVER_CONFIGS = {
         LeverConfig(ObjectPositionEnum.LOWER, LeverRoleEnum.l5, None),
         LeverConfig(ObjectPositionEnum.LOWERRIGHT, LeverRoleEnum.l6, None),
     ],
+    # add in simplified trials. These trials always use UPPERRIGHT, UPPERLEFT, LOWERLEFT, LOWERRIGHT. 4 levers total.
+    "simplified_trial1": [
+        LeverConfig(ObjectPositionEnum.UPPERRIGHT, LeverRoleEnum.l0, None),
+        LeverConfig(ObjectPositionEnum.UPPERLEFT, LeverRoleEnum.l2, None),
+        LeverConfig(ObjectPositionEnum.LOWERLEFT, LeverRoleEnum.l1, None),
+        LeverConfig(ObjectPositionEnum.LOWERRIGHT, LeverRoleEnum.inactive, None),
+    ],
+    "simplified_trial2": [
+        LeverConfig(ObjectPositionEnum.UPPERRIGHT, LeverRoleEnum.l0, None),
+        LeverConfig(ObjectPositionEnum.UPPERLEFT, LeverRoleEnum.l2, None),
+        LeverConfig(ObjectPositionEnum.LOWERLEFT, LeverRoleEnum.inactive, None),
+        LeverConfig(ObjectPositionEnum.LOWERRIGHT, LeverRoleEnum.l1, None),
+    ],
+    "simplified_trial3": [
+        LeverConfig(ObjectPositionEnum.UPPERRIGHT, LeverRoleEnum.inactive, None),
+        LeverConfig(ObjectPositionEnum.UPPERLEFT, LeverRoleEnum.l2, None),
+        LeverConfig(ObjectPositionEnum.LOWERLEFT, LeverRoleEnum.l0, None),
+        LeverConfig(ObjectPositionEnum.LOWERRIGHT, LeverRoleEnum.l1, None),
+    ],
+    "simplified_trial4": [
+        LeverConfig(ObjectPositionEnum.UPPERRIGHT, LeverRoleEnum.l2, None),
+        LeverConfig(ObjectPositionEnum.UPPERLEFT, LeverRoleEnum.inactive, None),
+        LeverConfig(ObjectPositionEnum.LOWERLEFT, LeverRoleEnum.l0, None),
+        LeverConfig(ObjectPositionEnum.LOWERRIGHT, LeverRoleEnum.l1, None),
+    ],
 }
-# add in grey-only trials
-LEVER_CONFIGS["grey_trial1"] = [x for x in LEVER_CONFIGS["trial1"] if x.LeverRoleEnum != LeverRoleEnum.inactive]
-LEVER_CONFIGS["grey_trial2"] = [x for x in LEVER_CONFIGS["trial2"] if x.LeverRoleEnum != LeverRoleEnum.inactive]
-LEVER_CONFIGS["grey_trial3"] = [x for x in LEVER_CONFIGS["trial3"] if x.LeverRoleEnum != LeverRoleEnum.inactive]
-LEVER_CONFIGS["grey_trial4"] = [x for x in LEVER_CONFIGS["trial4"] if x.LeverRoleEnum != LeverRoleEnum.inactive]
-LEVER_CONFIGS["grey_trial5"] = [x for x in LEVER_CONFIGS["trial5"] if x.LeverRoleEnum != LeverRoleEnum.inactive]
-LEVER_CONFIGS["grey_trial6"] = [x for x in LEVER_CONFIGS["trial6"] if x.LeverRoleEnum != LeverRoleEnum.inactive]
-LEVER_CONFIGS["grey_trial7"] = [x for x in LEVER_CONFIGS["trial7"] if x.LeverRoleEnum != LeverRoleEnum.inactive]
-LEVER_CONFIGS["grey_trial8"] = [x for x in LEVER_CONFIGS["trial8"] if x.LeverRoleEnum != LeverRoleEnum.inactive]
-LEVER_CONFIGS["grey_trial9"] = [x for x in LEVER_CONFIGS["trial9"] if x.LeverRoleEnum != LeverRoleEnum.inactive]
-LEVER_CONFIGS["grey_trial10"] = [x for x in LEVER_CONFIGS["trial10"] if x.LeverRoleEnum != LeverRoleEnum.inactive]
-LEVER_CONFIGS["grey_trial11"] = [x for x in LEVER_CONFIGS["trial11"] if x.LeverRoleEnum != LeverRoleEnum.inactive]
+
 
 def generate_attributes_by_trial():
     attributes_by_trial = dict()
@@ -342,9 +354,11 @@ def get_trial(scenario_name, completed_trials=None):
     elif scenario_name == "CE4" or scenario_name == "CC4":
         # trials 7-11 have 4 levers for CC4/CE4
         trial, configs = select_random_trial(completed_trials, FOUR_LEVER_TRIALS)
-    elif scenario_name == "CE3_grey" or scenario_name == "CC3_grey":
+    elif scenario_name == "CE3_simplified" or scenario_name == "CC3_simplified":
         # trials 1-6 have 3 levers for CC3/CE3
-        trial, configs = select_random_trial(completed_trials, GREY_THREE_LEVER_TRIALS)
+        trial, configs = select_random_trial(
+            completed_trials, SIMPLIFIED_THREE_LEVER_TRIALS
+        )
     elif scenario_name == "TwoStepTestingScenario":
         trial, configs = select_random_trial(completed_trials, TWO_STEP_TESTING_TRIALS)
     else:
