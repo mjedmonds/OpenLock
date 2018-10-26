@@ -647,7 +647,7 @@ class OpenLockEnv(gym.Env):
         action_limit,
         attempt_limit,
         specified_trial=None,
-        multithreaded=False,
+        multiproc=False,
     ):
         """
         Set the env class variables and select a trial (specified if provided, otherwise a random trial from the scenario name).
@@ -659,7 +659,7 @@ class OpenLockEnv(gym.Env):
         :param action_limit: number of actions permitted
         :param attempt_limit: number of attempts permitted
         :param specified_trial: optional specified trial. If none, get_trial is used to select trial
-        :param multithreaded: disables printing if running in multiple threads
+        :param multiproc: disables printing if running in multiple threads
         :return state: state of env after reset
         :return trial_selected: the selected_trial as returned by get_trial or select_trial
         """
@@ -674,7 +674,7 @@ class OpenLockEnv(gym.Env):
                 scenario_name, self.completed_trials
             )
             if trial_selected is None:
-                if not multithreaded:
+                if not multiproc:
                     print(
                         "WARNING: no more trials available. Resetting completed_trials."
                     )
@@ -693,7 +693,7 @@ class OpenLockEnv(gym.Env):
             trial_selected, scenario_name, self.scenario.solutions, time.time()
         )
 
-        if not multithreaded:
+        if not multiproc:
             print(
                 "INFO: New trial. There are {} unique solutions remaining.".format(
                     len(self.scenario.solutions)
