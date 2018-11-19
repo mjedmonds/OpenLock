@@ -79,7 +79,7 @@ class ActionSpace:
                 action_map_internal_role[push] = common.Action("push", role, 4)
                 action_map_internal_role[pull] = common.Action("pull", role, 4)
 
-            if "button" not in obj and "door" in obj:
+            if "button" not in obj and "door" in obj and "door_lock" != obj:
                 push = "push_{}".format(obj)
 
                 door_action_space.append(push)
@@ -349,7 +349,6 @@ class OpenLockEnv(gym.Env):
         self.world_def = None
 
         self.states = []
-        self.actions = []
         self.config_to_idx = dict()
         self.position_to_idx = dict()
         self.idx_to_position = dict()
@@ -390,13 +389,6 @@ class OpenLockEnv(gym.Env):
         self.idx_to_position[door_idx] = "door"
 
         self.states = list(self.position_to_idx.keys())
-        self.actions = [
-            "push_{}".format(x) for x in self.states if x is not "door_lock"
-        ] + [
-            "pull_{}".format(x)
-            for x in self.states
-            if x is not "door_lock" and x is not "door"
-        ]
         self.attribute_order = ["position", "color"]
         self.attribute_labels = {
             "color": common.COLOR_LABELS,
@@ -695,8 +687,8 @@ class OpenLockEnv(gym.Env):
 
         if not multiproc:
             print(
-                "INFO: New trial. There are {} unique solutions remaining.".format(
-                    len(self.scenario.solutions)
+                "INFO: New trial {}. There are {} unique solutions remaining.".format(
+                    trial_selected, len(self.scenario.solutions)
                 )
             )
 

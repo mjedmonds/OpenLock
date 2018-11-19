@@ -125,6 +125,12 @@ class Action:
     def __str__(self):
         return self.name + "_" + self.obj
 
+    def __repr__(self):
+        return str(self)
+
+    def __eq__(self, other):
+        return self.name == other.name and self.obj == other.obj
+
 
 class Clickable(object):
     def __init__(self, test, callback, callback_args=[], test_args=[]):

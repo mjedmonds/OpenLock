@@ -9,6 +9,7 @@ from openlock.common import (
     LOCK_REGEX_STR,
 )
 
+
 NUM_LEVERS_IN_HUMAN_DATA = 7
 
 ATTEMPT_LIMIT = 30
@@ -323,6 +324,10 @@ def generate_attributes_by_trial():
         attributes_by_position["door_lock"] = ("door_lock", "GREY")
         attributes_by_trial[trial] = attributes_by_position
     return attributes_by_trial
+
+
+
+
 
 
 def select_trial(trial):

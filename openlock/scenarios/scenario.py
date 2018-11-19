@@ -1,5 +1,5 @@
 """
-Outlines the structure and common functionality across scenarios
+Outlines the structure and causal_classes functionality across scenarios
 """
 import re
 import numpy as np
@@ -9,7 +9,7 @@ import openlock.common as common
 
 class Scenario(object):
     """
-    Parent class for scenarios. Outline the structure and common functionality across scenarios.
+    Parent class for scenarios. Outline the structure and causal_classes functionality across scenarios.
     Manage the specific scenario currently in use. Encodes logic and solutions into the environment.
     """
 
