@@ -34,7 +34,12 @@ class ActionLog(object):
         :param other: ActionLog object to compare this one with.
         :return: True if names are the same, False otherwise.
         """
-        return self.name == other.name
+        if isinstance(other, ActionLog):
+            return self.name == other.name
+        elif isinstance(other, str):
+            return self.name == other
+        else:
+            raise TypeError("Unexpected object for ActionLog() equality operator")
 
     def __str__(self):
         """

@@ -46,7 +46,7 @@ class ActionSpace:
         door_action_space = []
         action_map = dict()
         action_map_external_role = dict()
-        action_map_internal_role = dict()
+        action_map_role_external = dict()
         for obj, val in list(obj_map.items()):
             if "button" not in obj and "door" not in obj:
                 if env.lever_index_mode == "position":
@@ -59,34 +59,39 @@ class ActionSpace:
                 lever_idx = env.config_to_idx[twod_config]
 
                 # todo: refactor this, three mappings is complicated
-                push = "push_{}".format(name)
-                pull = "pull_{}".format(name)
+                name_push = "push_{}".format(name)
+                name_pull = "pull_{}".format(name)
+                role_push = "push_{}".format(role)
+                role_pull = "pull_{}".format(role)
 
-                push_action_space[lever_idx] = push
-                pull_action_space[lever_idx] = pull
+                push_action_space[lever_idx] = name_push
+                pull_action_space[lever_idx] = name_pull
 
-                action_map[push] = common.Action("push", name, 4)
-                action_map[pull] = common.Action("pull", name, 4)
+                role_push_action = common.Action("push", role, 4)
+                role_pull_action = common.Action("pull", role, 4)
+
+                name_push_action = common.Action("push", name, 4)
+                name_pull_action = common.Action("pull", name, 4)
+
+                action_map[name_push] = name_push_action
+                action_map[name_pull] = name_pull_action
 
                 # role based mapping from external names to internal
-                action_map_external_role[push] = common.Action("push", role, 4)
-                action_map_external_role[pull] = common.Action("pull", role, 4)
+                action_map_external_role[name_push] = role_push_action
+                action_map_external_role[name_pull] = role_pull_action
 
-                # interal role based mapping
-                push = "push_{}".format(role)
-                pull = "pull_{}".format(role)
-
-                action_map_internal_role[push] = common.Action("push", role, 4)
-                action_map_internal_role[pull] = common.Action("pull", role, 4)
+                action_map_role_external[role_push] = name_push_action
+                action_map_role_external[role_pull] = name_pull_action
 
             if "button" not in obj and "door" in obj and "door_lock" != obj:
-                push = "push_{}".format(obj)
+                name_push = "push_{}".format(obj)
+                name_action = common.Action("push", obj, 4)
 
-                door_action_space.append(push)
+                door_action_space.append(name_push)
 
-                action_map[push] = common.Action("push", obj, 4)
-                action_map_external_role[push] = common.Action("push", obj, 4)
-                action_map_internal_role[push] = common.Action("push", obj, 4)
+                action_map[name_push] = name_action
+                action_map_external_role[name_push] = name_action
+                action_map_role_external[name_push] = name_action
 
         action_space = push_action_space + pull_action_space + door_action_space
 
@@ -94,7 +99,7 @@ class ActionSpace:
             action_space,
             action_map,
             action_map_external_role,
-            action_map_internal_role,
+            action_map_role_external,
         )
 
 
@@ -331,12 +336,10 @@ class OpenLockEnv(gym.Env):
         self.observation_space = None
         self.action_space = None
         self.action_map = None
-        self.action_map_external_role = (
-            None
-        )  # internal action map to go from external to internal latent action
-        self.action_map_internal_role = (
-            None
-        )  # internal action map to go from internal to internal latent action
+        # internal action map to go from external to internal latent action
+        self.action_map_external_role = None
+        # external action map to go from internal to external action
+        self.action_map_role_external = None
 
         self.reward_strategy = RewardStrategy()
         self.reward_range = (
@@ -428,7 +431,7 @@ class OpenLockEnv(gym.Env):
 
             levers = self.scenario.levers
 
-        self.action_space, self.action_map, self.action_map_external_role, self.action_map_internal_role = ActionSpace.create_action_space(
+        self.action_space, self.action_map, self.action_map_external_role, self.action_map_role_external = ActionSpace.create_action_space(
             self, obj_map
         )
         self.observation_space = ObservationSpace(len(levers))
@@ -681,8 +684,22 @@ class OpenLockEnv(gym.Env):
         self._set_lever_configs(lever_configs)
         self.observation_space = ObservationSpace(len(self.scenario.levers))
 
+        self.scenario.init_scenario_env()
+        obj_map = self.scenario.obj_map
+        action_space, action_map, action_map_external_role, action_map_role_external = ActionSpace.create_action_space(
+            self, obj_map
+        )
+
+        external_solutions = [
+            [
+                action_map_role_external[str(solution_action)]
+                for solution_action in solution
+            ]
+            for solution in self.scenario.solutions
+        ]
+
         self.cur_trial = TrialLog(
-            trial_selected, scenario_name, self.scenario.solutions, time.time()
+            trial_selected, scenario_name, external_solutions, time.time()
         )
 
         if not multiproc:
@@ -701,9 +718,9 @@ class OpenLockEnv(gym.Env):
         self.attempt_count += 1
 
         # stores whether or not this attempt executed a unique solution
-        # todo: we have to convert to internal representation here; but perhaps it's easier to convert the solutions to whatever representation we are using (position, role, etc)
+        action_seq = self.get_current_action_seq(convert_to_str=True)
         attempt_success = self.cur_trial.finish_attempt(
-            self.results, self.get_current_action_seq(get_internal_action_seq=True)
+            self.results, action_seq
         )
 
         pause = self.update_user(attempt_success)
@@ -886,7 +903,7 @@ class OpenLockEnv(gym.Env):
             ):
                 lock = b2_object_data
 
-                lock.create_clickable(self.step, self.action_map_internal_role)
+                lock.create_clickable(self.step)
                 self.viewer.register_clickable_region(lock.inner_clickable)
                 self.viewer.register_clickable_region(lock.outer_clickable)
                 # lock inactive levers
@@ -894,20 +911,14 @@ class OpenLockEnv(gym.Env):
                     self.world_def.lock_lever(lock.name)
             elif b2_object_name == "door_right_button":
                 door_button = b2_object_data
-                callback_action = "push_door"
                 door_button.create_clickable(
-                    self.step,
-                    self.action_map_internal_role,
-                    self.action_map_internal_role[callback_action],
+                    self.step, callback_action=common.Action("push", "door", 4)
                 )
                 self.viewer.register_clickable_region(door_button.clickable)
             elif b2_object_name == "door_left_button":
                 door_button = b2_object_data
-                callback_action = "pull_door"
                 door_button.create_clickable(
-                    self.step,
-                    self.action_map_internal_role,
-                    self.action_map_internal_role[callback_action],
+                    self.step, callback_action=common.Action("pull", "door", 4)
                 )
                 self.viewer.register_clickable_region(door_button.clickable)
             elif b2_object_name == "reset_button":
@@ -915,8 +926,7 @@ class OpenLockEnv(gym.Env):
                 callback_action = "reset"
                 reset_button.create_clickable(
                     self.step,
-                    self.action_map_internal_role,
-                    common.Action(callback_action, (reset_button, 4)),
+                    callback_action=common.Action(callback_action, reset_button, 4),
                 )
                 self.viewer.register_clickable_region(reset_button.clickable)
             elif b2_object_name == "save_button":
@@ -924,8 +934,7 @@ class OpenLockEnv(gym.Env):
                 callback_action = "save"
                 save_button.create_clickable(
                     self.step,
-                    self.action_map_internal_role,
-                    common.Action(callback_action, (save_button, 4)),
+                    callback_action=common.Action(callback_action, save_button, 4),
                 )
                 self.viewer.register_clickable_region(save_button.clickable)
 
@@ -1051,20 +1060,28 @@ class OpenLockEnv(gym.Env):
     def get_trial_success(self):
         return self.cur_trial.success
 
-    def get_current_action_seq(self, get_internal_action_seq=False):
+    def get_current_action_seq(self, convert_to_str=False, get_internal_action_seq=False):
         cur_action_sequence = self.cur_trial.cur_attempt.action_seq
         if get_internal_action_seq and self.lever_index_mode != "role":
             cur_action_sequence = [
                 ActionLog(self.get_internal_action_name(x.name), x.start_time)
                 for x in cur_action_sequence
             ]
+        if convert_to_str:
+            cur_action_sequence = [str(x) for x in cur_action_sequence]
         return cur_action_sequence
 
-    def get_completed_solutions(self):
-        return self.cur_trial.completed_solutions
+    def get_completed_solutions(self, convert_to_str=False):
+        completed_solutions = self.cur_trial.completed_solutions
+        if convert_to_str:
+            completed_solutions = [str(x) for x in completed_solutions]
+        return completed_solutions
 
-    def get_solutions(self):
-        return self.cur_trial.solutions
+    def get_solutions(self, convert_to_str=False):
+        solutions =self.cur_trial.solutions
+        if convert_to_str:
+            solutions = [str(x) for x in solutions]
+        return solutions
 
     def determine_attempt_finished(self):
         if self.action_count >= self.action_limit:
@@ -1074,7 +1091,7 @@ class OpenLockEnv(gym.Env):
 
     def determine_door_seq(self):
         # we want the last action to always be push the door, the agent will be punished if the last action is not push the door.
-        cur_action_seq = self.get_current_action_seq(get_internal_action_seq=True)
+        cur_action_seq = self.get_current_action_seq(convert_to_str=True)
         if len(cur_action_seq) == 3:
             door_act = ActionLog("push_door", None)
             if cur_action_seq[-1] == door_act:
@@ -1085,13 +1102,13 @@ class OpenLockEnv(gym.Env):
 
     # this function also determines if the action sequence is a duplicate to unlock the door, not just open the door
     def determine_unique_solution(self):
-        cur_action_seq = self.get_current_action_seq(get_internal_action_seq=True)
-        solutions = self.get_solutions()
+        cur_action_seq = self.get_current_action_seq(convert_to_str=True)
+        solutions = self.get_solutions(convert_to_str=True)
         # todo: need more robust way - assumes solutions are all the same length
         if len(cur_action_seq) != len(solutions[0]):
             return False
 
-        completed_solutions = self.get_completed_solutions()
+        completed_solutions = self.get_completed_solutions(convert_to_str=True)
         # if this is a complete action sequence and it is not a solution, return false
         # full action sequence
         # solution is unique if it is in the list of solutions and not in the solutions found
@@ -1105,15 +1122,15 @@ class OpenLockEnv(gym.Env):
         Determines if the current action sequence is part of a solution
         :return: True if the current action sequence is part of a solution, False otherwise
         """
-        cur_action_seq = self.get_current_action_seq(get_internal_action_seq=True)
-        if cur_action_seq in [x[: len(cur_action_seq)] for x in self.get_solutions()]:
+        cur_action_seq = self.get_current_action_seq(convert_to_str=True)
+        if cur_action_seq in [x[: len(cur_action_seq)] for x in self.get_solutions(convert_to_str=True)]:
             return True
         else:
             return False
 
     def determine_unique_partial_solution(self):
-        cur_action_seq = self.get_current_action_seq(get_internal_action_seq=True)
-        completed_solutions = self.get_completed_solutions()
+        cur_action_seq = self.get_current_action_seq(convert_to_str=True)
+        completed_solutions = self.get_completed_solutions(convert_to_str=True)
         for completed_solution in completed_solutions:
             if cur_action_seq == completed_solution[: len(cur_action_seq)]:
                 return False
@@ -1127,7 +1144,7 @@ class OpenLockEnv(gym.Env):
         return prev_fluent_state != cur_fluent
 
     def determine_repeated_action(self):
-        cur_action_seq = self.get_current_action_seq(get_internal_action_seq=True)
+        cur_action_seq = self.get_current_action_seq(convert_to_str=True)
         if len(cur_action_seq) >= 2 and cur_action_seq[-2] == cur_action_seq[-1]:
             return True
         return False

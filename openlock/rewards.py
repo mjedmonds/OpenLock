@@ -31,7 +31,7 @@ class RewardStrategy(object):
 
         completed_solutions = env.get_completed_solutions()
         solutions = env.get_solutions()
-        cur_action_seq = env.get_current_action_seq(get_internal_action_seq=True)
+        cur_action_seq = env.get_current_action_seq()
 
         num_solutions_found = len(completed_solutions)
         unique_seq = (

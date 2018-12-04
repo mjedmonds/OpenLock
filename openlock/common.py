@@ -6,6 +6,8 @@ import numpy as np
 from shapely.geometry import Polygon, Point
 from Box2D import *
 
+from openlock.logger_env import ActionLog
+
 
 ENTITY_STATES = {
     "LEVER_PUSHED": 0,
@@ -129,7 +131,14 @@ class Action:
         return str(self)
 
     def __eq__(self, other):
-        return self.name == other.name and self.obj == other.obj
+        if isinstance(other, Action):
+            return self.name == other.name and self.obj == other.obj
+        elif isinstance(other, str):
+            return str(self) == other
+        if isinstance(other, ActionLog):
+            return str(self) == other.name
+        else:
+            raise TypeError("Unexpected comparison to Action() object")
 
 
 class Clickable(object):
@@ -351,20 +360,20 @@ class Lever(Object):
         )
 
     # step is world_def step function
-    def create_clickable(self, step, action_map):
-        push = "push_{}".format(self.name)
-        pull = "pull_{}".format(self.name)
+    def create_clickable(self, step):
+        push = Action("push", self.name, 4)
+        pull = Action("pull", self.name, 4)
 
         self.inner_clickable = Clickable(
             lambda xy, poly: poly.contains(Point(xy)),
             step,
-            callback_args=[action_map[pull]],
+            callback_args=[pull],
             test_args=[self.inner_poly],
         )
         self.outer_clickable = Clickable(
             lambda xy, poly: poly.contains(Point(xy)),
             step,
-            callback_args=[action_map[push]],
+            callback_args=[push],
             test_args=[self.outer_poly],
         )
 
@@ -541,7 +550,7 @@ class Button(Object):
         self.color = color
         self.clickable = None
 
-    def create_clickable(self, step, action_map, callback_args):
+    def create_clickable(self, step, callback_args):
         vertices = [
             self.fixture.body.GetWorldPoint(vertex)
             for vertex in self.fixture.shape.vertices
