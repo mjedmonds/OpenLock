@@ -140,6 +140,9 @@ class Action:
         else:
             raise TypeError("Unexpected comparison to Action() object")
 
+    def __hash__(self):
+        return hash(str(self) + str(self.params))
+
 
 class Clickable(object):
     def __init__(self, test, callback, callback_args=[], test_args=[]):
