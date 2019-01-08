@@ -718,7 +718,7 @@ class OpenLockEnv(gym.Env):
         self.attempt_count += 1
 
         # stores whether or not this attempt executed a unique solution
-        action_seq = self.get_current_action_seq(convert_to_str=True)
+        action_seq = self.get_current_action_seq(convert_to_action=True)
         attempt_success = self.cur_trial.finish_attempt(
             self.results, action_seq
         )
@@ -1060,7 +1060,7 @@ class OpenLockEnv(gym.Env):
     def get_trial_success(self):
         return self.cur_trial.success
 
-    def get_current_action_seq(self, convert_to_str=False, get_internal_action_seq=False):
+    def get_current_action_seq(self, convert_to_str=False, get_internal_action_seq=False, convert_to_action=False):
         cur_action_sequence = self.cur_trial.cur_attempt.action_seq
         if get_internal_action_seq and self.lever_index_mode != "role":
             cur_action_sequence = [
@@ -1069,6 +1069,8 @@ class OpenLockEnv(gym.Env):
             ]
         if convert_to_str:
             cur_action_sequence = [str(x) for x in cur_action_sequence]
+        if convert_to_action:
+            cur_action_sequence = [common.Action(a.name.split("_")[0], a.name.split("_")[1], None) for a in cur_action_sequence]
         return cur_action_sequence
 
     def get_completed_solutions(self, convert_to_str=False):

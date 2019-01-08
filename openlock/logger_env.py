@@ -6,6 +6,8 @@ import copy
 import texttable
 import sys
 
+from openlock.common import Action
+
 
 class ActionLog(object):
     """

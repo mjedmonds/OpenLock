@@ -6,8 +6,6 @@ import numpy as np
 from shapely.geometry import Polygon, Point
 from Box2D import *
 
-from openlock.logger_env import ActionLog
-
 
 ENTITY_STATES = {
     "LEVER_PUSHED": 0,
@@ -131,14 +129,13 @@ class Action:
         return str(self)
 
     def __eq__(self, other):
-        if isinstance(other, Action):
-            return self.name == other.name and self.obj == other.obj
-        elif isinstance(other, str):
-            return str(self) == other
-        if isinstance(other, ActionLog):
-            return str(self) == other.name
-        else:
-            raise TypeError("Unexpected comparison to Action() object")
+        return self.name == other.name and self.obj == other.obj
+
+    def eq_str(self, other_str):
+        return str(self) == other_str
+
+    def eq_action_log(self, other_action_log):
+        return str(self) == other_action_log.name
 
     def __hash__(self):
         return hash(str(self) + str(self.params))
