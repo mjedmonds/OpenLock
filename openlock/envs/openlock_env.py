@@ -1085,6 +1085,9 @@ class OpenLockEnv(gym.Env):
             solutions = [str(x) for x in solutions]
         return solutions
 
+    def get_num_solutions(self):
+        return len(self.cur_trial.solutions)
+
     def determine_attempt_finished(self):
         if self.action_count >= self.action_limit:
             return True
