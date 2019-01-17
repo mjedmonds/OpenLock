@@ -2,7 +2,9 @@
 
 
 class PIDController(object):
-    def __init__(self, kp, ki, kd, setpoint, dt, max_out=None, max_int=500, err_wrap_func=None):
+    def __init__(
+        self, kp, ki, kd, setpoint, dt, max_out=None, max_int=500, err_wrap_func=None
+    ):
         self.kp = kp
         self.ki = ki
         self.kd = kd
@@ -14,17 +16,24 @@ class PIDController(object):
         self.err_wrap_func = err_wrap_func
         self.i_term = 0
 
-        self.previous_error = self.error = self.integral = \
-            self.differential = self.previous_value = [0] * len(setpoint)
+        self.previous_error = (
+            self.error
+        ) = self.integral = self.differential = self.previous_value = [0] * len(
+            setpoint
+        )
 
     def update(self, current_value):
         if self.err_wrap_func:
-            self.error = [self.err_wrap_func(s - c) for s, c in zip(self.setpoint, current_value)]
+            self.error = [
+                self.err_wrap_func(s - c) for s, c in zip(self.setpoint, current_value)
+            ]
         else:
             self.error = [s - c for s, c in zip(self.setpoint, current_value)]
 
         self.integral = [(i + e) * self.dt for i, e in zip(self.integral, self.error)]
-        self.differential = [(e - p) / self.dt for e, p in zip(self.error, self.previous_error)]
+        self.differential = [
+            (e - p) / self.dt for e, p in zip(self.error, self.previous_error)
+        ]
 
         p_term = [kp * e for kp, e in zip(self.kp, self.error)]
         i_term = [ki * e for ki, e in zip(self.ki, self.integral)]
@@ -44,8 +53,11 @@ class PIDController(object):
         return out
 
     def set_setpoint(self, setpoint):
-        self.previous_error = self.error = self.integral = \
-            self.differential = self.previous_value = [0] * len(setpoint)
+        self.previous_error = (
+            self.error
+        ) = self.integral = self.differential = self.previous_value = [0] * len(
+            setpoint
+        )
         self.setpoint = setpoint
 
     def set_kp(self, kp):

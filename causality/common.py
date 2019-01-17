@@ -11,7 +11,6 @@ class CausalNode:
 
 
 class PerceptualModel:
-
     def __init__(self, mat_path):
         """
         converts the perceptual causality output into a python object
@@ -19,13 +18,13 @@ class PerceptualModel:
         """
         mat = scipy.io.loadmat(mat_path)
 
-        action_labels = mat['actions'][0].tolist()
-        fluent_change_labels = mat['fluent_change_labels'][0].tolist()
-        fluent_labels = mat['fluents'][0].tolist()
-        node_actions = mat['node_actions'][0]
-        node_fluent_change_types = mat['node_fluent_change_types'][0]
-        node_info_gains = mat['node_info_gains'][0]
-        node_objects = mat['node_objects'][0]
+        action_labels = mat["actions"][0].tolist()
+        fluent_change_labels = mat["fluent_change_labels"][0].tolist()
+        fluent_labels = mat["fluents"][0].tolist()
+        node_actions = mat["node_actions"][0]
+        node_fluent_change_types = mat["node_fluent_change_types"][0]
+        node_info_gains = mat["node_info_gains"][0]
+        node_objects = mat["node_objects"][0]
 
         # clean cell array strings
         for i in range(len(action_labels)):
@@ -62,7 +61,9 @@ class PerceptualModel:
             fluent_change_label = self.fluent_change_labels[fluent_change_type]
             fluent_label = self.fluent_labels[self.fluents[i]]
 
-            print("\t{}:\t{}\t{}".format(action_label, fluent_label, fluent_change_label))
+            print(
+                "\t{}:\t{}\t{}".format(action_label, fluent_label, fluent_change_label)
+            )
 
 
 def delinearize_fluent_vec(index, n_fluents):
@@ -75,7 +76,7 @@ def delinearize_fluent_vec(index, n_fluents):
 
     fluent_vals = np.zeros((n_fluents,), dtype=int)
 
-    return delinearize_fluent_vec_rec(index, n_fluents-1, fluent_vals)
+    return delinearize_fluent_vec_rec(index, n_fluents - 1, fluent_vals)
 
 
 # helper function to convert linear index to a vector
@@ -89,15 +90,16 @@ def delinearize_fluent_vec_rec(index, col, fluent_vals):
     """
     if index >= pow(2, col):
         fluent_idx = len(fluent_vals) - col
-        fluent_vals[fluent_idx-1] = 1
+        fluent_vals[fluent_idx - 1] = 1
         new_index = index - pow(2, col)
     else:
         new_index = index
 
     if new_index > 0 and col > 0:
-        fluent_vals = delinearize_fluent_vec_rec(new_index, col-1, fluent_vals)
+        fluent_vals = delinearize_fluent_vec_rec(new_index, col - 1, fluent_vals)
 
     return fluent_vals
+
 
 def linearize_fluent_vec(fluent_vals):
     """
@@ -113,6 +115,7 @@ def linearize_fluent_vec(fluent_vals):
 
     return int(index)
 
+
 def tabulate(fluents):
     """
     builds a full binary truth table to enumerate all possible fluent states
@@ -127,5 +130,3 @@ def tabulate(fluents):
         fluent_space[i] = delinearize_fluent_vec(i, n_fluents)
 
     return fluent_space
-
-

@@ -1,5 +1,3 @@
-
-
 import numpy as np
 
 # defined named tuples
@@ -12,41 +10,48 @@ DEBUG = True
 
 # TODO: move elsewhere, or get rid of dict config and just pass in list of links?
 def generate_five_arm(t1, t2, t3, t4, t5):
-    length = BOX2D_SETTINGS['ARM_LENGTH']
-    return [KinematicLink(TwoDKinematicTransform(name='0+1-', theta=t1, screw=[0, 0, 0, 0, 0, 1]),
-                          TwoDKinematicTransform(name='1_cog', x=length / 2),
-                          TwoDKinematicTransform(name='1-1+', x=length),
-                          None),
-
-            KinematicLink(TwoDKinematicTransform(name='1+2-', theta=t2, screw=[0, 0, 0, 0, 0, 1]),
-                          TwoDKinematicTransform(name='2_cog', x=length / 2),
-                          TwoDKinematicTransform(name='2-2+', x=length),
-                          None),
-
-            KinematicLink(TwoDKinematicTransform(name='2+3-', theta=t3, screw=[0, 0, 0, 0, 0, 1]),
-                          TwoDKinematicTransform(name='3_cog', x=length / 2),
-                          TwoDKinematicTransform(name='3-3+', x=length),
-                          None),
-
-            KinematicLink(TwoDKinematicTransform(name='3+4-', theta=t4, screw=[0, 0, 0, 0, 0, 1]),
-                          TwoDKinematicTransform(name='4_cog', x=length / 2),
-                          TwoDKinematicTransform(name='4-4+', x=length),
-                          None),
-
-            KinematicLink(TwoDKinematicTransform(name='4+5-', theta=t5, screw=[0, 0, 0, 0, 0, 1]),
-                          TwoDKinematicTransform(name='5_cog', x=length / 2),
-                          TwoDKinematicTransform(name='5-5+', x=length),
-                          None)
-            ]
+    length = BOX2D_SETTINGS["ARM_LENGTH"]
+    return [
+        KinematicLink(
+            TwoDKinematicTransform(name="0+1-", theta=t1, screw=[0, 0, 0, 0, 0, 1]),
+            TwoDKinematicTransform(name="1_cog", x=length / 2),
+            TwoDKinematicTransform(name="1-1+", x=length),
+            None,
+        ),
+        KinematicLink(
+            TwoDKinematicTransform(name="1+2-", theta=t2, screw=[0, 0, 0, 0, 0, 1]),
+            TwoDKinematicTransform(name="2_cog", x=length / 2),
+            TwoDKinematicTransform(name="2-2+", x=length),
+            None,
+        ),
+        KinematicLink(
+            TwoDKinematicTransform(name="2+3-", theta=t3, screw=[0, 0, 0, 0, 0, 1]),
+            TwoDKinematicTransform(name="3_cog", x=length / 2),
+            TwoDKinematicTransform(name="3-3+", x=length),
+            None,
+        ),
+        KinematicLink(
+            TwoDKinematicTransform(name="3+4-", theta=t4, screw=[0, 0, 0, 0, 0, 1]),
+            TwoDKinematicTransform(name="4_cog", x=length / 2),
+            TwoDKinematicTransform(name="4-4+", x=length),
+            None,
+        ),
+        KinematicLink(
+            TwoDKinematicTransform(name="4+5-", theta=t5, screw=[0, 0, 0, 0, 0, 1]),
+            TwoDKinematicTransform(name="5_cog", x=length / 2),
+            TwoDKinematicTransform(name="5-5+", x=length),
+            None,
+        ),
+    ]
 
 
 def get_adjoint(transform):
     rot = transform[:3, :3]
     trans = transform[:3, 3]
 
-    matrix_rep = np.array([[0, -trans[2], trans[1]],
-                           [trans[2], 0, -trans[0]],
-                           [-trans[1], trans[0], 0]])
+    matrix_rep = np.array(
+        [[0, -trans[2], trans[1]], [trans[2], 0, -trans[0]], [-trans[1], trans[0], 0]]
+    )
 
     res = np.zeros((6, 6))
     res[:3, :3] = res[3:, 3:] = rot
@@ -63,21 +68,23 @@ def discretize_path(cur, targ, step_delta):
 
     waypoints = []
 
-
     if num_steps == 0:
         # we're already within step_delta of our desired config in all dimensions
         return waypoints
 
     # generate discretized path
     for i in range(0, num_steps + 1):
-        waypoints.append(TwoDKinematicTransform(x=cur.x + i * delta[0] / num_steps,
-                                                y=cur.y + i * delta[1] / num_steps,
-                                                theta=wrapToMinusPiToPi(cur.theta + i * delta[2] / num_steps)))
+        waypoints.append(
+            TwoDKinematicTransform(
+                x=cur.x + i * delta[0] / num_steps,
+                y=cur.y + i * delta[1] / num_steps,
+                theta=wrapToMinusPiToPi(cur.theta + i * delta[2] / num_steps),
+            )
+        )
 
     # sanity check: we actually reach the target config
 
     assert np.isclose(waypoints[-1].x, targ.x, rtol=1e-01, atol=1e-02)
-
 
     # TODO: handle +/- pi case
     # assert np.isclose(waypoints[-1].y, targ.y, rtol=1e-01, atol=1e-02)
@@ -98,9 +105,9 @@ class InverseKinematics(object):
         self.kinematic_chain = current_config
 
     def get_error_vec(self, clamp=False):
-        err_mat = self.target.get_transform() \
-                      .dot(np.linalg.inv(self.kinematic_chain.get_transform())) \
-                  - np.eye(4)
+        err_mat = self.target.get_transform().dot(
+            np.linalg.inv(self.kinematic_chain.get_transform())
+        ) - np.eye(4)
         err_vec = np.zeros(6)
         err_vec[:3] = err_mat[:3, 3]
         err_vec[3] = err_mat[2, 2] + err_mat[2, 1] + err_mat[1, 1]
@@ -119,8 +126,11 @@ class InverseKinematics(object):
         err = self.get_error_vec(clamp=clamp_err)
         jac = self.kinematic_chain.get_jacobian()
         jac_t = jac.transpose()
-        dtheta = np.linalg.inv(jac_t.dot(jac) \
-                               + (lam ** 2) * np.eye(jac.shape[1])).dot(jac_t).dot(err)
+        dtheta = (
+            np.linalg.inv(jac_t.dot(jac) + (lam ** 2) * np.eye(jac.shape[1]))
+            .dot(jac_t)
+            .dot(err)
+        )
         if clamp_theta:
             dtheta = clamp_mag(dtheta, clamp_theta)
 
@@ -171,10 +181,14 @@ class KinematicChain(object):
 
         # add arm links
         for link in self.chain:
-            total_transform = total_transform.dot(link.minus.transform).dot(link.plus.transform)
+            total_transform = total_transform.dot(link.minus.transform).dot(
+                link.plus.transform
+            )
             theta = transform_to_theta(total_transform)
             theta = wrapToMinusPiToPi(theta)
-            link_locations.append(TwoDConfig(total_transform[:2, 3][0], total_transform[:2, 3][1], theta))
+            link_locations.append(
+                TwoDConfig(total_transform[:2, 3][0], total_transform[:2, 3][1], theta)
+            )
 
         return link_locations
 
@@ -202,7 +216,9 @@ class KinematicChain(object):
     def get_transform(self):
         total_transform = self.base.get_transform()
         for link in self.chain:
-            total_transform = total_transform.dot(link.minus.transform).dot(link.plus.transform)
+            total_transform = total_transform.dot(link.minus.transform).dot(
+                link.plus.transform
+            )
         return total_transform
 
     def get_jacobian(self):
@@ -239,20 +255,27 @@ class KinematicChain(object):
             total_transform = np.eye(4)
 
             # get transform up to i'th frame
-            jacobians[i][:, i] = np.linalg.inv(get_adjoint(total_transform.dot(self.chain[i].cog.transform))) \
-                .dot(self.chain[i].minus.screw)
+            jacobians[i][:, i] = np.linalg.inv(
+                get_adjoint(total_transform.dot(self.chain[i].cog.transform))
+            ).dot(self.chain[i].minus.screw)
 
             # fill in i'th column of every jacobian. Note that for jth link from base,
             # all columns > j are zero since more distant joints do not effect the jth link
             for j in range(i + 1, len(self.chain)):
                 total_transform = total_transform.dot(self.chain[i].plus.transform).dot(
-                    self.chain[i + 1].minus.transform)
-                jacobians[j][:, i] = np.linalg.inv(get_adjoint(total_transform.dot(self.chain[j].cog.transform))) \
-                    .dot(self.chain[i].minus.screw)
+                    self.chain[i + 1].minus.transform
+                )
+                jacobians[j][:, i] = np.linalg.inv(
+                    get_adjoint(total_transform.dot(self.chain[j].cog.transform))
+                ).dot(self.chain[i].minus.screw)
 
         # finally sum J_i^T * M_i * J_i for all i to compute generalized inertia matrix
-        ret = sum([jacobian.transpose().dot(link.inertia_matrix).dot(jacobian) \
-                   for link, jacobian in zip(self.chain, jacobians)])
+        ret = sum(
+            [
+                jacobian.transpose().dot(link.inertia_matrix).dot(jacobian)
+                for link, jacobian in zip(self.chain, jacobians)
+            ]
+        )
 
         return ret
 
@@ -268,15 +291,24 @@ class KinematicLink(object):
         self._check_rep()
 
     def _check_rep(self):
-        assert self.minus.transform.shape == self.cog.transform.shape == self.plus.transform.shape == (4, 4)
+        assert (
+            self.minus.transform.shape
+            == self.cog.transform.shape
+            == self.plus.transform.shape
+            == (4, 4)
+        )
 
 
 class TwoDKinematicTransform(object):
     def __init__(self, theta=0, x=0, y=0, scale=1, screw=None, name=None):
-        self.transform = np.asarray([[np.cos(theta), -np.sin(theta), 0, x],
-                                     [np.sin(theta), np.cos(theta), 0, y],
-                                     [0, 0, 1, 0],
-                                     [0, 0, 0, scale]])
+        self.transform = np.asarray(
+            [
+                [np.cos(theta), -np.sin(theta), 0, x],
+                [np.sin(theta), np.cos(theta), 0, y],
+                [0, 0, 1, 0],
+                [0, 0, 0, scale],
+            ]
+        )
         self.__theta = theta
         self.__x = x
         self.__y = y
@@ -306,8 +338,10 @@ class TwoDKinematicTransform(object):
 
     @theta.setter
     def theta(self, theta):
-        self.transform[:2, :2] = [[np.cos(theta), -np.sin(theta)],
-                                  [np.sin(theta), np.cos(theta)]]
+        self.transform[:2, :2] = [
+            [np.cos(theta), -np.sin(theta)],
+            [np.sin(theta), np.cos(theta)],
+        ]
         self.__theta = theta
 
     @x.setter
@@ -365,9 +399,9 @@ def main():
 
         # while err > epsilon, converge
         err = invk.get_error()  # prime the loop
-        print('converging')
+        print("converging")
         a = 0
-        while (err > epsilon):
+        while err > epsilon:
             a = a + 1
             # get delta theta
             d_theta = invk.get_delta_theta_dls(lam=20)
@@ -375,21 +409,27 @@ def main():
             # d_theta = invk.get_delta_theta_trans()
 
             # get current config
-            cur_theta = [c.theta for c in invk.kinematic_chain.get_rel_config()[1:]]  # ignore virtual base link
+            cur_theta = [
+                c.theta for c in invk.kinematic_chain.get_rel_config()[1:]
+            ]  # ignore virtual base link
 
             # create new config
             new_theta = [cur + delta for cur, delta in zip(cur_theta, d_theta)]
 
             # update inverse kinematics model
-            invk.set_current_config(KinematicChain(base, generate_five_arm(new_theta[0],
-                                                                           new_theta[1],
-                                                                           new_theta[2],
-                                                                           new_theta[3])))
+            invk.set_current_config(
+                KinematicChain(
+                    base,
+                    generate_five_arm(
+                        new_theta[0], new_theta[1], new_theta[2], new_theta[3]
+                    ),
+                )
+            )
 
             # update err
             err = invk.get_error()
 
-        print('converged in {} iterations'.format(a))
+        print("converged in {} iterations".format(a))
         # converged on that waypoint
 
         # plot

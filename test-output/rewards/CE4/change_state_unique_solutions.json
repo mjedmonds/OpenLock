@@ -1,0 +1,291 @@
+[
+    [
+        {
+            "name": "push_inactive0", 
+            "py/object": "__main__.ActionTest", 
+            "reward": 0
+        }, 
+        {
+            "name": "push_inactive1", 
+            "py/object": "__main__.ActionTest", 
+            "reward": 0
+        }, 
+        {
+            "name": "push_inactive0", 
+            "py/object": "__main__.ActionTest", 
+            "reward": 0
+        }
+    ], 
+    [
+        {
+            "name": "push_l2", 
+            "py/object": "__main__.ActionTest", 
+            "reward": 0.5
+        }, 
+        {
+            "name": "push_inactive1", 
+            "py/object": "__main__.ActionTest", 
+            "reward": 0
+        }, 
+        {
+            "name": "push_inactive0", 
+            "py/object": "__main__.ActionTest", 
+            "reward": 0
+        }
+    ], 
+    [
+        {
+            "name": "push_l1", 
+            "py/object": "__main__.ActionTest", 
+            "reward": 0.5
+        }, 
+        {
+            "name": "push_inactive1", 
+            "py/object": "__main__.ActionTest", 
+            "reward": 0
+        }, 
+        {
+            "name": "push_inactive0", 
+            "py/object": "__main__.ActionTest", 
+            "reward": 0
+        }
+    ], 
+    [
+        {
+            "name": "push_l2", 
+            "py/object": "__main__.ActionTest", 
+            "reward": 0.5
+        }, 
+        {
+            "name": "push_l1", 
+            "py/object": "__main__.ActionTest", 
+            "reward": 0.5
+        }, 
+        {
+            "name": "push_inactive0", 
+            "py/object": "__main__.ActionTest", 
+            "reward": 0
+        }
+    ], 
+    [
+        {
+            "name": "push_l1", 
+            "py/object": "__main__.ActionTest", 
+            "reward": 0.5
+        }, 
+        {
+            "name": "push_l2", 
+            "py/object": "__main__.ActionTest", 
+            "reward": 0.5
+        }, 
+        {
+            "name": "push_inactive0", 
+            "py/object": "__main__.ActionTest", 
+            "reward": 0
+        }
+    ], 
+    [
+        {
+            "name": "push_l2", 
+            "py/object": "__main__.ActionTest", 
+            "reward": 0.5
+        }, 
+        {
+            "name": "push_l0", 
+            "py/object": "__main__.ActionTest", 
+            "reward": 10
+        }, 
+        {
+            "name": "push_inactive0", 
+            "py/object": "__main__.ActionTest", 
+            "reward": 0
+        }
+    ], 
+    [
+        {
+            "name": "push_l2", 
+            "py/object": "__main__.ActionTest", 
+            "reward": 0.5
+        }, 
+        {
+            "name": "push_l0", 
+            "py/object": "__main__.ActionTest", 
+            "reward": 10
+        }, 
+        {
+            "name": "push_inactive0", 
+            "py/object": "__main__.ActionTest", 
+            "reward": 0
+        }
+    ], 
+    [
+        {
+            "name": "push_l1", 
+            "py/object": "__main__.ActionTest", 
+            "reward": 0.5
+        }, 
+        {
+            "name": "push_l0", 
+            "py/object": "__main__.ActionTest", 
+            "reward": 10
+        }, 
+        {
+            "name": "push_inactive0", 
+            "py/object": "__main__.ActionTest", 
+            "reward": 0
+        }
+    ], 
+    [
+        {
+            "name": "push_l1", 
+            "py/object": "__main__.ActionTest", 
+            "reward": 0.5
+        }, 
+        {
+            "name": "push_l0", 
+            "py/object": "__main__.ActionTest", 
+            "reward": 10
+        }, 
+        {
+            "name": "push_inactive0", 
+            "py/object": "__main__.ActionTest", 
+            "reward": 0
+        }
+    ], 
+    [
+        {
+            "name": "push_l0", 
+            "py/object": "__main__.ActionTest", 
+            "reward": 0
+        }, 
+        {
+            "name": "push_l0", 
+            "py/object": "__main__.ActionTest", 
+            "reward": 0
+        }, 
+        {
+            "name": "push_inactive0", 
+            "py/object": "__main__.ActionTest", 
+            "reward": 0
+        }
+    ], 
+    [
+        {
+            "name": "push_l1", 
+            "py/object": "__main__.ActionTest", 
+            "reward": 0.5
+        }, 
+        {
+            "name": "push_l1", 
+            "py/object": "__main__.ActionTest", 
+            "reward": 0
+        }, 
+        {
+            "name": "push_inactive0", 
+            "py/object": "__main__.ActionTest", 
+            "reward": 0
+        }
+    ], 
+    [
+        {
+            "name": "push_l2", 
+            "py/object": "__main__.ActionTest", 
+            "reward": 0.5
+        }, 
+        {
+            "name": "push_l0", 
+            "py/object": "__main__.ActionTest", 
+            "reward": 10
+        }, 
+        {
+            "name": "push_l1", 
+            "py/object": "__main__.ActionTest", 
+            "reward": 0.5
+        }
+    ], 
+    [
+        {
+            "name": "push_l1", 
+            "py/object": "__main__.ActionTest", 
+            "reward": 0.5
+        }, 
+        {
+            "name": "push_l0", 
+            "py/object": "__main__.ActionTest", 
+            "reward": 10
+        }, 
+        {
+            "name": "push_l2", 
+            "py/object": "__main__.ActionTest", 
+            "reward": 0.5
+        }
+    ], 
+    [
+        {
+            "name": "push_l2", 
+            "py/object": "__main__.ActionTest", 
+            "reward": 0.5
+        }, 
+        {
+            "name": "push_l0", 
+            "py/object": "__main__.ActionTest", 
+            "reward": 10
+        }, 
+        {
+            "name": "push_door", 
+            "py/object": "__main__.ActionTest", 
+            "reward": 50
+        }
+    ], 
+    [
+        {
+            "name": "push_l2", 
+            "py/object": "__main__.ActionTest", 
+            "reward": 0.5
+        }, 
+        {
+            "name": "push_l0", 
+            "py/object": "__main__.ActionTest", 
+            "reward": 0.5
+        }, 
+        {
+            "name": "push_door", 
+            "py/object": "__main__.ActionTest", 
+            "reward": 0.5
+        }
+    ], 
+    [
+        {
+            "name": "push_l1", 
+            "py/object": "__main__.ActionTest", 
+            "reward": 0.5
+        }, 
+        {
+            "name": "push_l0", 
+            "py/object": "__main__.ActionTest", 
+            "reward": 10
+        }, 
+        {
+            "name": "push_door", 
+            "py/object": "__main__.ActionTest", 
+            "reward": 50
+        }
+    ], 
+    [
+        {
+            "name": "push_l1", 
+            "py/object": "__main__.ActionTest", 
+            "reward": 0.5
+        }, 
+        {
+            "name": "push_l0", 
+            "py/object": "__main__.ActionTest", 
+            "reward": 0.5
+        }, 
+        {
+            "name": "push_door", 
+            "py/object": "__main__.ActionTest", 
+            "reward": 0.5
+        }
+    ]
+]

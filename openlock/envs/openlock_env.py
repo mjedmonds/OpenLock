@@ -9,9 +9,17 @@ from gym.spaces import MultiDiscrete
 from openlock.box2d_renderer import Box2DRenderer
 import openlock.common as common
 from openlock.envs.world_defs.openlock_def import ArmLockDef
-from openlock.kine import KinematicChain, discretize_path, InverseKinematics, generate_five_arm, TwoDKinematicTransform
-from openlock.rewards import RewardStrategy #determine_reward, REWARD_IMMOVABLE, REWARD_OPEN
-from openlock.settings_trial import select_trial, get_trial, CONFIG_TO_IDX, NUM_LEVERS
+from openlock.kine import (
+    KinematicChain,
+    discretize_path,
+    InverseKinematics,
+    generate_five_arm,
+    TwoDKinematicTransform,
+)
+from openlock.rewards import (
+    RewardStrategy,
+)  # determine_reward, REWARD_IMMOVABLE, REWARD_OPEN
+from openlock.settings_trial import select_trial, get_trial
 from openlock.settings_scenario import select_scenario
 from openlock.settings_render import RENDER_SETTINGS, BOX2D_SETTINGS, ENV_SETTINGS
 from openlock.logger_env import ActionLog, TrialLog
@@ -23,75 +31,88 @@ from glob import glob
 # TODO: add ability to move base
 # TODO: more physically plausible units?
 
-class ActionSpace:
 
+class ActionSpace:
     def __init__(self):
         pass
 
     @staticmethod
-    def create_action_space(obj_map, lever_index_mode='role'):
+    def create_action_space(env, obj_map):
         # this must be preallocated; they are filled by position, not by symbol
-        push_action_space = [None] * NUM_LEVERS
-        pull_action_space = [None] * NUM_LEVERS
+        # todo: minus 2 is for door and door_lock; magic number, programmatically remove this
+        num_levers = len(obj_map.keys()) - 2
+        push_action_space = [None] * num_levers
+        pull_action_space = [None] * num_levers
         door_action_space = []
         action_map = dict()
         action_map_external_role = dict()
-        action_map_internal_role = dict()
+        action_map_role_external = dict()
         for obj, val in list(obj_map.items()):
-            if 'button' not in obj and 'door' not in obj:
-                if lever_index_mode == 'position':
+            if "button" not in obj and "door" not in obj:
+                if env.lever_index_mode == "position":
                     name = val.position.name
                 else:
                     name = obj
                 role = obj
                 # use position to map to an integer index
                 twod_config = val.position.config
-                lever_idx = CONFIG_TO_IDX[twod_config]
+                lever_idx = env.config_to_idx[twod_config]
 
                 # todo: refactor this, three mappings is complicated
-                push = 'push_{}'.format(name)
-                pull = 'pull_{}'.format(name)
+                name_push = "push_{}".format(name)
+                name_pull = "pull_{}".format(name)
+                role_push = "push_{}".format(role)
+                role_pull = "pull_{}".format(role)
 
-                push_action_space[lever_idx] = push
-                pull_action_space[lever_idx] = pull
+                push_action_space[lever_idx] = name_push
+                pull_action_space[lever_idx] = name_pull
 
-                action_map[push] = common.Action('push', name, 4)
-                action_map[pull] = common.Action('pull', name, 4)
+                role_push_action = common.Action("push", role, 4)
+                role_pull_action = common.Action("pull", role, 4)
+
+                name_push_action = common.Action("push", name, 4)
+                name_pull_action = common.Action("pull", name, 4)
+
+                action_map[name_push] = name_push_action
+                action_map[name_pull] = name_pull_action
 
                 # role based mapping from external names to internal
-                action_map_external_role[push] = common.Action('push', role, 4)
-                action_map_external_role[pull] = common.Action('pull', role, 4)
+                action_map_external_role[name_push] = role_push_action
+                action_map_external_role[name_pull] = role_pull_action
 
-                # interal role based mapping
-                push = 'push_{}'.format(role)
-                pull = 'pull_{}'.format(role)
+                action_map_role_external[role_push] = name_push_action
+                action_map_role_external[role_pull] = name_pull_action
 
-                action_map_internal_role[push] = common.Action('push', role, 4)
-                action_map_internal_role[pull] = common.Action('pull', role, 4)
+            if "button" not in obj and "door" in obj and "door_lock" != obj:
+                name_push = "push_{}".format(obj)
+                name_action = common.Action("push", obj, 4)
 
-            if 'button' not in obj and 'door' in obj:
-                push = 'push_{}'.format(obj)
+                door_action_space.append(name_push)
 
-                door_action_space.append(push)
-
-                action_map[push] = common.Action('push', obj, 4)
-                action_map_external_role[push] = common.Action('push', obj, 4)
-                action_map_internal_role[push] = common.Action('push', obj, 4)
+                action_map[name_push] = name_action
+                action_map_external_role[name_push] = name_action
+                action_map_role_external[name_push] = name_action
 
         action_space = push_action_space + pull_action_space + door_action_space
 
-        return action_space, action_map, action_map_external_role, action_map_internal_role
+        return (
+            action_space,
+            action_map,
+            action_map_external_role,
+            action_map_role_external,
+        )
 
 
 class ObservationSpace:
-
     def __init__(self, num_levers, append_solutions_remaining=False):
         self.append_solutions_remaining = append_solutions_remaining
         self.solutions_found = [0, 0, 0]
-        self.labels = ['sln0', 'sln1', 'sln2']
+        self.labels = ["sln0", "sln1", "sln2"]
 
         if self.append_solutions_remaining:
-            self.multi_discrete = self.create_observation_space(num_levers, len(self.solutions_found))
+            self.multi_discrete = self.create_observation_space(
+                num_levers, len(self.solutions_found)
+            )
         else:
             self.multi_discrete = self.create_observation_space(num_levers)
         self.num_levers = num_levers
@@ -117,8 +138,8 @@ class ObservationSpace:
         # second num_levers represent the colors of the levers
         for i in range(num_levers):
             discrete_space.append(num_lever_colors)
-        discrete_space.append(num_door_lock_states)       # door lock
-        discrete_space.append(num_door_states)       # door open
+        discrete_space.append(num_door_lock_states)  # door lock
+        discrete_space.append(num_door_states)  # door open
         # solutions appended
         for i in range(num_solutions):
             # solutions can only be found or not found
@@ -132,39 +153,55 @@ class ObservationSpace:
         external_to_internal_action_map = env.action_map_external_role
         internal_state_external_state_mapping = dict()
         external_state_internal_state_mapping = dict()
-        for external_action_name, internal_action in external_to_internal_action_map.items():
-            external_state_name = external_action_name.split('_', 1)[1]
+        for (
+            external_action_name,
+            internal_action,
+        ) in external_to_internal_action_map.items():
+            external_state_name = external_action_name.split("_", 1)[1]
             internal_state_name = internal_action.obj
-            internal_state_external_state_mapping[internal_state_name] = external_state_name
-            external_state_internal_state_mapping[external_state_name] = internal_state_name
-        return internal_state_external_state_mapping, external_state_internal_state_mapping
+            internal_state_external_state_mapping[
+                internal_state_name
+            ] = external_state_name
+            external_state_internal_state_mapping[
+                external_state_name
+            ] = internal_state_name
+        return (
+            internal_state_external_state_mapping,
+            external_state_internal_state_mapping,
+        )
 
     def create_discrete_observation(self, env):
         # create mapping from internal simulator state to external state
         if self.role_to_external_mapping or self.external_to_role_mapping is None:
-            self.role_to_external_mapping, self.external_to_role_mapping = self.create_internal_state_external_state_mappings(env)
+            self.role_to_external_mapping, self.external_to_role_mapping = self.create_internal_state_external_state_mappings(
+                env
+            )
         if env.use_physics:
-            discrete_state, discrete_labels = self.create_discrete_observation_from_simulator(env)
+            discrete_state, discrete_labels = self.create_discrete_observation_from_simulator(
+                env
+            )
         else:
-            discrete_state, discrete_labels = self.create_discrete_observation_from_fsm(env)
+            discrete_state, discrete_labels = self.create_discrete_observation_from_fsm(
+                env
+            )
         # convert internal state labels to external labels
         # todo: refactor this, this is a very brittle way of doing this mapping
         for i in range(len(discrete_labels)):
             if discrete_labels[i] in self.role_to_external_mapping.keys():
                 discrete_labels[i] = self.role_to_external_mapping[discrete_labels[i]]
-            if discrete_labels[i].endswith('_active'):
-                base_label = discrete_labels[i].split('_',1)[0]
+            if discrete_labels[i].endswith("_active"):
+                base_label = discrete_labels[i].split("_", 1)[0]
                 if base_label in self.role_to_external_mapping.keys():
                     base_label = self.role_to_external_mapping[base_label]
-                discrete_labels[i] = base_label + '_active'
+                discrete_labels[i] = base_label + "_active"
         return discrete_state, discrete_labels
 
     def create_discrete_observation_from_simulator(self, env):
-        '''
+        """
         Constructs a discrete observation from the physics simulator
         :param world_def:
         :return:
-        '''
+        """
         levers = env.world_def.get_levers()
         self.num_levers = len(levers)
         world_state = env.world_def.get_state()
@@ -175,20 +212,20 @@ class ObservationSpace:
 
         for lever in levers:
             # convert to index based on lever position
-            lever_idx = CONFIG_TO_IDX[lever.position.config]
+            lever_idx = env.config_to_idx[lever.position.config]
 
-            lever_state = np.int8(world_state['OBJ_STATES'][lever.name])
+            lever_state = np.int8(world_state["OBJ_STATES"][lever.name])
             lever_active = np.int8(lever.determine_active())
 
             state_labels[lever_idx] = lever.name
             state[lever_idx] = lever_state
-            state_labels[lever_idx + self.num_levers] = lever.name + '_active'
+            state_labels[lever_idx + self.num_levers] = lever.name + "_active"
             state[lever_idx + self.num_levers] = lever_active
 
-        state_labels[-1] = 'door'
-        state[-1] = np.int8(world_state['OBJ_STATES']['door'])
-        state_labels[-2] = 'door_lock'
-        state[-2] = np.int8(world_state['OBJ_STATES']['door_lock'])
+        state_labels[-1] = "door"
+        state[-1] = np.int8(world_state["OBJ_STATES"]["door"])
+        state_labels[-2] = "door_lock"
+        state[-2] = np.int8(world_state["OBJ_STATES"]["door_lock"])
 
         if self.append_solutions_remaining:
             slns_found, sln_labels = self.determine_solutions_remaining(env)
@@ -198,12 +235,12 @@ class ObservationSpace:
         return state, state_labels
 
     def create_discrete_observation_from_fsm(self, env):
-        '''
+        """
         constructs a discrete observation from the underlying FSM
         Used when the physics simulator is being bypassed
         :param fsmm:
         :return:
-        '''
+        """
         levers = env.scenario.levers
         self.num_levers = len(levers)
         scenario_state = env.scenario.get_state()
@@ -214,29 +251,29 @@ class ObservationSpace:
 
         # lever states
         for lever in levers:
-            lever_idx = CONFIG_TO_IDX[lever.position.config]
+            lever_idx = env.config_to_idx[lever.position.config]
 
             # inactive lever, state is constant
             if re.search(common.INACTIVE_LOCK_REGEX_STR, lever.name):
-                lever_active = np.int8(common.ENTITY_STATES['LEVER_INACTIVE'])
+                lever_active = np.int8(common.ENTITY_STATES["LEVER_INACTIVE"])
             else:
-                lever_active = np.int8(common.ENTITY_STATES['LEVER_ACTIVE'])
+                lever_active = np.int8(common.ENTITY_STATES["LEVER_ACTIVE"])
 
-            lever_state = np.int8(scenario_state['OBJ_STATES'][lever.name])
+            lever_state = np.int8(scenario_state["OBJ_STATES"][lever.name])
 
             state_labels[lever_idx] = lever.name
             state[lever_idx] = lever_state
 
-            state_labels[lever_idx + self.num_levers] = lever.name + '_active'
+            state_labels[lever_idx + self.num_levers] = lever.name + "_active"
             state[lever_idx + self.num_levers] = lever_active
 
         # update door state
-        door_lock_name = 'door_lock'
-        door_lock_state = np.int8(scenario_state['OBJ_STATES'][door_lock_name])
+        door_lock_name = "door_lock"
+        door_lock_state = np.int8(scenario_state["OBJ_STATES"][door_lock_name])
 
         # todo: this is a hack to get whether or not the door is actually open; it should be part of the FSM
-        door_name = 'door'
-        door_state = np.int8(scenario_state['OBJ_STATES'][door_name])
+        door_name = "door"
+        door_state = np.int8(scenario_state["OBJ_STATES"][door_name])
 
         state_labels[-1] = door_name
         state[-1] = door_state
@@ -252,7 +289,7 @@ class ObservationSpace:
 
     def determine_solutions_remaining(self, cur_trial):
         # todo: this does not work currently
-        raise RuntimeError('determine_solutions_remaining() is currently broken')
+        raise RuntimeError("determine_solutions_remaining() is currently broken")
         solutions = cur_trial.solutions
         completed_solutions = cur_trial.completed_solutions
         for i in range(len(completed_solutions)):
@@ -265,7 +302,7 @@ class ObservationSpace:
 
 class OpenLockEnv(gym.Env):
     # Set this in SOME subclasses
-    metadata = {'render.modes': ['human']}  # TODO what does this do?
+    metadata = {"render.modes": ["human"]}  # TODO what does this do?
 
     def __init__(self):
         self.viewer = None
@@ -275,45 +312,91 @@ class OpenLockEnv(gym.Env):
 
         self.i = 0
         self.clock = 0
-        self.save_path = '../OpenLockResults/'
+        self.save_path = "../OpenLockResults/"
 
         self.col_label = []
         self.index_map = None
         self.results = None
 
         self.attempt_count = 0  # keeps track of the number of attempts
-        self.action_count = 0   # keeps track of the number of actions executed
+        self.action_count = 0  # keeps track of the number of actions executed
         self.action_limit = None
         self.attempt_limit = None
 
         self.full_attempt_limit = False
 
-        self.action_executing = False    # used to disable action preemption
+        self.action_executing = False  # used to disable action preemption
 
         self.human_agent = True
-        self.reward_mode = 'basic'
+        self.reward_mode = "basic"
 
-        self.lever_index_mode = 'role'    # controls whether or not to build action_map based on lever role or position
+        self.lever_index_mode = (
+            "role"
+        )  # controls whether or not to build action_map based on lever role or position
         self.observation_space = None
         self.action_space = None
         self.action_map = None
-        self.action_map_external_role = None       # internal action map to go from external to internal latent action
-        self.action_map_internal_role = None       # internal action map to go from internal to internal latent action
+        # internal action map to go from external to internal latent action
+        self.action_map_external_role = None
+        # external action map to go from internal to external action
+        self.action_map_role_external = None
 
         self.reward_strategy = RewardStrategy()
-        self.reward_range = (self.reward_strategy.REWARD_IMMOVABLE, self.reward_strategy.REWARD_OPEN)
+        self.reward_range = (
+            self.reward_strategy.REWARD_IMMOVABLE,
+            self.reward_strategy.REWARD_OPEN,
+        )
 
         self.use_physics = True
 
         self.world_def = None
 
+        self.states = []
+        self.config_to_idx = dict()
+        self.position_to_idx = dict()
+        self.idx_to_position = dict()
+        self.attribute_order = []
+        self.attribute_labels = dict()
+        self.attribute_function_map = {
+            "position": self.get_obj_position_name,
+            "color": self.get_obj_color,
+        }
         # current trial to keep track of progress through this trial
         self.cur_trial = None
         # keeps track of current state. todo: can this safely be removed
-        self.state = None
+        self.cur_state = None
         self.prev_state = None
         # keeps track of which trials have been completed this execution
         self.completed_trials = []
+
+    def initialize_for_scenario(self, scenario_name):
+        self._set_scenario(scenario_name)
+        trial_scenario_name = scenario_name
+
+        _, lever_configs = get_trial(scenario_name)
+
+        self._set_lever_configs(lever_configs)
+        self.config_to_idx = {
+            lever_configs[i].LeverPosition.config: i for i in range(len(lever_configs))
+        }
+        self.position_to_idx = {
+            lever_configs[i].LeverPosition.name: i for i in range(len(lever_configs))
+        }
+        self.idx_to_position = {
+            i: lever_configs[i].LeverPosition.name for i in range(len(lever_configs))
+        }
+        # todo: elegantly include door; at this stage of initialization we don't have access to obj_map
+        door_idx = len(self.config_to_idx.keys())
+        self.config_to_idx[common.ObjectPositionEnum.DOOR.config] = door_idx
+        self.position_to_idx["door"] = door_idx
+        self.idx_to_position[door_idx] = "door"
+
+        self.states = list(self.position_to_idx.keys())
+        self.attribute_order = ["position", "color"]
+        self.attribute_labels = {
+            "color": common.COLOR_LABELS,
+            "position": list(self.position_to_idx.keys()),
+        }
 
     def reset(self):
         """Resets the state of the environment and returns an initial observation.
@@ -322,7 +405,7 @@ class OpenLockEnv(gym.Env):
                 space.
         """
         if self.scenario is None:
-            print('WARNING: resetting environment with no scenario')
+            print("WARNING: resetting environment with no scenario")
 
         self.clock = 0
         self._seed()
@@ -331,7 +414,12 @@ class OpenLockEnv(gym.Env):
             self.init_inverse_kine()
 
             # setup Box2D world
-            self.world_def = ArmLockDef(self.invkine.kinematic_chain, 1.0 / BOX2D_SETTINGS['FPS'], 30, self.scenario)
+            self.world_def = ArmLockDef(
+                self.invkine.kinematic_chain,
+                1.0 / BOX2D_SETTINGS["FPS"],
+                30,
+                self.scenario,
+            )
 
             obj_map = self.world_def.obj_map
             levers = self.world_def.get_levers()
@@ -340,13 +428,12 @@ class OpenLockEnv(gym.Env):
             self.scenario.init_scenario_env()
 
             obj_map = self.scenario.obj_map
-            # todo: this is a dirty hack to get the door in
-            # todo: define a global configuration that includes levers and doors
-            # add door because it is not originally in the map
-            obj_map['door'] = 'door'
+
             levers = self.scenario.levers
 
-        self.action_space, self.action_map, self.action_map_external_role, self.action_map_internal_role = ActionSpace.create_action_space(obj_map, self.lever_index_mode)
+        self.action_space, self.action_map, self.action_map_external_role, self.action_map_role_external = ActionSpace.create_action_space(
+            self, obj_map
+        )
         self.observation_space = ObservationSpace(len(levers))
 
         # reset results (must be after world_def exists and action space has been created)
@@ -370,18 +457,22 @@ class OpenLockEnv(gym.Env):
             if self.human_agent:
                 self.render()
 
-        self.state = self.get_state()
+        self.cur_state = self.get_state()
         # append initial observation
         # self._print_observation(state, self.action_count)
         self._append_result(self._create_state_entry())
-        
+
         self.update_state_machine()
 
         if self.observation_space is not None:
-            discrete_state, discrete_labels = self.observation_space.create_discrete_observation(self)
+            discrete_state, discrete_labels = self.observation_space.create_discrete_observation(
+                self
+            )
             return np.array(discrete_state)
         else:
-            raise ValueError('Attempting to reset environment with no observation space. Cannot return state.')
+            raise ValueError(
+                "Attempting to reset environment with no observation space. Cannot return state."
+            )
 
     def step(self, action):
         """Run one __timestep of the environment's dynamics. When end of
@@ -400,14 +491,16 @@ class OpenLockEnv(gym.Env):
 
         # rendering step
         if not action:
-            self.world_def.step(1.0 / BOX2D_SETTINGS['FPS'],
-                                BOX2D_SETTINGS['VEL_ITERS'],
-                                BOX2D_SETTINGS['POS_ITERS'])
+            self.world_def.step(
+                1.0 / BOX2D_SETTINGS["FPS"],
+                BOX2D_SETTINGS["VEL_ITERS"],
+                BOX2D_SETTINGS["POS_ITERS"],
+            )
 
             # self._render_world_at_frame_rate()
 
-            self.state = self.get_state()
-            self.state['SUCCESS'] = False
+            self.cur_state = self.get_state()
+            self.cur_state["SUCCESS"] = False
             self.update_state_machine()
             # no action, return nothing to indicate no reward possible
             return None
@@ -440,8 +533,8 @@ class OpenLockEnv(gym.Env):
 
             self.i += 1
 
-            self.state = self.get_state()
-            self.state['SUCCESS'] = action_success
+            self.cur_state = self.get_state()
+            self.cur_state["SUCCESS"] = action_success
 
             if observable_action:
                 reward = self.finish_action(action)
@@ -458,14 +551,24 @@ class OpenLockEnv(gym.Env):
 
             self.action_executing = False
 
-            return np.array(discrete_state), reward, done, {'action_success': action_success, 'attempt_success': attempt_success, 'results': self.results, 'state_labels': discrete_labels}
+            return (
+                np.array(discrete_state),
+                reward,
+                done,
+                {
+                    "action_success": action_success,
+                    "attempt_success": attempt_success,
+                    "results": self.results,
+                    "state_labels": discrete_labels,
+                },
+            )
         else:
-            self.state = self.get_state()
+            self.cur_state = self.get_state()
             self.update_state_machine()
             return None
             # return self.state, 0, False, {}
 
-    def render(self, mode='human', close=False):
+    def render(self, mode="human", close=False):
         """Renders the environment.
 
         The set of supported modes varies per environment. (And some
@@ -511,7 +614,9 @@ class OpenLockEnv(gym.Env):
                 return
 
         if self.viewer is not None:
-            self.viewer.render_multiple_worlds([self.world_def.background, self.world_def.world], mode='human')
+            self.viewer.render_multiple_worlds(
+                [self.world_def.background, self.world_def.world], mode="human"
+            )
 
     def _seed(self, seed=None):
         """Sets the seed for this env's random number generator(s).
@@ -531,7 +636,14 @@ class OpenLockEnv(gym.Env):
         pass
 
     # code to run before human and computer trials
-    def setup_trial(self, scenario_name, action_limit, attempt_limit, specified_trial=None, multithreaded=False):
+    def setup_trial(
+        self,
+        scenario_name,
+        action_limit,
+        attempt_limit,
+        specified_trial=None,
+        multiproc=False,
+    ):
         """
         Set the env class variables and select a trial (specified if provided, otherwise a random trial from the scenario name).
 
@@ -542,37 +654,60 @@ class OpenLockEnv(gym.Env):
         :param action_limit: number of actions permitted
         :param attempt_limit: number of attempts permitted
         :param specified_trial: optional specified trial. If none, get_trial is used to select trial
-        :param multithreaded: disables printing if running in multiple threads
+        :param multiproc: disables printing if running in multiple threads
         :return state: state of env after reset
         :return trial_selected: the selected_trial as returned by get_trial or select_trial
         """
-        # update scenario if needed
-        if self.scenario is None or scenario_name is not self.scenario.name:
-            scenario = select_scenario(scenario_name, use_physics=self.use_physics)
-            self.scenario = scenario
+        self._set_scenario(scenario_name)
         # set limits
         self.attempt_count = 0
         self.attempt_limit = attempt_limit
         self.action_limit = action_limit
         # select trial
         if specified_trial is None:
-            trial_selected, lever_configs = get_trial(scenario_name, self.completed_trials)
+            trial_selected, lever_configs = get_trial(
+                scenario_name, self.completed_trials
+            )
             if trial_selected is None:
-                if not multithreaded:
-                    print('WARNING: no more trials available. Resetting completed_trials.')
+                if not multiproc:
+                    print(
+                        "WARNING: no more trials available. Resetting completed_trials."
+                    )
                     print(self.completed_trials)
                 self.completed_trials = []
-                trial_selected, lever_configs = get_trial(scenario_name, self.completed_trials)
+                trial_selected, lever_configs = get_trial(
+                    scenario_name, self.completed_trials
+                )
         else:
             trial_selected, lever_configs = select_trial(specified_trial)
 
-        self.scenario.set_lever_configs(lever_configs)
+        self._set_lever_configs(lever_configs)
         self.observation_space = ObservationSpace(len(self.scenario.levers))
 
-        self.cur_trial = TrialLog(trial_selected, scenario_name, self.scenario.solutions, time.time())
+        self.scenario.init_scenario_env()
+        obj_map = self.scenario.obj_map
+        action_space, action_map, action_map_external_role, action_map_role_external = ActionSpace.create_action_space(
+            self, obj_map
+        )
 
-        if not multithreaded:
-            print("INFO: New trial. There are {} unique solutions remaining.".format(len(self.scenario.solutions)))
+        external_solutions = [
+            [
+                action_map_role_external[str(solution_action)]
+                for solution_action in solution
+            ]
+            for solution in self.scenario.solutions
+        ]
+
+        self.cur_trial = TrialLog(
+            trial_selected, scenario_name, external_solutions, time.time()
+        )
+
+        if not multiproc:
+            print(
+                "INFO: New trial {}. There are {} unique solutions remaining.".format(
+                    trial_selected, len(self.scenario.solutions)
+                )
+            )
 
         return trial_selected
 
@@ -583,8 +718,10 @@ class OpenLockEnv(gym.Env):
         self.attempt_count += 1
 
         # stores whether or not this attempt executed a unique solution
-        # todo: we have to convert to internal representation here; but perhaps it's easier to convert the solutions to whatever representation we are using (position, role, etc)
-        attempt_success = self.cur_trial.finish_attempt(self.results, self.get_current_action_seq(get_internal_action_seq=True))
+        action_seq = self.get_current_action_seq(convert_to_action=True)
+        attempt_success = self.cur_trial.finish_attempt(
+            self.results, action_seq
+        )
 
         pause = self.update_user(attempt_success)
 
@@ -596,8 +733,6 @@ class OpenLockEnv(gym.Env):
                 self.render()
             self.update_state_machine()
 
-        # reset (xxx: this shouldn't happen here, reset should happen after step(), so next_state is set properly
-        # self.state = self.reset()
         self.cur_trial.add_attempt()
 
     def finish_action(self, action):
@@ -610,25 +745,36 @@ class OpenLockEnv(gym.Env):
         # must finish action before computing reward
         self.cur_trial.cur_attempt.finish_action(self.results)
 
-        reward, _ = self.reward_strategy.determine_reward(self, action, self.reward_mode)
+        reward, _ = self.reward_strategy.determine_reward(
+            self, action, self.reward_mode
+        )
 
         # add reward to current attempt
         self.cur_trial.cur_attempt.add_reward(reward)
 
         return reward
 
+    def _set_scenario(self, scenario_name):
+        # update scenario if needed
+        if self.scenario is None or scenario_name is not self.scenario.name:
+            scenario = select_scenario(scenario_name, use_physics=self.use_physics)
+            self.scenario = scenario
+
+    def _set_lever_configs(self, lever_configs):
+        self.scenario.set_lever_configs(lever_configs)
+
     def _reset_results(self):
         # setup .csv headers
         self.col_label = []
-        self.col_label.append('frame')
+        self.col_label.append("frame")
         discrete_states, discrete_labels = self._create_discrete_state()
         for col_name in discrete_labels:
             self.col_label.append(col_name)
-        self.col_label.append('agent')
+        self.col_label.append("agent")
         for col_name in self.action_space:
             self.col_label.append(col_name)
 
-        self.index_map = {name : idx for idx, name in enumerate(self.col_label)}
+        self.index_map = {name: idx for idx, name in enumerate(self.col_label)}
 
         self.results = [self.col_label]
 
@@ -650,11 +796,13 @@ class OpenLockEnv(gym.Env):
         entry = [0] * len(self.col_label)
         entry[0] = self.action_count
         # copy over previous state
-        entry[1:self.index_map['agent']+1] = copy.copy(self.results[-1][1:self.index_map['agent']+1])
+        entry[1 : self.index_map["agent"] + 1] = copy.copy(
+            self.results[-1][1 : self.index_map["agent"] + 1]
+        )
 
         # mark action idx
         if type(action.obj) is str:
-            col = '{}_{}'.format(action.name, action.obj)
+            col = "{}_{}".format(action.name, action.obj)
         else:
             col = action.name
 
@@ -672,15 +820,20 @@ class OpenLockEnv(gym.Env):
         b = 0
         theta_err = sum([e ** 2 for e in self.world_def.pos_controller.error])
         vel_err = sum([e ** 2 for e in self.world_def.vel_controller.error])
-        while theta_err > ENV_SETTINGS['PID_POS_CONV_TOL'] or vel_err > ENV_SETTINGS['PID_VEL_CONV_TOL']:
+        while (
+            theta_err > ENV_SETTINGS["PID_POS_CONV_TOL"]
+            or vel_err > ENV_SETTINGS["PID_VEL_CONV_TOL"]
+        ):
 
-            if b > ENV_SETTINGS['PID_CONV_MAX_STEPS']:
+            if b > ENV_SETTINGS["PID_CONV_MAX_STEPS"]:
                 return False
 
             b += 1
-            self.world_def.step(1.0 / BOX2D_SETTINGS['FPS'],
-                                BOX2D_SETTINGS['VEL_ITERS'],
-                                BOX2D_SETTINGS['POS_ITERS'])
+            self.world_def.step(
+                1.0 / BOX2D_SETTINGS["FPS"],
+                BOX2D_SETTINGS["VEL_ITERS"],
+                BOX2D_SETTINGS["POS_ITERS"],
+            )
 
             # this needs to render to update the arm on the screen
             if self.human_agent:
@@ -692,15 +845,15 @@ class OpenLockEnv(gym.Env):
         return True
 
     def _render_world_at_frame_rate(self):
-        '''
+        """
         render at desired frame rate
-        '''
-        if self.world_def.clock % RENDER_SETTINGS['RENDER_CLK_DIV'] == 0:
+        """
+        if self.world_def.clock % RENDER_SETTINGS["RENDER_CLK_DIV"] == 0:
             self.render()
 
     def update_state_machine_at_frame_rate(self):
-        ''''''
-        if self.world_def.clock % BOX2D_SETTINGS['STATE_MACHINE_CLK_DIV'] == 0:
+        """"""
+        if self.world_def.clock % BOX2D_SETTINGS["STATE_MACHINE_CLK_DIV"] == 0:
             self.update_state_machine()
 
     def update_state_machine(self, action=None):
@@ -708,16 +861,26 @@ class OpenLockEnv(gym.Env):
 
     def init_inverse_kine(self):
         # initialize inverse kinematics module with chain==target
-        self.theta0 = BOX2D_SETTINGS['INITIAL_THETA_VECTOR']
-        self.base0 = BOX2D_SETTINGS['INITIAL_BASE_CONFIG']
-        initial_config = generate_five_arm(self.theta0[0], self.theta0[1], self.theta0[2], self.theta0[3], self.theta0[4])
-        self.base = TwoDKinematicTransform(x=self.base0.x, y=self.base0.y, theta=self.base0.theta)
-        self.invkine = InverseKinematics(KinematicChain(self.base, initial_config),
-                                         KinematicChain(self.base, initial_config))
+        self.theta0 = BOX2D_SETTINGS["INITIAL_THETA_VECTOR"]
+        self.base0 = BOX2D_SETTINGS["INITIAL_BASE_CONFIG"]
+        initial_config = generate_five_arm(
+            self.theta0[0],
+            self.theta0[1],
+            self.theta0[2],
+            self.theta0[3],
+            self.theta0[4],
+        )
+        self.base = TwoDKinematicTransform(
+            x=self.base0.x, y=self.base0.y, theta=self.base0.theta
+        )
+        self.invkine = InverseKinematics(
+            KinematicChain(self.base, initial_config),
+            KinematicChain(self.base, initial_config),
+        )
 
     def _print_observation(self, state, count):
-        print(str(count) + ': ' + str(state['OBJ_STATES']))
-        print(str(count) + ': ' + str(state['_FSM_STATE']))
+        print(str(count) + ": " + str(state["OBJ_STATES"]))
+        print(str(count) + ": " + str(state["_FSM_STATE"]))
 
     def _append_result(self, cur_result):
         self.results.append(cur_result)
@@ -732,40 +895,47 @@ class OpenLockEnv(gym.Env):
         # else:
         #     self.results.append(cur_result)
 
-
     def _create_clickable_regions(self):
         # register clickable regions
         for b2_object_name, b2_object_data in list(self.world_def.obj_map.items()):
-            if re.search(common.LOCK_REGEX_STR, b2_object_name) or re.search(common.INACTIVE_LOCK_REGEX_STR, b2_object_name):
+            if re.search(common.LOCK_REGEX_STR, b2_object_name) or re.search(
+                common.INACTIVE_LOCK_REGEX_STR, b2_object_name
+            ):
                 lock = b2_object_data
 
-                lock.create_clickable(self.step, self.action_map_internal_role)
+                lock.create_clickable(self.step)
                 self.viewer.register_clickable_region(lock.inner_clickable)
                 self.viewer.register_clickable_region(lock.outer_clickable)
                 # lock inactive levers
                 if re.search(common.INACTIVE_LOCK_REGEX_STR, b2_object_name):
                     self.world_def.lock_lever(lock.name)
-            elif b2_object_name == 'door_right_button':
+            elif b2_object_name == "door_right_button":
                 door_button = b2_object_data
-                callback_action = 'push_door'
-                door_button.create_clickable(self.step, self.action_map_internal_role, self.action_map_internal_role[callback_action])
+                door_button.create_clickable(
+                    self.step, callback_action=common.Action("push", "door", 4)
+                )
                 self.viewer.register_clickable_region(door_button.clickable)
-            elif b2_object_name == 'door_left_button':
+            elif b2_object_name == "door_left_button":
                 door_button = b2_object_data
-                callback_action = 'pull_door'
-                door_button.create_clickable(self.step, self.action_map_internal_role, self.action_map_internal_role[callback_action])
+                door_button.create_clickable(
+                    self.step, callback_action=common.Action("pull", "door", 4)
+                )
                 self.viewer.register_clickable_region(door_button.clickable)
-            elif b2_object_name == 'reset_button':
+            elif b2_object_name == "reset_button":
                 reset_button = b2_object_data
-                callback_action = 'reset'
-                reset_button.create_clickable(self.step, self.action_map_internal_role,
-                                              common.Action(callback_action, (reset_button, 4)))
+                callback_action = "reset"
+                reset_button.create_clickable(
+                    self.step,
+                    callback_action=common.Action(callback_action, reset_button, 4),
+                )
                 self.viewer.register_clickable_region(reset_button.clickable)
-            elif b2_object_name == 'save_button':
+            elif b2_object_name == "save_button":
                 save_button = b2_object_data
-                callback_action = 'save'
-                save_button.create_clickable(self.step, self.action_map_internal_role,
-                                             common.Action(callback_action, (save_button, 4)))
+                callback_action = "save"
+                save_button.create_clickable(
+                    self.step,
+                    callback_action=common.Action(callback_action, save_button, 4),
+                )
                 self.viewer.register_clickable_region(save_button.clickable)
 
     def update_user(self, attempt_success, multithreaded=False):
@@ -785,28 +955,45 @@ class OpenLockEnv(gym.Env):
         if self.get_trial_success():
             if not multithreaded:
                 print("INFO: You found all of the solutions. ")
-            pause = True            # pause if they open the door
+            pause = True  # pause if they open the door
         elif self.attempt_count < self.attempt_limit:
             # alert user to the number of solutions remaining
             if attempt_success is True:
                 if not multithreaded:
-                    print("INFO: You found a solution. There are {} unique solutions remaining.".format(num_solutions_remaining))
-                pause = True            # pause if they open the door
+                    print(
+                        "INFO: You found a solution. There are {} unique solutions remaining.".format(
+                            num_solutions_remaining
+                        )
+                    )
+                pause = True  # pause if they open the door
             else:
                 if not multithreaded and self.human_agent:
-                    print("INFO: Ending attempt. Action limit reached. There are {} unique solutions remaining. You have {} attempts remaining.".format(num_solutions_remaining, self.attempt_limit - self.attempt_count))
+                    print(
+                        "INFO: Ending attempt. Action limit reached. There are {} unique solutions remaining. You have {} attempts remaining.".format(
+                            num_solutions_remaining,
+                            self.attempt_limit - self.attempt_count,
+                        )
+                    )
                 # pause if the door lock is missing and the agent is a human
-                if self.human_agent and self.get_state()['OBJ_STATES']['door_lock'] == common.ENTITY_STATES['DOOR_UNLOCKED']:
+                if (
+                    self.human_agent
+                    and self.get_state()["OBJ_STATES"]["door_lock"]
+                    == common.ENTITY_STATES["DOOR_UNLOCKED"]
+                ):
                     pause = True
         else:
             if not multithreaded:
-                print("INFO: Ending trial. Attempt limit reached. You found {} unique solutions".format(len(completed_solutions)))
+                print(
+                    "INFO: Ending trial. Attempt limit reached. You found {} unique solutions".format(
+                        len(completed_solutions)
+                    )
+                )
 
         return pause
 
     def get_state(self):
         if self.use_physics is True and self.world_def is None:
-            raise ValueError('world_def is None while trying to call get_state()')
+            raise ValueError("world_def is None while trying to call get_state()")
         # get state from physics simulator
         if self.use_physics:
             state = self.get_simulator_state()
@@ -831,45 +1018,75 @@ class OpenLockEnv(gym.Env):
         return obj_name
 
     def get_internal_action_name(self, action_str):
-        action_name, obj_name = action_str.split('_', 1)
+        action_name, obj_name = action_str.split("_", 1)
         obj_name = self.get_internal_variable_name(obj_name)
-        return action_name + '_' + obj_name
+        return action_name + "_" + obj_name
 
-    def get_lever_color(self, internal_lever_name):
-        internal_lever_name = self.get_internal_variable_name(internal_lever_name)
+    def get_obj_color(self, obj_name):
+        obj_name = self.get_internal_variable_name(obj_name)
         # todo: this is hacky, refactor, but doors and door_locks have no color attribute
-        if internal_lever_name == 'door_lock' or internal_lever_name == 'door':
-            return 'GREY'
+        if obj_name == "door_lock" or obj_name == "door":
+            return "GREY"
         if self.use_physics:
-            lever = self.world_def.obj_map[internal_lever_name]
+            obj = self.world_def.obj_map[obj_name]
         else:
-            lever = self.scenario.obj_map[internal_lever_name]
-        color = common.COLOR_TO_COLOR_NAME[lever.color]
+            obj = self.scenario.obj_map[obj_name]
+        color = common.COLOR_TO_COLOR_NAME[obj.color]
         return color
 
-    def get_lever_position(self, lever_name):
-        lever_name = self.get_internal_variable_name(lever_name)
+    def get_obj_position_name(self, obj_name):
+        obj_name = self.get_internal_variable_name(obj_name)
         # todo: refactor so there is a single obj_map in env that is set depending upon use_physics
         if self.use_physics:
-            lever = self.world_def.obj_map[lever_name]
+            obj = self.world_def.obj_map[obj_name]
         else:
-            lever = self.scenario.obj_map[lever_name]
-        return lever.position
+            obj = self.scenario.obj_map[obj_name]
+        return obj.position.name
+
+    def get_obj_attributes(self, obj_name):
+        """
+        returns dict of attribute values for obj_name in the simulator.
+        :param obj_name:
+        :return:
+        """
+        obj_name = self.get_internal_variable_name(obj_name)
+        obj_attributes = dict()
+        for attribute_name in self.attribute_order:
+            obj_attributes[attribute_name] = self.attribute_function_map[
+                attribute_name
+            ](obj_name)
+        return obj_attributes
 
     def get_trial_success(self):
         return self.cur_trial.success
 
-    def get_current_action_seq(self, get_internal_action_seq=False):
+    def get_current_action_seq(self, convert_to_str=False, get_internal_action_seq=False, convert_to_action=False):
         cur_action_sequence = self.cur_trial.cur_attempt.action_seq
-        if get_internal_action_seq and self.lever_index_mode != 'role':
-            cur_action_sequence = [ActionLog(self.get_internal_action_name(x.name), x.start_time) for x in cur_action_sequence]
+        if get_internal_action_seq and self.lever_index_mode != "role":
+            cur_action_sequence = [
+                ActionLog(self.get_internal_action_name(x.name), x.start_time)
+                for x in cur_action_sequence
+            ]
+        if convert_to_str:
+            cur_action_sequence = [str(x) for x in cur_action_sequence]
+        if convert_to_action:
+            cur_action_sequence = [common.Action(a.name.split("_")[0], a.name.split("_")[1], None) for a in cur_action_sequence]
         return cur_action_sequence
 
-    def get_completed_solutions(self):
-        return self.cur_trial.completed_solutions
+    def get_completed_solutions(self, convert_to_str=False):
+        completed_solutions = self.cur_trial.completed_solutions
+        if convert_to_str:
+            completed_solutions = [str(x) for x in completed_solutions]
+        return completed_solutions
 
-    def get_solutions(self):
-        return self.cur_trial.solutions
+    def get_solutions(self, convert_to_str=False):
+        solutions =self.cur_trial.solutions
+        if convert_to_str:
+            solutions = [str(x) for x in solutions]
+        return solutions
+
+    def get_num_solutions(self):
+        return len(self.cur_trial.solutions)
 
     def determine_attempt_finished(self):
         if self.action_count >= self.action_limit:
@@ -879,7 +1096,7 @@ class OpenLockEnv(gym.Env):
 
     def determine_door_seq(self):
         # we want the last action to always be push the door, the agent will be punished if the last action is not push the door.
-        cur_action_seq = self.get_current_action_seq(get_internal_action_seq=True)
+        cur_action_seq = self.get_current_action_seq(convert_to_str=True)
         if len(cur_action_seq) == 3:
             door_act = ActionLog("push_door", None)
             if cur_action_seq[-1] == door_act:
@@ -890,13 +1107,13 @@ class OpenLockEnv(gym.Env):
 
     # this function also determines if the action sequence is a duplicate to unlock the door, not just open the door
     def determine_unique_solution(self):
-        cur_action_seq = self.get_current_action_seq(get_internal_action_seq=True)
-        solutions = self.get_solutions()
+        cur_action_seq = self.get_current_action_seq(convert_to_str=True)
+        solutions = self.get_solutions(convert_to_str=True)
         # todo: need more robust way - assumes solutions are all the same length
         if len(cur_action_seq) != len(solutions[0]):
             return False
 
-        completed_solutions = self.get_completed_solutions()
+        completed_solutions = self.get_completed_solutions(convert_to_str=True)
         # if this is a complete action sequence and it is not a solution, return false
         # full action sequence
         # solution is unique if it is in the list of solutions and not in the solutions found
@@ -906,91 +1123,100 @@ class OpenLockEnv(gym.Env):
             return False
 
     def determine_partial_solution(self):
-        '''
+        """
         Determines if the current action sequence is part of a solution
         :return: True if the current action sequence is part of a solution, False otherwise
-        '''
-        cur_action_seq = self.get_current_action_seq(get_internal_action_seq=True)
-        if cur_action_seq in [x[:len(cur_action_seq)] for x in self.get_solutions()]:
+        """
+        cur_action_seq = self.get_current_action_seq(convert_to_str=True)
+        if cur_action_seq in [x[: len(cur_action_seq)] for x in self.get_solutions(convert_to_str=True)]:
             return True
         else:
             return False
 
     def determine_unique_partial_solution(self):
-        cur_action_seq = self.get_current_action_seq(get_internal_action_seq=True)
-        completed_solutions = self.get_completed_solutions()
+        cur_action_seq = self.get_current_action_seq(convert_to_str=True)
+        completed_solutions = self.get_completed_solutions(convert_to_str=True)
         for completed_solution in completed_solutions:
-            if cur_action_seq == completed_solution[:len(cur_action_seq)]:
+            if cur_action_seq == completed_solution[: len(cur_action_seq)]:
                 return False
         # if the partial sequence is not in the completed solutions, just check if the partial sequence is
         # part of the solutions at all
         return self.determine_partial_solution()
 
     def determine_fluent_change(self):
-        prev_fluent_state = self.prev_state['OBJ_STATES']
-        cur_fluent = self.state['OBJ_STATES']
+        prev_fluent_state = self.prev_state["OBJ_STATES"]
+        cur_fluent = self.cur_state["OBJ_STATES"]
         return prev_fluent_state != cur_fluent
 
     def determine_repeated_action(self):
-        cur_action_seq = self.get_current_action_seq(get_internal_action_seq=True)
+        cur_action_seq = self.get_current_action_seq(convert_to_str=True)
         if len(cur_action_seq) >= 2 and cur_action_seq[-2] == cur_action_seq[-1]:
             return True
         return False
 
     def determine_moveable_action(self, action):
-        '''
+        """
         determines if the action is movable. Treats all active levers as movable, regardless of FSM
         If you need to detect if the action will cause an effect, negative the determine_fluent_change function
         :param action:
         :return:
-        '''
+        """
         if self.use_physics:
-            state, labels = self.observation_space.create_discrete_observation_from_simulator(self)
+            state, labels = self.observation_space.create_discrete_observation_from_simulator(
+                self
+            )
         else:
-            state, labels = self.observation_space.create_discrete_observation_from_fsm(self)
+            state, labels = self.observation_space.create_discrete_observation_from_fsm(
+                self
+            )
         obj_name = action.obj
-        if obj_name == 'door':
+        if obj_name == "door":
             # door being movable depends on door lock
-            if state[labels.index('door_lock')] == 1:
+            if state[labels.index("door_lock")] == 1:
                 return False
             else:
                 return True
-        active = state[labels.index(obj_name + '_active')]
+        active = state[labels.index(obj_name + "_active")]
         if active:
             return True
         else:
             return False
-            
+
     def _export_results(self):
-        save_count = len(glob(self.save_path + 'results[0-9]*.csv'))
-        np.savetxt(self.save_path + 'results{}.csv'.format(save_count), self.results, delimiter=',', fmt='%s')
+        save_count = len(glob(self.save_path + "results[0-9]*.csv"))
+        np.savetxt(
+            self.save_path + "results{}.csv".format(save_count),
+            self.results,
+            delimiter=",",
+            fmt="%s",
+        )
 
     def _execute_physics_action(self, action):
-        '''
+        """
         executes an action using the physics simulator
         :param action: action to execute
         :return: action_success: whether or not the action executed successfully
-        '''
+        """
         action_success = False
-        if action.name == 'goto':
+        if action.name == "goto":
             action_success = self._action_go_to(action)
-        elif action.name == 'goto_obj':
+        elif action.name == "goto_obj":
             action_success = self._action_go_to_obj(action)
-        elif action.name == 'rest':
+        elif action.name == "rest":
             action_success = self._action_rest()
-        elif action.name == 'pull':
+        elif action.name == "pull":
             action_success = self._action_pull(action)
-        elif action.name == 'push':
+        elif action.name == "push":
             action_success = self._action_push(action)
-        elif action.name == 'move':
+        elif action.name == "move":
             action_success = self._action_move(action)
-        elif action.name == 'move_end_frame':
+        elif action.name == "move_end_frame":
             action_success = self._action_move_end_frame(action)
-        elif action.name == 'unlock':
+        elif action.name == "unlock":
             action_success = self._action_unlock(action)
-        elif action.name == 'reset':
+        elif action.name == "reset":
             action_success = self._action_reset()
-        elif action.name == 'save':
+        elif action.name == "save":
             action_success = self._action_save()
 
         # update state machine after executing a action
@@ -1004,15 +1230,17 @@ class OpenLockEnv(gym.Env):
 
         # draw arrow to show target location
         args = (targ_x, targ_y, targ_theta, 0.5, 1, common.Color(0.8, 0.8, 0.8))
-        self.viewer.markers['targ_arrow'] = ('arrow', args)
+        self.viewer.markers["targ_arrow"] = ("arrow", args)
 
         # update current config
         self.invkine.kinematic_chain.update_chain(self.world_def.get_rel_config())
 
         # generate discretized waypoints
-        waypoints = discretize_path(self.invkine.kinematic_chain.get_total_delta_config(),
-                                    common.TwoDConfig(targ_x, targ_y, targ_theta),
-                                    ENV_SETTINGS['PATH_INTERP_STEP_DELTA'])
+        waypoints = discretize_path(
+            self.invkine.kinematic_chain.get_total_delta_config(),
+            common.TwoDConfig(targ_x, targ_y, targ_theta),
+            ENV_SETTINGS["PATH_INTERP_STEP_DELTA"],
+        )
 
         if len(waypoints) == 1:
             # already at the target config
@@ -1031,23 +1259,29 @@ class OpenLockEnv(gym.Env):
             a = 0
             err = self.invkine.get_error()
             new_config = None
-            while err > ENV_SETTINGS['INVK_CONV_TOL']:
+            while err > ENV_SETTINGS["INVK_CONV_TOL"]:
 
-                if a > ENV_SETTINGS['INVK_CONV_MAX_STEPS']:
+                if a > ENV_SETTINGS["INVK_CONV_MAX_STEPS"]:
                     return False
                 a = a + 1
 
                 # get delta theta
-                d_theta = self.invkine.get_delta_theta_dls(lam=ENV_SETTINGS['INVK_DLS_LAMBDA'])
+                d_theta = self.invkine.get_delta_theta_dls(
+                    lam=ENV_SETTINGS["INVK_DLS_LAMBDA"]
+                )
 
                 # current theta along convergence path
-                cur_config = self.invkine.kinematic_chain.get_rel_config()  # ignore virtual base link
+                cur_config = (
+                    self.invkine.kinematic_chain.get_rel_config()
+                )  # ignore virtual base link
 
                 # new theta along convergence path
 
                 # TODO: this is messy
-                new_config = [cur_config[0]] + [common.TwoDConfig(cur.x, cur.y, cur.theta + delta) for cur, delta in
-                                                zip(cur_config[1:], d_theta)]
+                new_config = [cur_config[0]] + [
+                    common.TwoDConfig(cur.x, cur.y, cur.theta + delta)
+                    for cur, delta in zip(cur_config[1:], d_theta)
+                ]
 
                 # update inverse kinematics model to reflect step along convergence path
                 self.invkine.kinematic_chain.update_chain(new_config)
@@ -1056,15 +1290,17 @@ class OpenLockEnv(gym.Env):
 
             # theta found, update controllers and wait until controllers converge and stop
             if new_config:
-                if not self.__update_and_converge_controllers([c.theta for c in new_config[1:]]):
+                if not self.__update_and_converge_controllers(
+                    [c.theta for c in new_config[1:]]
+                ):
                     # could not converge
                     return False
 
         # succesfully reached target config
 
         # delete target arrow
-        if 'targ_arrow' in list(self.viewer.markers.keys()):
-            del self.viewer.markers['targ_arrow']
+        if "targ_arrow" in list(self.viewer.markers.keys()):
+            del self.viewer.markers["targ_arrow"]
 
         return True
 
@@ -1098,12 +1334,15 @@ class OpenLockEnv(gym.Env):
 
             angle = np.arctan2(-normal[1], -normal[0])
 
+            end_effector_offset = (
+                end_eff_shape.radius * normal
+            )  # TODO: is this the right offset?
 
-            end_effector_offset = end_eff_shape.radius * normal # TODO: is this the right offset?
-
-            desired_config = common.TwoDConfig(hit_point[0] + end_effector_offset[0],
-                                        hit_point[1] + end_effector_offset[1],
-                                        common.wrapToMinusPiToPi(angle))
+            desired_config = common.TwoDConfig(
+                hit_point[0] + end_effector_offset[0],
+                hit_point[1] + end_effector_offset[1],
+                common.wrapToMinusPiToPi(angle),
+            )
 
             self._action_go_to(desired_config)
 
@@ -1123,31 +1362,44 @@ class OpenLockEnv(gym.Env):
         cur_theta = [cur.theta for cur in self.world_def.get_rel_config()[1:]]
 
         # calculate number of discretized steps
-        delta = [common.wrapToMinusPiToPi(t - c) for t, c in zip(self.theta0, cur_theta)]
+        delta = [
+            common.wrapToMinusPiToPi(t - c) for t, c in zip(self.theta0, cur_theta)
+        ]
 
-        num_steps = max([int(abs(d / ENV_SETTINGS['PATH_INTERP_STEP_DELTA'])) for d in delta])
+        num_steps = max(
+            [int(abs(d / ENV_SETTINGS["PATH_INTERP_STEP_DELTA"])) for d in delta]
+        )
 
         if num_steps == 0:
             # we're already within step_delta of our desired config in all dimensions
             return True
 
-        #TODO: refactor
+        # TODO: refactor
 
         # generate discretized path
         waypoints = []
         for i in range(0, num_steps + 1):
-            waypoints.append([common.wrapToMinusPiToPi(cur + i * d / num_steps) \
-                              for cur, d in zip(cur_theta, delta)])
+            waypoints.append(
+                [
+                    common.wrapToMinusPiToPi(cur + i * d / num_steps)
+                    for cur, d in zip(cur_theta, delta)
+                ]
+            )
 
         # sanity check: we actually reach the target config
 
         # TODO: arbitrary double comparison
-        assert all([abs(common.wrapToMinusPiToPi(waypoints[-1][i] - self.theta0[i]))  < 0.01 for i in range(0, len(self.theta0))])
+        assert all(
+            [
+                abs(common.wrapToMinusPiToPi(waypoints[-1][i] - self.theta0[i])) < 0.01
+                for i in range(0, len(self.theta0))
+            ]
+        )
 
         for waypoint in waypoints:
             if not self.__update_and_converge_controllers(waypoint):
                 return False
-        
+
         return True
 
     def _action_pull(self, action):
@@ -1159,15 +1411,17 @@ class OpenLockEnv(gym.Env):
 
         if not self._action_grasp():
             return False
-        
+
         cur_x, cur_y, cur_theta = self.world_def.get_abs_config()[-1]
         neg_normal = (-np.cos(cur_theta), -np.sin(cur_theta))
-        new_config = common.TwoDConfig(cur_x + neg_normal[0] * distance,
-                                cur_y + neg_normal[1] * distance,
-                                cur_theta)
+        new_config = common.TwoDConfig(
+            cur_x + neg_normal[0] * distance,
+            cur_y + neg_normal[1] * distance,
+            cur_theta,
+        )
 
         if not self._action_go_to(new_config):
-            self._action_grasp() # remove connection
+            self._action_grasp()  # remove connection
             return False
 
         if not self._action_grasp():
@@ -1203,8 +1457,10 @@ class OpenLockEnv(gym.Env):
         if len(self.world_def.grasped_list) > 0:
             # we are already holding something
             for connection in self.world_def.grasped_list:
-                if targ_fixture and not (connection.bodyA == targ_fixture.body or \
-                                        connection.bodyB == targ_fixture.body):
+                if targ_fixture and not (
+                    connection.bodyA == targ_fixture.body
+                    or connection.bodyB == targ_fixture.body
+                ):
                     continue
                 else:
                     self.world_def.world.DestroyJoint(connection)
@@ -1217,29 +1473,36 @@ class OpenLockEnv(gym.Env):
                     fix_A = contact_edge.contact.fixtureA
                     fix_B = contact_edge.contact.fixtureB
 
-                    if targ_fixture and not (fix_A == targ_fixture or fix_B == targ_fixture):
+                    if targ_fixture and not (
+                        fix_A == targ_fixture or fix_B == targ_fixture
+                    ):
                         continue
                     else:
                         # indiscriminate grab or found target
 
                         # find shortest distance between two shapes
-                        dist_result = b2Distance(shapeA=fix_A.shape,
-                                                 shapeB=fix_B.shape,
-                                                 transformA=fix_A.body.transform,
-                                                 transformB=fix_B.body.transform)
+                        dist_result = b2Distance(
+                            shapeA=fix_A.shape,
+                            shapeB=fix_B.shape,
+                            transformA=fix_A.body.transform,
+                            transformB=fix_B.body.transform,
+                        )
 
                         point_A = fix_A.body.GetLocalPoint(dist_result.pointA)
                         point_B = fix_B.body.GetLocalPoint(dist_result.pointB)
 
                         # TODO experiment with other joints
-                        self.world_def.grasped_list.append(self.world_def.world.CreateDistanceJoint(bodyA=fix_A.body,
-                                                                                bodyB=fix_B.body,
-                                                                                localAnchorA=point_A,
-                                                                                localAnchorB=point_B,
-                                                                                frequencyHz=1,
-                                                                                dampingRatio=1,
-                                                                                collideConnected=True
-                                                                                ))
+                        self.world_def.grasped_list.append(
+                            self.world_def.world.CreateDistanceJoint(
+                                bodyA=fix_A.body,
+                                bodyB=fix_B.body,
+                                localAnchorA=point_A,
+                                localAnchorB=point_B,
+                                frequencyHz=1,
+                                dampingRatio=1,
+                                collideConnected=True,
+                            )
+                        )
                 return True
             else:
                 return False
@@ -1249,9 +1512,9 @@ class OpenLockEnv(gym.Env):
 
         cur_x, cur_y, cur_theta = self.world_def.get_abs_config()[-1]
 
-        return self._action_go_to(common.TwoDConfig(cur_x + delta_x,
-                                                    cur_y + delta_y,
-                                                    cur_theta + delta_theta))
+        return self._action_go_to(
+            common.TwoDConfig(cur_x + delta_x, cur_y + delta_y, cur_theta + delta_theta)
+        )
 
     def _action_move_end_frame(self, params):
         delta_x, delta_y, delta_theta = params
@@ -1261,9 +1524,11 @@ class OpenLockEnv(gym.Env):
         x_axis = (np.cos(cur_theta), np.sin(cur_theta))
         y_axis = (-x_axis[1], x_axis[0])
 
-        new_config = common.TwoDConfig(cur_x + x_axis[0] * delta_x + y_axis[0] * delta_y,
-                                       cur_y + x_axis[1] * delta_x + y_axis[1] * delta_y,
-                                       cur_theta + delta_theta)
+        new_config = common.TwoDConfig(
+            cur_x + x_axis[0] * delta_x + y_axis[0] * delta_y,
+            cur_y + x_axis[1] * delta_x + y_axis[1] * delta_y,
+            cur_theta + delta_theta,
+        )
 
         return self._action_go_to(new_config)
 
@@ -1295,11 +1560,9 @@ class OpenLockEnv(gym.Env):
         return self.world_def.scenario.actions
 
 
-
-
 def main():
     env = OpenLockEnv()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
