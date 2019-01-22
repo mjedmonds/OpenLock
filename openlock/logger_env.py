@@ -262,3 +262,17 @@ class TrialLog(object):
         self.success = len(self.solutions) == len(self.completed_solutions)
         self.end_time = end_time
         return self.success
+
+    @property
+    def num_attempts_since_last_solution_found(self):
+        count = 0
+        for solution_found in reversed(self.solution_found):
+            # skip solution we just found
+            if count == 0:
+                count += 1
+                continue
+            if solution_found is True:
+                return count
+            count += 1
+        # if we hit here, we are at the first solution
+        return count
