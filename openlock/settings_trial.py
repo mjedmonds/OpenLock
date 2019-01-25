@@ -287,21 +287,21 @@ LEVER_CONFIGS = {
         LeverConfig(ObjectPositionEnum.LOWERRIGHT, LeverRoleEnum.inactive, None),
     ],
     "simplified_trial2": [
-        LeverConfig(ObjectPositionEnum.UPPERRIGHT, LeverRoleEnum.l0, None),
         LeverConfig(ObjectPositionEnum.UPPERLEFT, LeverRoleEnum.l2, None),
+        LeverConfig(ObjectPositionEnum.UPPERRIGHT, LeverRoleEnum.l0, None),
         LeverConfig(ObjectPositionEnum.LOWERLEFT, LeverRoleEnum.inactive, None),
         LeverConfig(ObjectPositionEnum.LOWERRIGHT, LeverRoleEnum.l1, None),
     ],
     "simplified_trial3": [
-        LeverConfig(ObjectPositionEnum.UPPERRIGHT, LeverRoleEnum.inactive, None),
-        LeverConfig(ObjectPositionEnum.UPPERLEFT, LeverRoleEnum.l2, None),
         LeverConfig(ObjectPositionEnum.LOWERLEFT, LeverRoleEnum.l0, None),
+        LeverConfig(ObjectPositionEnum.UPPERRIGHT, LeverRoleEnum.inactive, None),
         LeverConfig(ObjectPositionEnum.LOWERRIGHT, LeverRoleEnum.l1, None),
+        LeverConfig(ObjectPositionEnum.UPPERLEFT, LeverRoleEnum.l2, None),
     ],
     "simplified_trial4": [
-        LeverConfig(ObjectPositionEnum.UPPERRIGHT, LeverRoleEnum.l2, None),
         LeverConfig(ObjectPositionEnum.UPPERLEFT, LeverRoleEnum.inactive, None),
         LeverConfig(ObjectPositionEnum.LOWERLEFT, LeverRoleEnum.l0, None),
+        LeverConfig(ObjectPositionEnum.UPPERRIGHT, LeverRoleEnum.l2, None),
         LeverConfig(ObjectPositionEnum.LOWERRIGHT, LeverRoleEnum.l1, None),
     ],
 }
