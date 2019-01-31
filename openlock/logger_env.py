@@ -238,8 +238,12 @@ class TrialLog(object):
         """
         if action_seq is None:
             action_seq = self.cur_attempt.action_seq
+        # todo: refactor this; hacky way to deal
+        action_seq_str = [str(x) for x in action_seq]
+        solutions_str = [[str(x) for x in solution] for solution in self.solutions]
+        completed_solutions_str = [[str(x) for x in solution] for solution in self.completed_solutions]
         # check to see if this attempt is a solution that has not been completed already
-        if action_seq in self.solutions and action_seq not in self.completed_solutions:
+        if action_seq_str in solutions_str and action_seq_str not in completed_solutions_str:
             attempt_success = True
             self.completed_solutions.append(self.cur_attempt.action_seq)
         else:
