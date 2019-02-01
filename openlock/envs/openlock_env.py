@@ -411,15 +411,9 @@ class OpenLockEnv(gym.Env):
         self._seed()
 
         if self.use_physics:
-            self.init_inverse_kine()
 
             # setup Box2D world
-            self.world_def = ArmLockDef(
-                self.invkine.kinematic_chain,
-                1.0 / BOX2D_SETTINGS["FPS"],
-                30,
-                self.scenario,
-            )
+            self.world_def = self.init_world_def()
 
             obj_map = self.world_def.obj_map
             levers = self.world_def.get_levers()
@@ -684,7 +678,11 @@ class OpenLockEnv(gym.Env):
         self._set_lever_configs(lever_configs)
         self.observation_space = ObservationSpace(len(self.scenario.levers))
 
-        self.scenario.init_scenario_env()
+        if self.use_physics:
+            world_def = self.init_world_def()
+        else:
+            world_def = None
+        self.scenario.init_scenario_env(world_def=world_def)
         obj_map = self.scenario.obj_map
         action_space, action_map, action_map_external_role, action_map_role_external = ActionSpace.create_action_space(
             self, obj_map
@@ -858,6 +856,15 @@ class OpenLockEnv(gym.Env):
 
     def update_state_machine(self, action=None):
         self.scenario.update_state_machine(action)
+
+    def init_world_def(self):
+        self.init_inverse_kine()
+        return ArmLockDef(
+            self.invkine.kinematic_chain,
+            1.0 / BOX2D_SETTINGS["FPS"],
+            30,
+            self.scenario,
+        )
 
     def init_inverse_kine(self):
         # initialize inverse kinematics module with chain==target

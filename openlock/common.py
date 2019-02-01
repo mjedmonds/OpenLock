@@ -550,7 +550,7 @@ class Button(Object):
         self.color = color
         self.clickable = None
 
-    def create_clickable(self, step, callback_args):
+    def create_clickable(self, step, callback_action):
         vertices = [
             self.fixture.body.GetWorldPoint(vertex)
             for vertex in self.fixture.shape.vertices
@@ -559,7 +559,7 @@ class Button(Object):
         self.clickable = Clickable(
             lambda xy, poly: poly.contains(Point(xy)),
             step,
-            callback_args=[callback_args],
+            callback_args=[callback_action],
             test_args=[poly],
         )
 
