@@ -348,6 +348,7 @@ class OpenLockEnv(gym.Env):
         )
 
         self.use_physics = True
+        self.effect_probabilities = None
 
         self.world_def = None
 
@@ -371,7 +372,6 @@ class OpenLockEnv(gym.Env):
 
     def initialize_for_scenario(self, scenario_name):
         self._set_scenario(scenario_name)
-        trial_scenario_name = scenario_name
 
         _, lever_configs = get_trial(scenario_name)
 
@@ -411,24 +411,16 @@ class OpenLockEnv(gym.Env):
         self._seed()
 
         if self.use_physics:
-
             # setup Box2D world
             self.world_def = self.init_world_def()
-
-            obj_map = self.world_def.obj_map
-            levers = self.world_def.get_levers()
         else:
             # initialize obj_map for scenario
             self.scenario.init_scenario_env()
 
-            obj_map = self.scenario.obj_map
-
-            levers = self.scenario.levers
-
         self.action_space, self.action_map, self.action_map_external_role, self.action_map_role_external = ActionSpace.create_action_space(
-            self, obj_map
+            self, self.obj_map
         )
-        self.observation_space = ObservationSpace(len(levers))
+        self.observation_space = ObservationSpace(len(self.levers))
 
         # reset results (must be after world_def exists and action space has been created)
         self._reset_results()
@@ -519,11 +511,7 @@ class OpenLockEnv(gym.Env):
             else:
                 action_role = action
             # execute action
-            if self.use_physics:
-                action_success = self._execute_physics_action(action_role)
-            else:
-                action_success = True
-                self.scenario.execute_fsm_action(action_role)
+            action_success = self.execute_action(action_role)
 
             self.i += 1
 
@@ -629,6 +617,21 @@ class OpenLockEnv(gym.Env):
             """
         pass
 
+    @property
+    def obj_map(self):
+        if self.use_physics:
+            return self.world_def.obj_map
+        else:
+            return self.scenario.obj_map
+
+    @property
+    def levers(self):
+        if self.use_physics:
+            levers = self.world_def.get_levers()
+        else:
+            levers = self.scenario.levers
+        return levers
+
     # code to run before human and computer trials
     def setup_trial(
         self,
@@ -682,7 +685,7 @@ class OpenLockEnv(gym.Env):
             world_def = self.init_world_def()
         else:
             world_def = None
-        self.scenario.init_scenario_env(world_def=world_def)
+        self.scenario.init_scenario_env(world_def=world_def, effect_probabilities=self.effect_probabilities)
         obj_map = self.scenario.obj_map
         action_space, action_map, action_map_external_role, action_map_role_external = ActionSpace.create_action_space(
             self, obj_map
@@ -751,6 +754,18 @@ class OpenLockEnv(gym.Env):
         self.cur_trial.cur_attempt.add_reward(reward)
 
         return reward
+
+    def execute_action(self, action_role):
+        failure_probability = np.random.sample()
+        if self.use_physics:
+            action_success = self._execute_physics_action(action_role, failure_probability=failure_probability)
+        else:
+            action_success = True
+            self.scenario.execute_fsm_action(action_role, failure_probability=failure_probability)
+        return action_success
+
+    def set_effect_probabilities(self, effect_probabilities):
+        self.effect_probabilities = effect_probabilities
 
     def _set_scenario(self, scenario_name):
         # update scenario if needed
@@ -864,6 +879,7 @@ class OpenLockEnv(gym.Env):
             1.0 / BOX2D_SETTINGS["FPS"],
             30,
             self.scenario,
+            self.effect_probabilities
         )
 
     def init_inverse_kine(self):
@@ -915,7 +931,7 @@ class OpenLockEnv(gym.Env):
                 self.viewer.register_clickable_region(lock.outer_clickable)
                 # lock inactive levers
                 if re.search(common.INACTIVE_LOCK_REGEX_STR, b2_object_name):
-                    self.world_def.lock_lever(lock.name)
+                    self.obj_map[lock.name].lock()
             elif b2_object_name == "door_right_button":
                 door_button = b2_object_data
                 door_button.create_clickable(
@@ -984,8 +1000,7 @@ class OpenLockEnv(gym.Env):
                 # pause if the door lock is missing and the agent is a human
                 if (
                     self.human_agent
-                    and self.get_state()["OBJ_STATES"]["door_lock"]
-                    == common.ENTITY_STATES["DOOR_UNLOCKED"]
+                    and self.determine_door_unlocked()
                 ):
                     pause = True
         else:
@@ -1101,6 +1116,9 @@ class OpenLockEnv(gym.Env):
         else:
             return False
 
+    def determine_door_unlocked(self):
+        return self.get_state()["OBJ_STATES"]["door_lock"] == common.ENTITY_STATES["DOOR_UNLOCKED"]
+
     def determine_door_seq(self):
         # we want the last action to always be push the door, the agent will be punished if the last action is not push the door.
         cur_action_seq = self.get_current_action_seq(convert_to_str=True)
@@ -1189,6 +1207,30 @@ class OpenLockEnv(gym.Env):
         else:
             return False
 
+    def determine_obj_locked(self, obj):
+        return self.obj_map[obj].locked
+
+    def _lock_obj(self, obj):
+        self.obj_map[obj].lock()
+
+    def _unlock_obj(self, obj):
+        self.obj_map[obj].unlock()
+
+    def lock_door(self):
+        self._lock_obj("door")
+
+    def unlock_door(self):
+        self._unlock_obj("door")
+
+    def lock_lever(self, lever):
+        self._lock_obj(lever)
+
+    def unlock_lever(self, lever):
+        self._unlock_obj(lever)
+
+    def get_effect_probability(self, obj):
+        return self.obj_map[obj].effect_probability
+
     def _export_results(self):
         save_count = len(glob(self.save_path + "results[0-9]*.csv"))
         np.savetxt(
@@ -1198,12 +1240,19 @@ class OpenLockEnv(gym.Env):
             fmt="%s",
         )
 
-    def _execute_physics_action(self, action):
+    def _execute_physics_action(self, action, failure_probability):
         """
         executes an action using the physics simulator
         :param action: action to execute
         :return: action_success: whether or not the action executed successfully
         """
+        initially_locked = self.determine_obj_locked(action.obj)
+        action_failed_probabilistically = failure_probability > self.get_effect_probability(action.obj)
+        # failure action, we need to lock the lever now and then unlock it after the action
+        if action_failed_probabilistically:
+            # lock the lever
+            self._lock_obj(action.obj)
+
         action_success = False
         if action.name == "goto":
             action_success = self._action_go_to(action)
@@ -1212,9 +1261,9 @@ class OpenLockEnv(gym.Env):
         elif action.name == "rest":
             action_success = self._action_rest()
         elif action.name == "pull":
-            action_success = self._action_pull(action)
+            action_success = self._action_pull(action, failure_probability)
         elif action.name == "push":
-            action_success = self._action_push(action)
+            action_success = self._action_push(action, failure_probability)
         elif action.name == "move":
             action_success = self._action_move(action)
         elif action.name == "move_end_frame":
@@ -1226,8 +1275,13 @@ class OpenLockEnv(gym.Env):
         elif action.name == "save":
             action_success = self._action_save()
 
-        # update state machine after executing a action
-        self.update_state_machine(action)
+        # only update the state machine if the action did not fail probabilistically
+        if not action_failed_probabilistically:
+            # update state machine after executing a action
+            self.update_state_machine(action)
+        # if the object was initially unlocked, but is now locked (probabilistic failure), unlock the object again
+        if not initially_locked and self.determine_obj_locked(action.obj):
+            self._unlock_obj(action.obj)
 
         return action_success
 
@@ -1409,7 +1463,7 @@ class OpenLockEnv(gym.Env):
 
         return True
 
-    def _action_pull(self, action):
+    def _action_pull(self, action, failure_probability):
         name = action.obj
         distance = action.params
 
@@ -1436,7 +1490,7 @@ class OpenLockEnv(gym.Env):
 
         return True
 
-    def _action_push(self, action):
+    def _action_push(self, action, failure_probability):
         name = action.obj
         distance = action.params
 

@@ -44,11 +44,13 @@ class Scenario(object):
                 role = "inactive{}".format(num_inactive)
                 num_inactive += 1
                 color = common.COLORS["inactive"]
+                effect_probability = 0.0
             else:
                 color = common.COLORS["active"]
+                effect_probability = 1.0
 
             # world_def will be initialized with init_scenario_env
-            lever = common.Lever(role, position, color, opt_params)
+            lever = common.Lever(role, position, color, opt_params, effect_probability)
             self.levers.append(lever)
 
     def add_no_ops(self, lock, pushed, pulled):
@@ -232,7 +234,7 @@ class Scenario(object):
         if self.use_physics:
             # execute state transitions
             # check locks
-            for name, obj in list(self.world_def.obj_map.items()):
+            for name, obj in list(self.obj_map.items()):
                 fsm_name = name + ":"
                 if (
                     "button" not in name
@@ -243,7 +245,6 @@ class Scenario(object):
                         self.execute_push(fsm_name)
                     else:
                         self.execute_pull(fsm_name)
-            # todo, this is a dirty hack to see if the door is actually opened
             if action is not None and action.name is "push" and action.obj == "door":
                 self.push_door()
 
@@ -316,34 +317,38 @@ class Scenario(object):
             self.door_state = common.ENTITY_STATES["DOOR_OPENED"]
             self.update_latent()
 
-    def init_scenario_env(self, world_def=None):
+    def init_scenario_env(self, world_def=None, effect_probabilities=None):
         """
         Initialize the Box2D environment.
 
         :param world_def: world_def to use for physics
         :return: Nothing
         """
+        if effect_probabilities is None:
+            effect_probabilities = common.generate_effect_probabilities()
+
         if self.use_physics and world_def is None:
             raise ValueError(
                 "No world_def passed to init_scenario_env while using physics"
             )
 
         if self.use_physics:
-            # todo: come up with a better way to set self.world_def without passing as an argument here
-            self.world_def = world_def
 
             for lever in self.levers:
+                # assign lever
+                lever.effect_probability = common.assign_effect_probabilities(lever.name, effect_probabilities)
                 if lever.opt_params:
                     lever.create_lever(
-                        self.world_def, lever.position, **lever.opt_params
+                        world_def, lever.position, **lever.opt_params
                     )
                 else:
-                    lever.create_lever(self.world_def, lever.position)
-                self.world_def.obj_map[lever.name] = lever
-            self.obj_map = self.world_def.obj_map
+                    lever.create_lever(world_def, lever.position)
+                world_def.obj_map[lever.name] = lever
+            self.obj_map = world_def.obj_map
         # bypassing physics, obj_map consists of door and levers
         else:
             for lever in self.levers:
+                lever.effect_probability = common.assign_effect_probabilities(lever.name, effect_probabilities)
                 self.obj_map[lever.name] = lever
             # todo: this is a dirty hack to get the door in
             # todo: define a global configuration that includes levers and doors
@@ -356,6 +361,7 @@ class Scenario(object):
                 color=common.COLORS["active"],
                 width=common.DOOR_WIDTH,
                 length=common.DOOR_LENGTH,
+                effect_probability=common.assign_effect_probabilities("door", effect_probabilities)
             )
             self.obj_map["door_lock"] = "door_lock"
 
@@ -384,14 +390,14 @@ class Scenario(object):
             if latent_var == "door:":
                 if (
                     latent_states[latent_var] == "locked,"
-                    and self.world_def.door.lock is None
+                    and not self.obj_map["door"].locked
                 ):
-                    self.world_def.lock_door()
+                    self.obj_map["door"].lock()
                 elif (
                     latent_states[latent_var] == "unlocked,"
-                    and self.world_def.door.lock is not None
+                    and self.obj_map["door"].locked
                 ):
-                    self.world_def.unlock_door()
+                    self.obj_map["door"].unlock()
 
     def _update_observable_objs(self):
         """

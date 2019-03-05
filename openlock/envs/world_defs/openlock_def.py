@@ -117,7 +117,7 @@ class ArmLockContactListener(b2ContactListener):
 
 
 class ArmLockDef(object):
-    def __init__(self, chain, timestep, world_size, scenario):
+    def __init__(self, chain, timestep, world_size, scenario, effect_probabilities):
         super(ArmLockDef, self).__init__()
 
         self.scenario = scenario
@@ -148,7 +148,7 @@ class ArmLockDef(object):
         self.obj_map = dict()
         self.grasped_list = []
         self.__init_arm(x0)
-        self._init_env()
+        self._init_env(effect_probabalities=effect_probabilities)
         self.__init_cascade_controller()
 
         self.contact_listener = ArmLockContactListener(
@@ -246,11 +246,13 @@ class ArmLockDef(object):
                 )
             )
 
-    def _init_env(self):
+    def _init_env(self, effect_probabalities=None):
         """
         Function to initialize buttons and door. This is constant across all scenario. Scenario specific code
         (e.g. lever positions should be in the scenario's init_scenario_env function, which is called here)
         """
+        if effect_probabalities is None:
+            effect_probabalities = common.generate_effect_probabilities()
         # TODO: better setup interface
 
         door_position = common.ObjectPositionEnum.DOOR
@@ -261,6 +263,7 @@ class ArmLockDef(object):
             color=common.COLORS["active"],
             width=common.DOOR_WIDTH,
             length=common.DOOR_LENGTH,
+            effect_probability=effect_probabalities["door"]
         )
         self.obj_map["door"] = self.door
 
@@ -294,7 +297,7 @@ class ArmLockDef(object):
         # TODO: this is a bit of a hack to pass self to init_scenario_env, but there isn't a clean
         # TODO: to have dual references during intialization
         if self.scenario is not None:
-            self.scenario.init_scenario_env(self)
+            self.scenario.init_scenario_env(self, effect_probabalities)
 
     def __init_cascade_controller(self):
         pts = [c.theta for c in self.chain.get_rel_config()[1:]]
@@ -339,23 +342,6 @@ class ArmLockDef(object):
         theta = [c.theta for c in self.get_rel_config()[1:]]
         vel_setpoints = self.pos_controller.update(theta)
         self.vel_controller.set_setpoint(vel_setpoints)
-
-    def lock_door(self):
-        self.door.lock_door(self)
-
-    def unlock_door(self):
-        self.door.unlock_door(self)
-
-    def lock_lever(self, lever):
-        self.obj_map[lever].joint.maxMotorForce = 100000
-
-    def unlock_lever(self, lever):
-        lock = self.obj_map[lever].fixture
-        joint = self.obj_map[lever].joint
-        joint_axis = (-np.sin(lock.body.angle), np.cos(lock.body.angle))
-        joint.maxMotorForce = abs(
-            b2Dot(lock.body.massData.mass * self.world.gravity, b2Vec2(joint_axis))
-        )
 
     def get_abs_config(self):
         config = []
@@ -420,7 +406,7 @@ class ArmLockDef(object):
             # ext state
             "_FSM_STATE": fsm_state,
         }
-        state["OBJ_STATES"]["door_lock"] = self.door.lock_present()
+        state["OBJ_STATES"]["door_lock"] = self.door.lock_state()
         return state
 
     def apply_torque(self, idx, torque):

@@ -18,6 +18,8 @@ ENTITY_STATES = {
     "LEVER_INACTIVE": 0,
 }
 
+MAX_FORCE = 100000
+
 COLOR_LABELS = ["GREY", "WHITE"]
 
 DOOR_WIDTH = 0.5
@@ -115,6 +117,23 @@ COLOR_TO_COLOR_NAME = {
     Color(0.9, 0.9, 0.9): "WHITE",
 }
 
+def generate_effect_probabilities(l0=1.0, l1=1.0, l2=1.0, l3=1.0, door=1.0, others=0.0):
+    return {
+        "l0": l0,
+        "l1": l1,
+        "l2": l2,
+        "l3": l3,
+        "door": door,
+        "others": others
+    }
+
+
+def assign_effect_probabilities(obj_name, effect_probabilities):
+    if obj_name in effect_probabilities.keys():
+        effect_probability = effect_probabilities[obj_name]
+    else:
+        effect_probability = effect_probabilities["others"]
+    return effect_probability
 
 class Action:
     def __init__(self, name, obj, params):
@@ -165,6 +184,7 @@ class Object:
         color=None,
         int_test=None,
         ext_test=None,
+        effect_probability=1.0
     ):
         self.fixture = fixture
         self.joint = joint
@@ -175,11 +195,12 @@ class Object:
         self.name = name
         self.position = position
         self.color = color
+        self.effect_probability = effect_probability
 
 
 class Lever(Object):
-    def __init__(self, name, position, color, opt_params=None):
-        Object.__init__(self, name)
+    def __init__(self, name, position, color, opt_params=None, effect_probability=1.0):
+        Object.__init__(self, name, effect_probability=effect_probability)
 
         # # new
         # self.int_test = lambda joint: ENTITY_STATES['LEVER_PULLED'] if joint.translation < (joint.upperLimit + joint.lowerLimit) / 2.0 else ENTITY_STATES['LEVER_PUSHED']
@@ -196,6 +217,12 @@ class Lever(Object):
         self.color = color
         self.position = position
         self.opt_params = opt_params
+        self.locked = False
+        self.gravity = None
+
+    @property
+    def in_physics_simulator(self):
+        return self.joint is None
 
     def int_test_old(self, joint):
         return joint.translation < (joint.upperLimit + joint.lowerLimit) / 2.0
@@ -223,6 +250,20 @@ class Lever(Object):
         assert self.int_test_old(joint) == self.int_test_new(joint)
         return self.int_test_new(joint)
 
+    def lock(self):
+        if self.in_physics_simulator:
+            self.joint.maxMotorForce = MAX_FORCE
+        self.locked = True
+
+    def unlock(self):
+        if self.in_physics_simulator:
+            lock = self.fixture
+            joint_axis = (-np.sin(lock.body.angle), np.cos(lock.body.angle))
+            self.joint.maxMotorForce = abs(
+                b2Dot(lock.body.massData.mass * self.gravity, b2Vec2(joint_axis))
+            )
+        self.locked = False
+
     def __str__(self):
         return self.name
 
@@ -233,6 +274,7 @@ class Lever(Object):
         self, world_def, position, width=0.5, length=5, lower_lim=-2, upper_lim=0
     ):
         x, y, theta = position.config
+        self.gravity = world_def.world.gravity
 
         fixture_def = b2FixtureDef(
             shape=b2PolygonShape(
@@ -391,10 +433,10 @@ class Lever(Object):
 class Door(Object):
     # def __init__(self, door_fixture, door_joint, int_test, ext_test, name):
     def __init__(
-        self, world_def, name, position, color, width=0.5, length=10, locked=True
+        self, world_def, name, position, color, width=0.5, length=10, locked=True, effect_probability=1.0
     ):
         # Object.__init__(self, name, door_fixture, joint=door_joint, int_test=int_test, ext_test=ext_test)
-        Object.__init__(self, name)
+        Object.__init__(self, name, effect_probability=effect_probability)
 
         # create a modified position to move the door so it's centered at the specified position
         # todo: this doesn't correclty handle shifts in theta
@@ -416,10 +458,10 @@ class Door(Object):
             self.int_test = self.open_test
             self.ext_test = self.open_test
 
-        self.lock = Lock("door_lock", locked)
+        self.door_lock = Lock("door_lock", locked)
 
         if locked:
-            self.lock_door(world_def)
+            self.lock(world_def)
 
         self.color = color
         self.name = "door"
@@ -438,13 +480,17 @@ class Door(Object):
         assert self.open_test_old(door_hinge) == self.open_test_new(door_hinge)
         return self.open_test_new(door_hinge)
 
-    def lock_present(self):
-        if self.lock.locked:
+    @property
+    def locked(self):
+        return self.door_lock.locked
+
+    def lock_state(self):
+        if self.locked:
             return ENTITY_STATES["DOOR_LOCKED"]
         else:
             return ENTITY_STATES["DOOR_UNLOCKED"]
 
-    def lock_door(self, world_def):
+    def lock(self, world_def):
         if world_def is not None:
             theta = self.fixture.body.angle
             length = max([v[0] for v in self.fixture.shape.vertices])
@@ -453,12 +499,12 @@ class Door(Object):
             delta_x = np.cos(theta) * length
             delta_y = np.sin(theta) * length
 
-            self.lock.lock(world_def, self.fixture.body, x, y, delta_x, delta_y)
+            self.door_lock.lock(world_def, self.fixture.body, x, y, delta_x, delta_y)
         else:
-            self.lock.lock()
+            self.door_lock.lock()
 
-    def unlock_door(self, world_def):
-        self.lock.unlock(world_def)
+    def unlock(self, world_def):
+        self.door_lock.unlock(world_def)
 
     def _create_door(self, world_def, position, width=0.5, length=10, locked=True):
         # create door
