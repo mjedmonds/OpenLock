@@ -760,8 +760,7 @@ class OpenLockEnv(gym.Env):
         if self.use_physics:
             action_success = self._execute_physics_action(action_role, failure_probability=failure_probability)
         else:
-            action_success = True
-            self.scenario.execute_fsm_action(action_role, failure_probability=failure_probability)
+            action_success = self._execute_fsm_action(action_role, failure_probability=failure_probability)
         return action_success
 
     def set_effect_probabilities(self, effect_probabilities):
@@ -1240,6 +1239,15 @@ class OpenLockEnv(gym.Env):
             fmt="%s",
         )
 
+    def _execute_fsm_action(self, action, failure_probability):
+        action_failed_probabilistically = failure_probability > self.get_effect_probability(action.obj)
+        # execute the action if it did not fail probabilistically
+        action_success = False
+        if not action_failed_probabilistically:
+            self.scenario.execute_fsm_action(action)
+            action_success = True
+        return action_success
+
     def _execute_physics_action(self, action, failure_probability):
         """
         executes an action using the physics simulator
@@ -1247,6 +1255,7 @@ class OpenLockEnv(gym.Env):
         :return: action_success: whether or not the action executed successfully
         """
         initially_locked = self.determine_obj_locked(action.obj)
+        # action fails if the failure probability is greater than the effect probability
         action_failed_probabilistically = failure_probability > self.get_effect_probability(action.obj)
         # failure action, we need to lock the lever now and then unlock it after the action
         if action_failed_probabilistically:

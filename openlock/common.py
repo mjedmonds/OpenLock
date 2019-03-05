@@ -222,7 +222,7 @@ class Lever(Object):
 
     @property
     def in_physics_simulator(self):
-        return self.joint is None
+        return self.joint is not None
 
     def int_test_old(self, joint):
         return joint.translation < (joint.upperLimit + joint.lowerLimit) / 2.0
@@ -438,6 +438,9 @@ class Door(Object):
         # Object.__init__(self, name, door_fixture, joint=door_joint, int_test=int_test, ext_test=ext_test)
         Object.__init__(self, name, effect_probability=effect_probability)
 
+        # need reference to world def to destroy black dot when door becomes unlocked
+        self.world_def = world_def
+
         # create a modified position to move the door so it's centered at the specified position
         # todo: this doesn't correclty handle shifts in theta
         x, y, theta = position.config
@@ -461,7 +464,7 @@ class Door(Object):
         self.door_lock = Lock("door_lock", locked)
 
         if locked:
-            self.lock(world_def)
+            self.lock()
 
         self.color = color
         self.name = "door"
@@ -490,8 +493,8 @@ class Door(Object):
         else:
             return ENTITY_STATES["DOOR_UNLOCKED"]
 
-    def lock(self, world_def):
-        if world_def is not None:
+    def lock(self):
+        if self.world_def is not None:
             theta = self.fixture.body.angle
             length = max([v[0] for v in self.fixture.shape.vertices])
             x, y = self.fixture.body.position
@@ -499,12 +502,12 @@ class Door(Object):
             delta_x = np.cos(theta) * length
             delta_y = np.sin(theta) * length
 
-            self.door_lock.lock(world_def, self.fixture.body, x, y, delta_x, delta_y)
+            self.door_lock.lock(self.world_def, self.fixture.body, x, y, delta_x, delta_y)
         else:
             self.door_lock.lock()
 
-    def unlock(self, world_def):
-        self.door_lock.unlock(world_def)
+    def unlock(self):
+        self.door_lock.unlock(self.world_def)
 
     def _create_door(self, world_def, position, width=0.5, length=10, locked=True):
         # create door

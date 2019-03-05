@@ -259,6 +259,7 @@ class Scenario(object):
             raise RuntimeError(
                 "Attempting to directly run FSM action without bypassing physics simulator"
             )
+
         obj_name = action.obj
         fsm_name = obj_name + ":"
         # inactive levers are always no-ops in FSM
