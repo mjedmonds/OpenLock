@@ -159,6 +159,11 @@ class Action:
     def __hash__(self):
         return hash(str(self) + str(self.params))
 
+    @staticmethod
+    def make_action_from_str(action_str):
+        name, obj = action_str.split("_")
+        return Action(name, obj, None)
+
 
 class Clickable(object):
     def __init__(self, test, callback, callback_args=[], test_args=[]):
