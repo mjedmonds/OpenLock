@@ -12,6 +12,8 @@ The environment supports a number of scenarios, each of which encode a specific 
 
 <center><img src="http://www.mjedmonds.com/projects/OpenLock/causal_structures.png" alt="causal structures" width="400"></center>
 
+For additional details on the environment, please see the project page for our CogSci 2018 paper: [http://www.mjedmonds.com/projects/OpenLock/CogSci18_OpenLock_CausalRL.html](http://www.mjedmonds.com/projects/OpenLock/CogSci18_OpenLock_CausalRL.html)
+
 ## Installation
 To install:
 
