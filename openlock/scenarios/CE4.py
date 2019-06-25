@@ -47,8 +47,6 @@ class CommonEffect4Scenario(Scenario):
     def __init__(self, use_physics=True):
         super(CommonEffect4Scenario, self).__init__(use_physics=use_physics)
 
-        self.world_def = None  # handle to the Box2D world
-
         self.fsmm = FiniteStateMachineManager(
             scenario=self,
             o_states=self.observable_states,
@@ -136,16 +134,16 @@ class CommonEffect4Scenario(Scenario):
         """
         super(CommonEffect4Scenario, self).update_state_machine(action)
 
-    def init_scenario_env(self, world_def=None):
+    def init_scenario_env(self, world_def=None, effect_probabilities=None):
         """
         initializes the scenario-specific components of the box2d world (e.g. levers)
         :return:
         """
 
-        super(CommonEffect4Scenario, self).init_scenario_env(world_def)
+        super(CommonEffect4Scenario, self).init_scenario_env(world_def, effect_probabilities=effect_probabilities)
 
         if self.use_physics:
-            self.world_def.lock_lever("l0")  # initially lock l3
+            self.obj_map["l0"].lock()  # initially lock l3
 
     def _update_env(self):
         """
@@ -175,9 +173,9 @@ class CommonEffect4Scenario(Scenario):
                     or "l2:pushed," in self.fsmm.observable_fsm.state
                     or "l3:pushed," in self.fsmm.observable_fsm.state
                 ):
-                    self.world_def.unlock_lever("l0")
+                    self.obj_map["l0"].unlock()
                 else:
-                    self.world_def.lock_lever("l0")
+                    self.obj_map["l0"].lock()
 
     # @property
     # def actions(self):

@@ -326,10 +326,6 @@ def generate_attributes_by_trial():
     return attributes_by_trial
 
 
-
-
-
-
 def select_trial(trial):
     return trial, LEVER_CONFIGS[trial]
 

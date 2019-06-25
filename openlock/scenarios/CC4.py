@@ -47,8 +47,6 @@ class CommonCause4Scenario(Scenario):
     def __init__(self, use_physics=True):
         super(CommonCause4Scenario, self).__init__(use_physics=use_physics)
 
-        self.world_def = None  # handle to the Box2D world
-
         self.fsmm = FiniteStateMachineManager(
             scenario=self,
             o_states=self.observable_states,
@@ -158,18 +156,18 @@ class CommonCause4Scenario(Scenario):
         """
         super(CommonCause4Scenario, self).update_state_machine(action)
 
-    def init_scenario_env(self, world_def=None):
+    def init_scenario_env(self, world_def=None, effect_probabilities=None):
         """
         initializes the scenario-specific components of the box2d world (e.g. levers)
         :return:
         """
 
-        super(CommonCause4Scenario, self).init_scenario_env(world_def)
+        super(CommonCause4Scenario, self).init_scenario_env(world_def, effect_probabilities=effect_probabilities)
 
         if self.use_physics:
-            self.world_def.lock_lever("l1")  # initially lock l1
-            self.world_def.lock_lever("l2")  # initially lock l2
-            self.world_def.lock_lever("l3")  # initially lock l3
+            self.obj_map["l1"].lock()  # initially lock l1
+            self.obj_map["l2"].lock()  # initially lock l2
+            self.obj_map["l3"].lock()  # initially lock l3
 
     def _update_env(self):
         """
@@ -195,21 +193,21 @@ class CommonCause4Scenario(Scenario):
             if observable_var == "l1:":
                 # l1 unlocks if l0 is pushed
                 if "l0:pushed," in self.fsmm.observable_fsm.state:
-                    self.world_def.unlock_lever("l1")
+                    self.obj_map["l1"].unlock()
                 else:
-                    self.world_def.lock_lever("l1")
+                    self.obj_map["l1"].lock()
             if observable_var == "l2:":
                 # l2 unlocks if l0 is pushed
                 if "l0:pushed," in self.fsmm.observable_fsm.state:
-                    self.world_def.unlock_lever("l2")
+                    self.obj_map["l2"].unlock()
                 else:
-                    self.world_def.lock_lever("l2")
+                    self.obj_map["l2"].lock()
             if observable_var == "l3:":
                 # l3 unlocks if l0 is pushed
                 if "l0:pushed," in self.fsmm.observable_fsm.state:
-                    self.world_def.unlock_lever("l3")
+                    self.obj_map["l3"].unlock()
                 else:
-                    self.world_def.lock_lever("l3")
+                    self.obj_map["l3"].lock()
 
     # @property
     # def actions(self):

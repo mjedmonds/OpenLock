@@ -209,12 +209,12 @@ class MultiLockScenario(object):
                     latent_states[latent_var] == "locked,"
                     and self.world_def.door_lock is None
                 ):
-                    self.world_def.lock_door()
+                    self.world_def.lock()
                 elif (
                     latent_states[latent_var] == "unlocked,"
                     and self.world_def.door_lock is not None
                 ):
-                    self.world_def.unlock_door()
+                    self.world_def.unlock()
 
     def _update_observable_objs(self):
         """
