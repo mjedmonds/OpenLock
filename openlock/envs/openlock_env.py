@@ -326,6 +326,7 @@ class OpenLockEnv(gym.Env):
         self.full_attempt_limit = False
 
         self.action_executing = False  # used to disable action preemption
+        self.pausing = False
 
         self.human_agent = True
         self.reward_mode = "basic"
@@ -491,7 +492,7 @@ class OpenLockEnv(gym.Env):
             # no action, return nothing to indicate no reward possible
             return None
         # change to simple "else:" to enable action preemption
-        elif self.action_executing is False:
+        elif self.action_executing is False and self.pausing is False:
             self.action_executing = True
             self.i += 1
             reset = False
@@ -503,6 +504,8 @@ class OpenLockEnv(gym.Env):
             observable_action = self._create_pre_obs_entry(action)
             if observable_action:
                 # ack is used by manager to determine if the action needs to be logged in the agent's logger
+                if self.cur_trial.cur_attempt is None:
+                    print("problem")
                 self.cur_trial.cur_attempt.add_action(str(action))
 
             # convert external action to internal action
@@ -724,10 +727,10 @@ class OpenLockEnv(gym.Env):
             self.results, action_seq
         )
 
-        pause = self.update_user(attempt_success)
+        self.pausing = self.update_user(attempt_success)
 
         # pauses if the human user unlocked the door but didn't push on the door
-        if self.use_physics and self.human_agent and pause:
+        if self.use_physics and self.human_agent and self.pausing:
             # pause for 4 sec to allow user to view lock
             t_end = time.time() + 4
             while time.time() < t_end:
@@ -735,6 +738,7 @@ class OpenLockEnv(gym.Env):
             self.update_state_machine()
 
         self.cur_trial.add_attempt()
+        self.pausing = False
 
     def finish_action(self, action):
         self.action_count += 1
