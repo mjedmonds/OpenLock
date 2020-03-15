@@ -14,3 +14,4 @@ zmq
 texttable
 sphinx
 seaborn
+future
