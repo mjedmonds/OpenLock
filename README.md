@@ -26,12 +26,10 @@ sudo apt-get install python3-tk graphviz graphviz-dev
 
 2. Create a virtual envrionment for OpenLock. Then run:
 ```
-pip3 install -r requirements.txt
+python setup.py install
 ```
 
-3. Finally, install pybox2d from source (https://github.com/pybox2d/pybox2d/blob/master/INSTALL.md)
-
-4. You may run into problems with modules. If you run into "ImportError: No module named 'future'", run `pip3 install future`.
+3. Finally, install pybox2d 2.3.2 from source (https://github.com/pybox2d/pybox2d/blob/master/INSTALL.md)
 
 ## Bibtex
 If you use this environment in your work, please use the following citation:
