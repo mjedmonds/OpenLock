@@ -189,6 +189,7 @@ class ObservationSpace:
         for i in range(len(discrete_labels)):
             if discrete_labels[i] in self.role_to_external_mapping.keys():
                 discrete_labels[i] = self.role_to_external_mapping[discrete_labels[i]]
+            # active indicates color (grey = active. white = inactive) see ENTITY_STATES for values
             if discrete_labels[i].endswith("_active"):
                 base_label = discrete_labels[i].split("_", 1)[0]
                 if base_label in self.role_to_external_mapping.keys():
@@ -532,12 +533,12 @@ class OpenLockEnv(gym.Env):
                 done = True
                 attempt_success = self.determine_unique_solution()
 
-            discrete_state, discrete_labels = self._create_discrete_state()
+            discrete_state, discrete_labels = self.get_discrete_state()
 
             self.action_executing = False
 
             return (
-                np.array(discrete_state),
+                discrete_state,
                 reward,
                 done,
                 {
@@ -634,6 +635,8 @@ class OpenLockEnv(gym.Env):
         else:
             levers = self.scenario.levers
         return levers
+
+
 
     # code to run before human and computer trials
     def setup_trial(
@@ -783,7 +786,7 @@ class OpenLockEnv(gym.Env):
         # setup .csv headers
         self.col_label = []
         self.col_label.append("frame")
-        discrete_states, discrete_labels = self._create_discrete_state()
+        discrete_states, discrete_labels = self.get_discrete_state()
         for col_name in discrete_labels:
             self.col_label.append(col_name)
         self.col_label.append("agent")
@@ -794,12 +797,16 @@ class OpenLockEnv(gym.Env):
 
         self.results = [self.col_label]
 
-    def _create_discrete_state(self):
-        return self.observation_space.create_discrete_observation(self)
+    def get_actions(self):
+        return list(self.action_map.keys())
+
+    def get_discrete_state(self):
+        discrete_state, discrete_labels = self.observation_space.create_discrete_observation(self)
+        return np.array(discrete_state), discrete_labels
 
     def _create_state_entry(self):
         frame = self.action_count
-        discrete_state, discrete_labels = self._create_discrete_state()
+        discrete_state, discrete_labels = self.get_discrete_state()
         entry = [0] * len(self.col_label)
         entry[0] = frame
         for name, val in zip(discrete_labels, discrete_state):

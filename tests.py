@@ -1,12 +1,10 @@
 import gym
 import random
-import sys
 import jsonpickle
-from openlock.settings_scenario import select_scenario
 
 # NOTE: to run this code, the OpenLockAgents must be in your PYTHONPATH
-from openlockagents.agent import Agent, ROOT_DIR
-from openlockagents.logger_agent import SubjectWriter
+from openlockagents.common.agent import Agent, ROOT_DIR
+from openlockagents.common.logger_agent import SubjectWriter
 
 
 class ActionTest:
