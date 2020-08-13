@@ -797,9 +797,6 @@ class OpenLockEnv(gym.Env):
 
         self.results = [self.col_label]
 
-    def get_actions(self):
-        return list(self.action_map.keys())
-
     def get_discrete_state(self):
         discrete_state, discrete_labels = self.observation_space.create_discrete_observation(self)
         return np.array(discrete_state), discrete_labels
@@ -1043,6 +1040,9 @@ class OpenLockEnv(gym.Env):
     def get_num_solutions_remaining(self):
         return len(self.get_solutions()) - len(self.get_completed_solutions())
 
+    def get_attributes(self):
+        return self.attribute_labels
+
     def get_internal_variable_name(self, obj_name):
         # need to convert to internal object name
         if obj_name in self.observation_space.external_to_role_mapping.keys():
@@ -1053,6 +1053,15 @@ class OpenLockEnv(gym.Env):
         action_name, obj_name = action_str.split("_", 1)
         obj_name = self.get_internal_variable_name(obj_name)
         return action_name + "_" + obj_name
+
+    def get_actions(self):
+        return list(self.action_map.keys())
+
+    def get_base_actions(self):
+        actions = self.get_actions()
+        # action should be baseaction_lever. We want to extract baseaction (e.g. push, pull)
+        actions = list(set([x.split("_", 1)[0] for x in actions]))
+        return actions
 
     def get_obj_color(self, obj_name):
         obj_name = self.get_internal_variable_name(obj_name)
