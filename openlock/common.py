@@ -466,7 +466,7 @@ class Door(Object):
             self.int_test = self.open_test
             self.ext_test = self.open_test
 
-        self.door_lock = Lock("door_lock", locked)
+        self.door_lock = Lock("door_lock", locked, position)
 
         if locked:
             self.lock()
@@ -555,8 +555,8 @@ class Door(Object):
 
 
 class Lock(Object):
-    def __init__(self, name, locked):
-        Object.__init__(self, name)
+    def __init__(self, name, locked, position=None):
+        Object.__init__(self, name, position)
         self.locked = locked
 
     def lock(

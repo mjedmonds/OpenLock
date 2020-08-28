@@ -364,7 +364,7 @@ class Scenario(object):
                 length=common.DOOR_LENGTH,
                 effect_probability=common.assign_effect_probabilities("door", effect_probabilities)
             )
-            self.obj_map["door_lock"] = "door_lock"
+            self.obj_map["door_lock"] = self.obj_map["door"].door_lock
 
     def _update_env(self):
         """

@@ -1111,7 +1111,7 @@ class OpenLockEnv(gym.Env):
         if convert_to_str:
             cur_action_sequence = [str(x) for x in cur_action_sequence]
         if convert_to_action:
-            cur_action_sequence = [common.Action(a.name.split("_")[0], a.name.split("_")[1], None) for a in cur_action_sequence]
+            cur_action_sequence = [common.Action.make_action_from_str(a.name) for a in cur_action_sequence]
         return cur_action_sequence
 
     def get_completed_solutions(self, convert_to_str=False):
