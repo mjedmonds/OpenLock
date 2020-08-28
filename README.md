@@ -17,19 +17,17 @@ For additional details on the environment, please see the project page for our C
 ## Installation
 To install:
 
-1. Use Python 3.5+
+1. Use Python 3.5+ (tested on Python 3.6 and 3.8)
 
-2. Install the following system-level packages:
+2. Install the following system packages:
 ```
 sudo apt-get install python3-tk graphviz graphviz-dev
 ```
 
-2. Create a virtual envrionment for OpenLock. Then run:
+2. Create a virtual envrionment for OpenLock. We recommend using `conda` due [pybox2d](https://github.com/pybox2d/pybox2d)'s installation:
 ```
-python setup.py install
+conda create -n openlock -c conda-forge python=3.8 pybox2d
 ```
-
-3. Finally, install pybox2d 2.3.2 from source (https://github.com/pybox2d/pybox2d/blob/master/INSTALL.md)
 
 ## Bibtex
 If you use this environment in your work, please use the following citation:
