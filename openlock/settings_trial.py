@@ -114,17 +114,17 @@ IDX_TO_PARAMS = ["CE3-CE4", "CE3-CC4", "CC3-CE4", "CC3-CC4", "CE4", "CC4"]
 # }
 #
 # # mapping from position indices to position names
-# IDX_TO_POSITION = {
-#     0: "UPPERRIGHT",
-#     1: "UPPER",
-#     2: "UPPERLEFT",
-#     3: "LEFT",
-#     4: "LOWERLEFT",
-#     5: "LOWER",
-#     6: "LOWERRIGHT",
-#     7: "door",
-#     # 8: 'door_lock'
-# }
+IDX_TO_POSITION = {
+    0: "UPPERRIGHT",
+    1: "UPPER",
+    2: "UPPERLEFT",
+    3: "LEFT",
+    4: "LOWERLEFT",
+    5: "LOWER",
+    6: "LOWERRIGHT",
+    7: "door",
+    # 8: 'door_lock'
+}
 #
 # # mapping from position names to position indices
 # POSITION_TO_IDX = {

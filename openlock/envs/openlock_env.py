@@ -1098,6 +1098,12 @@ class OpenLockEnv(gym.Env):
             ](obj_name)
         return obj_attributes
 
+    def get_all_obj_attributes(self):
+        result = dict()
+        for obj in self.states:
+            result[obj] = self.get_obj_attributes(obj)
+        return result
+
     def get_trial_success(self):
         return self.cur_trial.success
 
