@@ -331,10 +331,14 @@ def select_trial(trial):
 
 
 def get_possible_trials(name):
-    if name != "CE4" and name != "CC4":
+    if name == "CE3" or name == "CC3":
         return THREE_LEVER_TRIALS
-    else:
+    if name == "CE3_simplified" or name == "CC3_simplified":
+        return SIMPLIFIED_THREE_LEVER_TRIALS
+    if name == "CE4" or name == "CC4":
         return FOUR_LEVER_TRIALS
+    else:
+        raise ValueError("Unknown trial type")
 
 
 def get_trial(scenario_name, completed_trials=None):
