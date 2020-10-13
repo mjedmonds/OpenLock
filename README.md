@@ -36,7 +36,7 @@ If you use this environment in your work, please use the following citation:
 ```
 @inproceedings{edmonds2018human,
   title={Human Causal Transfer: Challenges for Deep Reinforcement Learning},
-  author={Edmonds, Mark and Kubricht, James, Feng and Summers, Colin and Zhu, Yixin and Rothrock, Brandon and Zhu, Song-Chun and Lu, Hongjing},
+  author={Edmonds, Mark and Kubricht, James and Summers, Colin and Zhu, Yixin and Rothrock, Brandon and Zhu, Song-Chun and Lu, Hongjing},
   booktitle={40th Annual Meeting of the Cognitive Science Society},
   year={2018}
 }
