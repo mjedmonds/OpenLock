@@ -1,5 +1,5 @@
 gym==0.10.5
-numpy<1.19.0,>1.16.0
+numpy<1.19.0,>=1.16.0
 pyglet
 pygraphviz
 pymdptoolbox
