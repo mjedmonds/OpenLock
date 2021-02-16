@@ -29,6 +29,11 @@ sudo apt-get install python3-tk graphviz graphviz-dev
 conda create -n openlock -c conda-forge python=3.8 pybox2d
 ```
 
+3. Install OpenLock
+```
+python setup.py install
+```
+
 ## Bibtex
 If you use this environment in your work, please use the following citation:
 ```
